@@ -44,14 +44,26 @@ function MobileNavIcon({ navKey }: { navKey: NavKey }) {
   }
 }
 
+const ALL_PERSPECTIVE_ROLES = [
+  { value: 'PlatformAdmin', label: 'Admin (default)' },
+  { value: 'PatientAdvocate', label: 'Patient Advocate' },
+  { value: 'Clinician', label: 'Clinician' },
+  { value: 'Researcher', label: 'Researcher' },
+  { value: 'HubCoordinator', label: 'Hub Coordinator' },
+  { value: 'IndustryPartner', label: 'Industry Partner' },
+  { value: 'BoardMember', label: 'Board Member' },
+]
+
 interface TopNavProps {
   userName: string
   userRole: string
   userInitials: string
   unreadCount?: number
+  isAdmin?: boolean
+  viewAsRole?: string | null
 }
 
-export function TopNav({ userName, userRole, userInitials, unreadCount = 0 }: TopNavProps) {
+export function TopNav({ userName, userRole, userInitials, unreadCount = 0, isAdmin = false, viewAsRole }: TopNavProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [profileOpen, setProfileOpen] = useState(false)
@@ -138,6 +150,32 @@ export function TopNav({ userName, userRole, userInitials, unreadCount = 0 }: To
             </span>
           </Link>
         </div>
+
+        {/* Center: perspective switcher (admin only, lg+ screens) */}
+        {isAdmin && (
+          <div className="hidden items-center gap-2 lg:flex">
+            <span className="text-xs text-neutral-400">👁 View as</span>
+            <select
+              value={viewAsRole ?? 'PlatformAdmin'}
+              onChange={(e) => {
+                const val = e.target.value
+                if (val === 'PlatformAdmin') {
+                  document.cookie = 'i2l-view-as-role=; path=/; max-age=0'
+                } else {
+                  document.cookie = `i2l-view-as-role=${val}; path=/; max-age=86400; SameSite=Lax`
+                }
+                router.push('/app/dashboard')
+                router.refresh()
+              }}
+              className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-700 outline-none ring-orange-300 focus:ring"
+              aria-label="Switch stakeholder perspective"
+            >
+              {ALL_PERSPECTIVE_ROLES.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Right: notifications + profile */}
         <div className="flex items-center gap-2">

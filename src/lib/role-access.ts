@@ -17,6 +17,7 @@ export type NavKey =
   | 'partners'
   | 'notifications'
   | 'profile'
+  | 'admin'
 
 export type NavItemConfig = {
   key: NavKey
@@ -33,7 +34,7 @@ const ACCESS_BY_ROLE: Record<PlatformRole, string[]> = {
   IndustryPartner:  ['dashboard', 'partners', 'congress', 'resources', 'notifications', 'profile'],
   BoardMember:      ['dashboard', 'initiatives', 'congress', 'resources', 'notifications', 'profile'],
   HubCoordinator:   ['dashboard', 'bureau', 'initiatives', 'tasks', 'congress', 'partners', 'resources', 'notifications', 'profile'],
-  PlatformAdmin:    ['dashboard', 'bureau', 'initiatives', 'tasks', 'congress', 'partners', 'resources', 'notifications', 'profile'],
+  PlatformAdmin:    ['dashboard', 'bureau', 'initiatives', 'tasks', 'congress', 'partners', 'resources', 'notifications', 'profile', 'admin'],
 }
 
 const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
@@ -91,6 +92,7 @@ const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
     { key: 'congress',      label: 'Congress',        href: '/app/congress' },
     { key: 'partners',      label: 'Partners',        href: '/app/partners' },
     { key: 'resources',     label: 'Resources',       href: '/app/resources' },
+    { key: 'admin',         label: 'User Management', href: '/app/admin/users' },
     { key: 'profile',       label: 'Profile',         href: '/app/profile' },
   ],
 }

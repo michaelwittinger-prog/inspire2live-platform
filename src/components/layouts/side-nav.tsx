@@ -52,6 +52,12 @@ const ProfileIcon = () => (
   </svg>
 )
 
+const AdminIcon = () => (
+  <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+  </svg>
+)
+
 function iconForKey(key: NavKey) {
   switch (key) {
     case 'dashboard':
@@ -70,6 +76,8 @@ function iconForKey(key: NavKey) {
       return <PartnerIcon />
     case 'profile':
       return <ProfileIcon />
+    case 'admin':
+      return <AdminIcon />
     default:
       return <BoardIcon />
   }
@@ -77,11 +85,17 @@ function iconForKey(key: NavKey) {
 
 interface SideNavProps {
   role: string
+  actualRole?: string
 }
 
-export function SideNav({ role }: SideNavProps) {
+export function SideNav({ role, actualRole }: SideNavProps) {
   const pathname = usePathname()
-  const items = getSideNavItems(role)
+  let items = getSideNavItems(role)
+
+  // Always show admin link when actual role is PlatformAdmin (even in view-as mode)
+  if (actualRole === 'PlatformAdmin' && !items.some((i) => i.key === 'admin')) {
+    items = [...items, { key: 'admin', label: 'User Management', href: '/app/admin/users' }]
+  }
 
   return (
     <aside
