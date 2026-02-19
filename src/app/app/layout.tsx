@@ -53,7 +53,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       />
       <div className="flex min-h-0 flex-1">
         <SideNav role={role} />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main
+          className="flex-1 overflow-y-auto px-3 py-4 md:p-6"
+          role="main"
+          aria-label="Page content"
+        >
+          {children}
+        </main>
       </div>
     </div>
   )

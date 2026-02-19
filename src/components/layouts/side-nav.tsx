@@ -84,8 +84,12 @@ export function SideNav({ role }: SideNavProps) {
   const items = getSideNavItems(role)
 
   return (
-    <aside className="hidden w-56 shrink-0 border-r border-neutral-200 bg-white lg:flex lg:flex-col">
-      <nav className="flex flex-col gap-0.5 p-3 pt-4">
+    <aside
+      className="hidden w-56 shrink-0 border-r border-neutral-200 bg-white lg:flex lg:flex-col"
+      role="complementary"
+      aria-label="Sidebar navigation"
+    >
+      <nav className="flex flex-col gap-0.5 p-3 pt-4" aria-label="Main navigation">
         {items.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
           return (
