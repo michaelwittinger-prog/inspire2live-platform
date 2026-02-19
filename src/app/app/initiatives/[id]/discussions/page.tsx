@@ -6,9 +6,11 @@ export default async function InitiativeDiscussionsPage({
   params,
   searchParams,
 }: {
-  params: { id: string }
-  searchParams: { type?: string }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ type?: string }>
 }) {
+  const { id } = await params
+  const sp = await searchParams
   const supabase = await createClient()
 
   const { data } = await supabase
@@ -16,11 +18,11 @@ export default async function InitiativeDiscussionsPage({
     .select(
       'id, title, content, thread_type, is_pinned, reply_count, created_at, author:profiles!discussions_author_id_fkey(name)',
     )
-    .eq('initiative_id', params.id)
+    .eq('initiative_id', id)
     .order('is_pinned', { ascending: false })
     .order('created_at', { ascending: false })
 
-  const typeFilter = searchParams.type ?? 'all'
+  const typeFilter = sp.type ?? 'all'
 
   type DiscussionRow = {
     id: string
@@ -38,7 +40,7 @@ export default async function InitiativeDiscussionsPage({
   )
 
   const threadTypes = ['general', 'decision', 'question', 'blocker', 'idea']
-  const baseUrl = `/app/initiatives/${params.id}/discussions`
+  const baseUrl = `/app/initiatives/${id}/discussions`
 
   return (
     <div className="space-y-4">

@@ -10,8 +10,9 @@ import {
 export default async function InitiativeTeamPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   const supabase = await createClient()
 
   const { data } = await supabase
@@ -19,7 +20,7 @@ export default async function InitiativeTeamPage({
     .select(
       'id, role, joined_at, profile:profiles!initiative_members_user_id_fkey(id, name, role, avatar_url, organization, country, last_active_at)',
     )
-    .eq('initiative_id', params.id)
+    .eq('initiative_id', id)
     .order('joined_at', { ascending: true })
 
   type MemberRow = {

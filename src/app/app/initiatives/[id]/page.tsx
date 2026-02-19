@@ -4,28 +4,29 @@ import { milestoneStatusConfig } from '@/lib/initiative-workspace'
 export default async function InitiativeOverviewPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   const supabase = await createClient()
 
   const [{ data: initiative }, { data: milestones }, { data: activity }] = await Promise.all([
     supabase
       .from('initiatives')
       .select('id, title, description, phase, status, countries, objectives')
-      .eq('id', params.id)
+      .eq('id', id)
       .maybeSingle(),
 
     supabase
       .from('milestones')
       .select('id, title, status, target_date, sort_order')
-      .eq('initiative_id', params.id)
+      .eq('initiative_id', id)
       .order('sort_order', { ascending: true })
       .order('target_date', { ascending: true }),
 
     supabase
       .from('activity_log')
       .select('id, action, entity_type, created_at')
-      .eq('initiative_id', params.id)
+      .eq('initiative_id', id)
       .order('created_at', { ascending: false })
       .limit(8),
   ])

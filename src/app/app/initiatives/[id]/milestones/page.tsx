@@ -4,14 +4,15 @@ import { milestoneStatusConfig } from '@/lib/initiative-workspace'
 export default async function InitiativeMilestonesPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   const supabase = await createClient()
 
   const { data } = await supabase
     .from('milestones')
     .select('id, title, description, status, target_date, completed_date, evidence_required, sort_order')
-    .eq('initiative_id', params.id)
+    .eq('initiative_id', id)
     .order('sort_order', { ascending: true })
     .order('target_date', { ascending: true })
 

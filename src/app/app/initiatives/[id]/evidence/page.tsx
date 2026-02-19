@@ -6,9 +6,11 @@ export default async function InitiativeEvidencePage({
   params,
   searchParams,
 }: {
-  params: { id: string }
-  searchParams: { type?: string; view?: string }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ type?: string; view?: string }>
 }) {
+  const { id } = await params
+  const sp = await searchParams
   const supabase = await createClient()
 
   const { data } = await supabase
@@ -16,11 +18,11 @@ export default async function InitiativeEvidencePage({
     .select(
       'id, title, type, version, language, translation_status, is_partner_contribution, partner_organization, created_at, uploader:profiles!resources_uploaded_by_id_fkey(name)',
     )
-    .eq('initiative_id', params.id)
+    .eq('initiative_id', id)
     .order('created_at', { ascending: false })
 
-  const typeFilter = searchParams.type ?? 'all'
-  const view = searchParams.view ?? 'grid'
+  const typeFilter = sp.type ?? 'all'
+  const view = sp.view ?? 'grid'
 
   type ResourceRow = {
     id: string
@@ -40,7 +42,7 @@ export default async function InitiativeEvidencePage({
   )
 
   const resourceTypes = ['document', 'data', 'link', 'recording', 'template', 'report']
-  const baseUrl = `/app/initiatives/${params.id}/evidence`
+  const baseUrl = `/app/initiatives/${id}/evidence`
   const filterLink = (key: string, val: string) => {
     const t = key === 'type' ? val : typeFilter
     const v = key === 'view' ? val : view

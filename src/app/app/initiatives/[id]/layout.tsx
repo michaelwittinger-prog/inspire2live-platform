@@ -10,8 +10,9 @@ export default async function InitiativeLayout({
   params,
 }: {
   children: ReactNode
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   const supabase = await createClient()
 
   const {
@@ -31,7 +32,7 @@ export default async function InitiativeLayout({
   const { data: initiative } = await supabase
     .from('initiatives')
     .select('id, title, status, phase')
-    .eq('id', params.id)
+    .eq('id', id)
     .maybeSingle()
 
   if (!initiative) redirect('/app/initiatives')
@@ -39,7 +40,7 @@ export default async function InitiativeLayout({
   const { data: membership } = await supabase
     .from('initiative_members')
     .select('role')
-    .eq('initiative_id', params.id)
+    .eq('initiative_id', id)
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -49,12 +50,12 @@ export default async function InitiativeLayout({
   const canManage = canManageInitiativeWorkspace(profile?.role, membership?.role)
 
   const tabs = [
-    { label: 'Overview', href: `/app/initiatives/${params.id}` },
-    { label: 'Milestones', href: `/app/initiatives/${params.id}/milestones` },
-    { label: 'Tasks', href: `/app/initiatives/${params.id}/tasks` },
-    { label: 'Evidence', href: `/app/initiatives/${params.id}/evidence` },
-    { label: 'Team', href: `/app/initiatives/${params.id}/team` },
-    { label: 'Discussions', href: `/app/initiatives/${params.id}/discussions` },
+    { label: 'Overview', href: `/app/initiatives/${id}` },
+    { label: 'Milestones', href: `/app/initiatives/${id}/milestones` },
+    { label: 'Tasks', href: `/app/initiatives/${id}/tasks` },
+    { label: 'Evidence', href: `/app/initiatives/${id}/evidence` },
+    { label: 'Team', href: `/app/initiatives/${id}/team` },
+    { label: 'Discussions', href: `/app/initiatives/${id}/discussions` },
   ]
 
   return (
@@ -76,7 +77,7 @@ export default async function InitiativeLayout({
             </Link>
             {canManage ? (
               <Link
-                href={`/app/initiatives/${params.id}/tasks`}
+                href={`/app/initiatives/${id}/tasks`}
                 className="rounded-lg bg-orange-600 px-3 py-2 text-sm font-medium text-white hover:bg-orange-700"
               >
                 Manage tasks

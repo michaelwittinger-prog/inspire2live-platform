@@ -22,20 +22,22 @@ export default async function InitiativeTasksPage({
   params,
   searchParams,
 }: {
-  params: { id: string }
-  searchParams: { status?: string; priority?: string; view?: string }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ status?: string; priority?: string; view?: string }>
 }) {
+  const { id } = await params
+  const sp = await searchParams
   const supabase = await createClient()
 
   const { data } = await supabase
     .from('tasks')
     .select('id, title, status, priority, assignee_id, due_date, assignee:profiles!tasks_assignee_id_fkey(name)')
-    .eq('initiative_id', params.id)
+    .eq('initiative_id', id)
     .order('created_at', { ascending: false })
 
-  const statusFilter = searchParams.status ?? 'all'
-  const priorityFilter = searchParams.priority ?? 'all'
-  const view = searchParams.view ?? 'kanban'
+  const statusFilter = sp.status ?? 'all'
+  const priorityFilter = sp.priority ?? 'all'
+  const view = sp.view ?? 'kanban'
 
   const rows = ((data ?? []) as unknown as TaskRow[]).filter((task) => {
     const statusOk = statusFilter === 'all' || task.status === statusFilter
@@ -45,7 +47,7 @@ export default async function InitiativeTasksPage({
 
   const grouped = groupTasksByStatus(rows) as Record<(typeof TASK_STATUS_ORDER)[number], TaskRow[]>
 
-  const baseUrl = `/app/initiatives/${params.id}/tasks`
+  const baseUrl = `/app/initiatives/${id}/tasks`
   const filterLink = (key: string, val: string) => {
     const s = key === 'status' ? val : statusFilter
     const p = key === 'priority' ? val : priorityFilter
