@@ -123,9 +123,23 @@ jobs:
       # Restore the build from the quality job — skip expensive rebuild
       - name: Download build artifact
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: nextjs-build
           path: .next
+
+      # If artifact download fails (or .next is missing), fall back to building here.
+      # This makes the pipeline robust across artifact quirks while still benefiting
+      # from the artifact fast-path when available.
+      - name: Ensure Next.js build exists
+        shell: bash
+        run: |
+          if [ ! -f ".next/BUILD_ID" ]; then
+            echo "No .next build found from artifact; running pnpm build..."
+            pnpm build
+          else
+            echo "Found .next build from artifact."
+          fi
 
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
