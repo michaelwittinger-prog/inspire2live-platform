@@ -34,7 +34,7 @@ export default async function CongressArchivePage() {
           return (
             <div
               key={ev.id}
-              className={`rounded-xl border p-5 ${isActive ? 'border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50' : 'border-neutral-200 bg-white'}`}
+              className={`rounded-xl border p-5 ${isActive ? 'border-orange-200 bg-linear-to-br from-orange-50 to-amber-50' : 'border-neutral-200 bg-white'}`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">

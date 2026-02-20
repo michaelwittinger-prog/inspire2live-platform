@@ -133,7 +133,7 @@ export default async function CongressPage() {
 
       {/* ── Current event hero ── */}
       {currentEvent && (
-        <div className="rounded-xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-6 shadow-sm">
+        <div className="rounded-xl border border-orange-200 bg-linear-to-br from-orange-50 to-amber-50 p-6 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">

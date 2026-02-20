@@ -148,7 +148,7 @@ export default async function CommunicationPage({ params }: { params: Promise<{ 
 
           <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
             {/* Chat messages */}
-            <div className="space-y-4 p-4 max-h-[480px] overflow-y-auto">
+            <div className="space-y-4 p-4 max-h-120 overflow-y-auto">
               {chat.map(msg => (
                 <div key={msg.id} className="flex items-start gap-3">
                   {/* Avatar */}
