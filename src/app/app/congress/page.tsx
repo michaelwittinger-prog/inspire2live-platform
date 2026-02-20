@@ -7,6 +7,7 @@ import {
   daysUntil,
   computeDecisionStats,
   enrichDecisions,
+  normalizeEventStatus,
   type CongressEvent,
   type CongressDecision,
 } from '@/lib/congress'
@@ -24,7 +25,7 @@ function CyclePhaseBar({ status }: { status: CongressEvent['status'] }) {
     { key: 'archived',        label: 'Archived' },
   ] as const
 
-  const activeIdx = phases.findIndex(p => p.key === status)
+  const activeIdx = phases.findIndex(p => p.key === normalizeEventStatus(status))
 
   return (
     <div className="flex items-center gap-0">
@@ -64,7 +65,7 @@ function CyclePhaseBar({ status }: { status: CongressEvent['status'] }) {
 }
 
 function EventStatusBadge({ status }: { status: CongressEvent['status'] }) {
-  const m = EVENT_STATUS_META[status]
+  const m = EVENT_STATUS_META[normalizeEventStatus(status)]
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${m.badge}`}>
       {m.label}
@@ -90,8 +91,8 @@ export default async function CongressPage() {
     ? dbEvents as unknown as CongressEvent[]
     : DEMO_CONGRESS_EVENTS
 
-  const currentEvent = events.find(e => e.status !== 'archived') ?? events[0]
-  const pastEvents   = events.filter(e => e.status === 'archived')
+  const currentEvent = events.find(e => normalizeEventStatus(e.status) !== 'archived') ?? events[0]
+  const pastEvents   = events.filter(e => normalizeEventStatus(e.status) === 'archived')
 
   // Decisions for current event (SLA dashboard strip)
   const { data: dbDecisions } = await supabase

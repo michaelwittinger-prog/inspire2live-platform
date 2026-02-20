@@ -6,6 +6,7 @@ import {
   computeDecisionStats,
   slaBadge,
   CONVERSION_STATUS_META,
+  normalizeConversionStatus,
   type CongressDecision,
 } from '@/lib/congress'
 import { DEMO_CONGRESS_DECISIONS } from '@/lib/demo-data'
@@ -21,7 +22,7 @@ function ConvertIcon() {
 
 function DecisionRow({ d }: { d: CongressDecision }) {
   const sla = slaBadge(d)
-  const statusMeta = CONVERSION_STATUS_META[d.conversion_status]
+  const statusMeta = CONVERSION_STATUS_META[normalizeConversionStatus(d.conversion_status)]
   return (
     <div className={`rounded-xl border bg-white p-4 shadow-sm ${sla.urgent && d.conversion_status === 'pending' ? 'border-red-200' : 'border-neutral-200'}`}>
       <div className="flex items-start justify-between gap-3">
@@ -83,13 +84,13 @@ export default async function CongressDecisionsPage() {
   const decisions = enrichDecisions(raw)
   const stats = computeDecisionStats(decisions)
 
-  const pending    = decisions.filter(d => d.conversion_status === 'pending')
+  const pending    = decisions.filter(d => normalizeConversionStatus(d.conversion_status) === 'pending')
   const overdue    = pending.filter(d => (d.sla_hours_remaining ?? 0) < 0)
   const urgent     = pending.filter(d => (d.sla_hours_remaining ?? 99) >= 0 && (d.sla_hours_remaining ?? 99) < 12)
   const safe       = pending.filter(d => (d.sla_hours_remaining ?? 99) >= 12)
-  const needsClar  = decisions.filter(d => d.conversion_status === 'needs_clarification')
-  const converted  = decisions.filter(d => d.conversion_status === 'converted')
-  const declined   = decisions.filter(d => d.conversion_status === 'declined')
+  const needsClar  = decisions.filter(d => normalizeConversionStatus(d.conversion_status) === 'needs_clarification')
+  const converted  = decisions.filter(d => normalizeConversionStatus(d.conversion_status) === 'converted')
+  const declined   = decisions.filter(d => normalizeConversionStatus(d.conversion_status) === 'declined')
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">

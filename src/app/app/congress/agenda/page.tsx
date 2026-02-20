@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { SESSION_TYPE_META, type CongressSession } from '@/lib/congress'
+import { SESSION_TYPE_META, normalizeSessionType, type CongressSession } from '@/lib/congress'
 import { DEMO_CONGRESS_SESSIONS } from '@/lib/demo-data'
 
 function formatTime(ts: string | null): string {
@@ -14,7 +14,7 @@ function formatDay(ts: string | null): string {
 }
 
 function SessionCard({ s }: { s: CongressSession }) {
-  const meta = SESSION_TYPE_META[s.session_type]
+  const meta = SESSION_TYPE_META[normalizeSessionType(s.session_type)]
   return (
     <div className="flex gap-4 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
       {/* Time column */}

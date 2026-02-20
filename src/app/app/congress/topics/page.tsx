@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { TOPIC_STATUS_META, type CongressTopic } from '@/lib/congress'
+import { TOPIC_STATUS_META, normalizeTopicStatus, type CongressTopic } from '@/lib/congress'
 import { DEMO_CONGRESS_TOPICS } from '@/lib/demo-data'
 import { PlaceholderButton, PlusIcon, VoteButton } from '@/components/ui/client-buttons'
 
@@ -18,7 +18,7 @@ function SectionHeader({ title, count, badge }: { title: string; count: number; 
 }
 
 function TopicCard({ t }: { t: CongressTopic }) {
-  const meta = TOPIC_STATUS_META[t.status]
+  const meta = TOPIC_STATUS_META[normalizeTopicStatus(t.status)]
   return (
     <div className="flex items-start gap-4 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
       <VoteButton votes={t.vote_count} />
@@ -70,10 +70,10 @@ export default async function CongressTopicsPage() {
     : DEMO_CONGRESS_TOPICS
 
   const byStatus = {
-    approved:   topics.filter(t => t.status === 'approved'),
-    discussing: topics.filter(t => t.status === 'discussing'),
-    submitted:  topics.filter(t => t.status === 'submitted'),
-    resolved:   topics.filter(t => t.status === 'resolved'),
+    approved:   topics.filter(t => normalizeTopicStatus(t.status) === 'approved'),
+    discussing: topics.filter(t => normalizeTopicStatus(t.status) === 'discussing'),
+    submitted:  topics.filter(t => normalizeTopicStatus(t.status) === 'submitted'),
+    resolved:   topics.filter(t => normalizeTopicStatus(t.status) === 'resolved'),
   }
 
   return (

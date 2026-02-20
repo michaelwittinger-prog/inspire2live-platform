@@ -206,6 +206,65 @@ export const TOPIC_STATUS_META: Record<TopicStatus, { label: string; badge: stri
   resolved:    { label: 'Resolved',    badge: 'bg-neutral-200 text-neutral-500' },
 }
 
+// ─── Runtime-safe coercion helpers ───────────────────────────────────────────
+
+/**
+ * Normalize unknown DB values into a safe CongressEventStatus.
+ * Prevents runtime crashes like EVENT_STATUS_META[status].badge when status is unexpected.
+ */
+export function normalizeEventStatus(input: unknown): CongressEventStatus {
+  switch (String(input)) {
+    case 'planning':
+    case 'open_for_topics':
+    case 'agenda_set':
+    case 'live':
+    case 'post_congress':
+    case 'archived':
+      return input as CongressEventStatus
+    default:
+      return 'planning'
+  }
+}
+
+export function normalizeTopicStatus(input: unknown): TopicStatus {
+  switch (String(input)) {
+    case 'submitted':
+    case 'approved':
+    case 'rejected':
+    case 'discussing':
+    case 'resolved':
+      return input as TopicStatus
+    default:
+      return 'submitted'
+  }
+}
+
+export function normalizeConversionStatus(input: unknown): ConversionStatus {
+  switch (String(input)) {
+    case 'pending':
+    case 'converted':
+    case 'needs_clarification':
+    case 'declined':
+      return input as ConversionStatus
+    default:
+      return 'pending'
+  }
+}
+
+export function normalizeSessionType(input: unknown): SessionType {
+  switch (String(input)) {
+    case 'plenary':
+    case 'workshop':
+    case 'panel':
+    case 'working_group':
+    case 'keynote':
+    case 'break':
+      return input as SessionType
+    default:
+      return 'plenary'
+  }
+}
+
 // ─── Date formatting helpers ──────────────────────────────────────────────────
 
 export function formatEventDates(start: string | null, end: string | null): string {

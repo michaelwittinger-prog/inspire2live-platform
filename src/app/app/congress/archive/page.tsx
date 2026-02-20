@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { EVENT_STATUS_META, formatEventDates, type CongressEvent } from '@/lib/congress'
+import { EVENT_STATUS_META, formatEventDates, normalizeEventStatus, type CongressEvent } from '@/lib/congress'
 import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 
 export default async function CongressArchivePage() {
@@ -29,8 +29,8 @@ export default async function CongressArchivePage() {
 
       <div className="space-y-3">
         {events.map((ev, i) => {
-          const meta = EVENT_STATUS_META[ev.status]
-          const isActive = ev.status !== 'archived'
+          const meta = EVENT_STATUS_META[normalizeEventStatus(ev.status)]
+          const isActive = normalizeEventStatus(ev.status) !== 'archived'
           return (
             <div
               key={ev.id}

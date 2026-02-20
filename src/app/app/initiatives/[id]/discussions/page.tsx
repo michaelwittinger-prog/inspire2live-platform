@@ -37,7 +37,9 @@ function avatarColor(name: string) {
 }
 
 export default async function CommunicationPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: _id } = await params
+  // Keep param parsing for future DB integration; avoid lint unused-vars.
+  const { id } = await params
+  void id
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

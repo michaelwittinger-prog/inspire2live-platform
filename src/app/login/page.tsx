@@ -377,7 +377,7 @@ function LoginContent() {
         {tab === 'forgot' && (
           <form onSubmit={handleForgotPassword} className="space-y-4">
             <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-700">
-              🔑 Enter your email and we'll send you a link to reset your password.
+              🔑 Enter your email and we&apos;ll send you a link to reset your password.
             </div>
             <div>
               <label className="block text-sm font-medium text-neutral-700" htmlFor="forgot-email">
@@ -427,7 +427,7 @@ function LoginContent() {
         {tab === 'magic' && (
           <form onSubmit={handleMagicLink} className="space-y-4">
             <p className="text-sm text-neutral-500">
-            We'll email you a one-time login link. No password needed.
+            We&apos;ll email you a one-time login link. No password needed.
             </p>
             <div>
               <label className="block text-sm font-medium text-neutral-700" htmlFor="otp-email">
