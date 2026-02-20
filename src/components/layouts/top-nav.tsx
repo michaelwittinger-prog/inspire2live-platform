@@ -151,10 +151,10 @@ export function TopNav({ userName, userRole, userInitials, unreadCount = 0, isAd
           </Link>
         </div>
 
-        {/* Center: perspective switcher (admin only, lg+ screens) */}
+        {/* Center: perspective switcher (admin only, all screens) */}
         {isAdmin && (
-          <div className="hidden items-center gap-2 lg:flex">
-            <span className="text-xs text-neutral-400">👁 View as</span>
+          <div className="flex items-center gap-2">
+            <span className="hidden text-xs text-neutral-400 sm:inline">👁 View as</span>
             <select
               value={viewAsRole ?? 'PlatformAdmin'}
               onChange={(e) => {
@@ -224,6 +224,28 @@ export function TopNav({ userName, userRole, userInitials, unreadCount = 0, isAd
                   onClick={() => setProfileOpen(false)}
                 >
                   Profile &amp; settings
+                </Link>
+                {isAdmin && viewAsRole && viewAsRole !== 'PlatformAdmin' && (
+                  <button
+                    onClick={() => {
+                      document.cookie = 'i2l-view-as-role=; path=/; max-age=0'
+                      setProfileOpen(false)
+                      router.push('/app/dashboard')
+                      router.refresh()
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-amber-700 hover:bg-amber-50"
+                    role="menuitem"
+                  >
+                    Reset to Admin view
+                  </button>
+                )}
+                <Link
+                  href="/login"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-neutral-500 hover:bg-neutral-50"
+                  role="menuitem"
+                  onClick={() => setProfileOpen(false)}
+                >
+                  Switch demo account
                 </Link>
                 <button
                   onClick={handleSignOut}

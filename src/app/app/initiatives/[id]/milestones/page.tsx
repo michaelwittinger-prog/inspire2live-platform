@@ -1,181 +1,79 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { milestoneStatusConfig } from '@/lib/initiative-workspace'
+import { DEMO_MILESTONES } from '@/lib/demo-data'
 
-export default async function InitiativeMilestonesPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
+const statusStyle: Record<string, { bg: string; dot: string; label: string }> = {
+  completed: { bg: 'bg-emerald-50', dot: 'bg-emerald-500', label: 'Completed' },
+  in_progress: { bg: 'bg-blue-50', dot: 'bg-blue-500', label: 'In Progress' },
+  upcoming: { bg: 'bg-neutral-50', dot: 'bg-neutral-400', label: 'Upcoming' },
+}
+
+export default async function MilestonesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
-  const { data } = await supabase
+  const { data: dbMilestones } = await supabase
     .from('milestones')
-    .select('id, title, description, status, target_date, completed_date, evidence_required, sort_order')
+    .select('*')
     .eq('initiative_id', id)
-    .order('sort_order', { ascending: true })
-    .order('target_date', { ascending: true })
+    .order('target_date')
 
-  const milestones = data ?? []
+  const milestones = (dbMilestones ?? []).length > 0
+    ? dbMilestones!.map(m => ({ id: m.id, title: m.title, status: m.status, target_date: m.target_date, completed_date: m.completed_date, evidence_required: m.evidence_required }))
+    : DEMO_MILESTONES
 
-  const counts = {
-    total: milestones.length,
-    completed: milestones.filter((m) => m.status === 'completed').length,
-    in_progress: milestones.filter((m) => m.status === 'in_progress').length,
-    overdue: milestones.filter((m) => m.status === 'overdue').length,
-    upcoming: milestones.filter((m) => m.status === 'upcoming').length,
-  }
+  const completed = milestones.filter(m => m.status === 'completed').length
+  const total = milestones.length
 
   return (
-    <div className="space-y-4">
-      {/* Stats bar */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: 'Total', value: counts.total },
-          { label: 'Completed', value: counts.completed },
-          { label: 'In Progress', value: counts.in_progress },
-          { label: 'Overdue', value: counts.overdue },
-        ].map(({ label, value }) => (
-          <div key={label} className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{label}</p>
-            <p className="mt-1 text-2xl font-bold text-neutral-900">{value}</p>
-          </div>
-        ))}
-      </section>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-neutral-900">Milestones</h2>
+          <p className="text-sm text-neutral-500">{completed} of {total} completed</p>
+        </div>
+        <button onClick={() => alert('Add milestone feature coming in next release!')} className="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700">
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          Add Milestone
+        </button>
+      </div>
 
-      {milestones.length === 0 ? (
-        <section className="rounded-xl border border-neutral-200 bg-white p-8 shadow-sm text-center">
-          <p className="text-sm font-medium text-neutral-600">No milestones added yet.</p>
-          <p className="mt-1 text-sm text-neutral-400">
-            Milestones help track major progress points. Add the first one to get started.
-          </p>
-        </section>
-      ) : (
-        <>
-          {/* Horizontal Timeline — scrollable on small screens */}
-          <section className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
-            <h2 className="text-base font-semibold text-neutral-900">Timeline</h2>
-            <div className="mt-6 overflow-x-auto pb-2">
-              <div className="flex min-w-max items-start gap-0">
-                {milestones.map((m, i) => {
-                  const cfg = milestoneStatusConfig(m.status)
-                  const isLast = i === milestones.length - 1
-                  return (
-                    <div key={m.id} className="flex items-start">
-                      <div className="flex flex-col items-center">
-                        {/* Status dot */}
-                        <div
-                          className={`h-5 w-5 shrink-0 rounded-full border-2 border-white shadow ${cfg.dot}`}
-                          title={cfg.label}
-                        />
-                        {/* Label */}
-                        <div className="mt-2 w-32 text-center">
-                          <p className="text-xs font-semibold text-neutral-800 line-clamp-2 leading-snug">
-                            {m.title}
-                          </p>
-                          <p className="mt-1 text-xs text-neutral-400">
-                            {new Date(m.target_date).toLocaleDateString('en-GB', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                          </p>
-                          <span
-                            className={`mt-1.5 inline-block rounded px-1.5 py-0.5 text-xs font-medium ${cfg.badge}`}
-                          >
-                            {cfg.label}
-                          </span>
-                          {m.evidence_required && (
-                            <span className="ml-1 inline-block rounded px-1.5 py-0.5 text-xs font-medium bg-orange-100 text-orange-700">
-                              Evidence req.
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {/* Connector line */}
-                      {!isLast && (
-                        <div className="mx-1 mt-2 h-0.5 w-10 shrink-0 bg-neutral-200" />
-                      )}
+      {/* Progress bar */}
+      <div>
+        <div className="flex justify-between text-xs text-neutral-500 mb-1">
+          <span>Progress</span>
+          <span>{total > 0 ? Math.round((completed / total) * 100) : 0}%</span>
+        </div>
+        <div className="h-2 w-full rounded-full bg-neutral-100">
+          <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${total > 0 ? (completed / total) * 100 : 0}%` }} />
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {milestones.map((m) => {
+          const s = statusStyle[m.status] ?? statusStyle.upcoming
+          return (
+            <div key={m.id} className={`rounded-xl border border-neutral-200 ${s.bg} p-4 shadow-sm`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
+                  <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${s.dot}`} />
+                  <div>
+                    <h3 className="text-sm font-semibold text-neutral-900">{m.title}</h3>
+                    <div className="mt-1 flex items-center gap-3 text-xs text-neutral-500">
+                      <span>Target: {new Date(m.target_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      {m.completed_date && <span>Completed: {new Date(m.completed_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                      {m.evidence_required && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">Evidence required</span>}
                     </div>
-                  )
-                })}
+                  </div>
+                </div>
+                <span className="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium text-neutral-600 bg-white border border-neutral-200">{s.label}</span>
               </div>
             </div>
-          </section>
-
-          {/* Detail List with expandable items */}
-          <section className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-neutral-100">
-              <h2 className="text-base font-semibold text-neutral-900">Milestone Details</h2>
-            </div>
-            <ul className="divide-y divide-neutral-100">
-              {milestones.map((m) => {
-                const cfg = milestoneStatusConfig(m.status)
-                return (
-                  <li key={m.id}>
-                    <details className="group">
-                      <summary className="flex cursor-pointer items-center gap-3 px-5 py-4 select-none hover:bg-neutral-50 transition-colors">
-                        {/* Status dot */}
-                        <div className={`h-2.5 w-2.5 shrink-0 rounded-full ${cfg.dot}`} />
-                        {/* Title + date */}
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-neutral-900 truncate">{m.title}</p>
-                          <p className="text-xs text-neutral-500 mt-0.5">
-                            Target:{' '}
-                            {new Date(m.target_date).toLocaleDateString('en-GB', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                            {m.completed_date && (
-                              <> · Completed:{' '}
-                                {new Date(m.completed_date).toLocaleDateString('en-GB', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                  year: 'numeric',
-                                })}
-                              </>
-                            )}
-                          </p>
-                        </div>
-                        {/* Badges */}
-                        <div className="flex items-center gap-2 shrink-0">
-                          {m.evidence_required && (
-                            <span className="rounded px-1.5 py-0.5 text-xs font-medium bg-orange-100 text-orange-700">
-                              Evidence req.
-                            </span>
-                          )}
-                          <span className={`rounded px-2 py-0.5 text-xs font-medium ${cfg.badge}`}>
-                            {cfg.label}
-                          </span>
-                          {/* Chevron */}
-                          <svg
-                            className="h-4 w-4 text-neutral-400 group-open:rotate-180 transition-transform"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </div>
-                      </summary>
-                      {/* Expanded detail */}
-                      <div className="bg-neutral-50 px-5 pb-4 pt-2 text-sm text-neutral-600">
-                        {m.description ? (
-                          <p className="leading-relaxed">{m.description}</p>
-                        ) : (
-                          <p className="italic text-neutral-400">No description added.</p>
-                        )}
-                      </div>
-                    </details>
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
-        </>
-      )}
+          )
+        })}
+      </div>
     </div>
   )
 }
