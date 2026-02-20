@@ -552,6 +552,60 @@ export type Database = {
           },
         ]
       }
+      congress_assignments: {
+        Row: {
+          id: string
+          user_id: string
+          congress_id: string
+          project_role: string
+          scope_all: boolean
+          workstream_ids: string[]
+          effective_from: string
+          effective_to: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          congress_id: string
+          project_role: string
+          scope_all?: boolean
+          workstream_ids?: string[]
+          effective_from?: string
+          effective_to?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          congress_id?: string
+          project_role?: string
+          scope_all?: boolean
+          workstream_ids?: string[]
+          effective_from?: string
+          effective_to?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "congress_assignments_congress_id_fkey"
+            columns: ["congress_id"]
+            isOneToOne: false
+            referencedRelation: "congress_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "congress_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       congress_topics: {
         Row: {
           id: string

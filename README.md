@@ -130,6 +130,39 @@ supabase start
 
 ---
 
+## 🧭 Two-layer roles (Platform permissions + Congress responsibilities)
+
+This app uses a **2-layer role model** to prevent permission spaghetti:
+
+### Layer 1 — Platform role (permissions)
+Stored on `profiles.role`.
+
+- Answers: **“Can I do this type of action?”**
+- Example: creating/updating objects, approving decisions, editing RAID entries.
+
+In v1, write access remains aligned with the existing DB helper:
+`is_coordinator_or_admin()` ⇒ `HubCoordinator` or `PlatformAdmin`.
+
+### Layer 2 — CongressAssignment (responsibility)
+Stored in `public.congress_assignments` (migration `00013_congress_assignments.sql`).
+
+- Answers: **“Where / for what am I responsible?”**
+- Does **not** grant extra permissions (no hidden overrides).
+- Fields:
+  - `user_id`, `congress_id`
+  - `project_role` (e.g. Congress Lead, Ops Lead, Comms Lead, …)
+  - scope: `scope_all` or `workstream_ids[]`
+  - `effective_from` / `effective_to`
+
+### UI behavior
+- The UI always shows both layers (TopNav role chips).
+- Congress Workspace pages show a clear **“Why you can / can’t edit”** message.
+
+### Key user journeys
+- If you **can edit** (platform role allows it) but have **no congress assignment**, you can still edit — but the UI will warn that responsibility-focused views may be less targeted.
+- If you **have a congress assignment** but your **platform role is read-only**, the UI will surface the conflict and instruct you to contact a coordinator/admin.
+
+
 ## 📁 Project Structure
 
 ```

@@ -593,6 +593,51 @@ export const DEMO_USERS = [
   { id: 'u6', name: 'Admin User', email: 'admin@inspire2live.org', role: 'PlatformAdmin', country: 'NL', last_active: new Date().toISOString(), status: 'active', onboarding_completed: true },
 ]
 
+// ─── Congress assignments (responsibility layer) ─────────────────────────────
+
+export const DEMO_CONGRESS_ASSIGNMENTS = [
+  {
+    id: 'ca-001',
+    user_id: 'u1',
+    congress_id: 'evt-2026',
+    project_role: 'Ops Lead',
+    scope_all: true,
+    workstream_ids: [],
+    effective_from: '2026-01-01',
+    effective_to: null,
+  },
+  {
+    id: 'ca-002',
+    user_id: 'u5',
+    congress_id: 'evt-2026',
+    project_role: 'Congress Lead',
+    scope_all: true,
+    workstream_ids: [],
+    effective_from: '2026-01-01',
+    effective_to: null,
+  },
+  {
+    id: 'ca-003',
+    user_id: 'u4',
+    congress_id: 'evt-2026',
+    project_role: 'Compliance Reviewer',
+    scope_all: true,
+    workstream_ids: [],
+    effective_from: '2026-01-15',
+    effective_to: null,
+  },
+  {
+    id: 'ca-004',
+    user_id: 'u2',
+    congress_id: 'evt-2026',
+    project_role: 'Comms Lead',
+    scope_all: true,
+    workstream_ids: [],
+    effective_from: '2026-01-20',
+    effective_to: null,
+  },
+] as const
+
 /** Helper: use DB data if available, otherwise demo fallback */
 export function withFallback<T>(dbResult: T[] | null | undefined, demoData: T[]): T[] {
   return (dbResult ?? []).length > 0 ? dbResult! : demoData

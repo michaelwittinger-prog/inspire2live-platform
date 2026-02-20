@@ -5,6 +5,7 @@ import { SideNav } from '@/components/layouts/side-nav'
 import { canAccessAppPath } from '@/lib/role-access'
 import { getViewAsRole } from '@/lib/view-as'
 import { switchPerspective } from './admin/view-as-action'
+import { RoleLayersProvider } from '@/components/roles/role-layers-context'
 
 function getInitials(name: string): string {
   return name
@@ -62,41 +63,43 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-neutral-50">
-      {/* Admin preview banner */}
-      {isAdmin && viewAsRole && viewAsRole !== 'PlatformAdmin' && (
-        <div className="flex items-center justify-center gap-3 bg-amber-100 px-4 py-1.5 text-xs font-medium text-amber-800 border-b border-amber-200">
-          <span>👁 Admin preview — viewing as <strong>{viewAsRole}</strong></span>
-          <form action={switchPerspective}>
-            <input type="hidden" name="role" value="PlatformAdmin" />
-            <button
-              type="submit"
-              className="rounded bg-amber-700 px-2 py-0.5 text-xs font-medium text-white hover:bg-amber-800"
-            >
-              Exit preview
-            </button>
-          </form>
-        </div>
-      )}
+    <RoleLayersProvider platformRole={effectiveRole}>
+      <div className="flex h-screen flex-col overflow-hidden bg-neutral-50">
+        {/* Admin preview banner */}
+        {isAdmin && viewAsRole && viewAsRole !== 'PlatformAdmin' && (
+          <div className="flex items-center justify-center gap-3 bg-amber-100 px-4 py-1.5 text-xs font-medium text-amber-800 border-b border-amber-200">
+            <span>👁 Admin preview — viewing as <strong>{viewAsRole}</strong></span>
+            <form action={switchPerspective}>
+              <input type="hidden" name="role" value="PlatformAdmin" />
+              <button
+                type="submit"
+                className="rounded bg-amber-700 px-2 py-0.5 text-xs font-medium text-white hover:bg-amber-800"
+              >
+                Exit preview
+              </button>
+            </form>
+          </div>
+        )}
 
-      <TopNav
-        userName={name}
-        userRole={effectiveRole}
-        userInitials={getInitials(name)}
-        unreadCount={unread ?? 0}
-        isAdmin={isAdmin}
-        viewAsRole={viewAsRole}
-      />
-      <div className="flex min-h-0 flex-1">
-        <SideNav role={effectiveRole} actualRole={actualRole} />
-        <main
-          className="flex-1 overflow-y-auto px-3 py-4 md:p-6"
-          role="main"
-          aria-label="Page content"
-        >
-          {children}
-        </main>
+        <TopNav
+          userName={name}
+          userRole={effectiveRole}
+          userInitials={getInitials(name)}
+          unreadCount={unread ?? 0}
+          isAdmin={isAdmin}
+          viewAsRole={viewAsRole}
+        />
+        <div className="flex min-h-0 flex-1">
+          <SideNav role={effectiveRole} actualRole={actualRole} />
+          <main
+            className="flex-1 overflow-y-auto px-3 py-4 md:p-6"
+            role="main"
+            aria-label="Page content"
+          >
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </RoleLayersProvider>
   )
 }

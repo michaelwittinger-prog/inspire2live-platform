@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { canAccessAppPath, getSideNavItems, type NavKey } from '@/lib/role-access'
+import { RoleChips } from '@/components/roles/role-chips'
 
 /* ── icon helper (same set as side-nav, inlined for mobile menu) ────────── */
 const iconClass = 'h-5 w-5 shrink-0'
@@ -183,6 +184,8 @@ export function TopNav({ userName, userRole, userInitials, unreadCount = 0, isAd
 
         {/* Right: notifications + profile */}
         <div className="flex items-center gap-2">
+          <RoleChips compact />
+
           {notificationsAccessible ? (
             <Link
               href="/app/notifications"
@@ -221,6 +224,7 @@ export function TopNav({ userName, userRole, userInitials, unreadCount = 0, isAd
                   <p className="text-xs font-medium text-neutral-900 truncate">{userName}</p>
                   <p className="text-xs text-neutral-500">{roleLabel[userRole] ?? userRole}</p>
                 </div>
+
                 <Link
                   href="/app/profile"
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
