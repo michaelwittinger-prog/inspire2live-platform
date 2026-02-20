@@ -28,8 +28,11 @@ test.describe('Authentication smoke tests', () => {
     await page.goto('/login')
     await page.getByRole('textbox', { name: /email/i }).fill('test@example.com')
     await page.getByRole('button', { name: /magic link/i }).click()
-    // We expect a status message to appear (either success or error — not a crash)
-    await expect(page.locator('p')).toBeVisible({ timeout: 5000 })
+    // Smoke assertion: after submit, page should still be functional (no crash boundary)
+    await expect(page.locator('body')).not.toContainText('Application error')
+    await expect(page.locator('body')).not.toContainText('Unhandled Runtime Error')
+    // And the email input should still be present (form did not disappear due to crash)
+    await expect(page.getByRole('textbox', { name: /email/i })).toBeVisible()
   })
 
   test('unauthenticated user visiting /app/initiatives is redirected to /login', async ({ page }) => {

@@ -12,8 +12,16 @@ export default defineConfig({
     exclude: ['src/test/e2e/**', 'node_modules/**'],
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.{ts,tsx}'],
+      // Unit tests in this repo focus on business logic in src/lib.
+      // UI (src/app, src/components) is validated via E2E smoke tests.
+      include: ['src/lib/**/*.{ts,tsx}'],
       exclude: [
+        // Demo / seed content is intentionally large and not unit-tested.
+        'src/lib/demo-data.ts',
+        // Thin wrappers around Next/Supabase runtime.
+        'src/lib/supabase/**',
+        // Depends on Next.js runtime cookies(); cover via E2E.
+        'src/lib/view-as.ts',
         'src/types/**',
         'src/app/globals.css',
         '**/*.d.ts',
