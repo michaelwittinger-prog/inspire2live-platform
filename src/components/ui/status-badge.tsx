@@ -23,3 +23,5 @@ export function StatusBadge({
     </span>
   )
 }
+
+export type StatusTone = 'neutral' | 'green' | 'amber' | 'red' | 'blue' | 'violet'
