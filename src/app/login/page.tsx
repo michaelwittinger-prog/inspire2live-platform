@@ -14,6 +14,31 @@ export default function LoginPage() {
   )
 }
 
+/** Detect the Supabase email rate-limit error and return a user-friendly message. */
+function friendlyError(msg: string, onSwitchToSignin?: () => void): React.ReactNode {
+  if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('email_rate_limit')) {
+    return (
+      <span>
+        Too many email requests — please wait a few minutes before trying again.{' '}
+        {onSwitchToSignin && (
+          <>
+            If you already have a password,{' '}
+            <button
+              type="button"
+              onClick={onSwitchToSignin}
+              className="underline underline-offset-2 font-medium"
+            >
+              sign in with it instead
+            </button>
+            .
+          </>
+        )}
+      </span>
+    )
+  }
+  return msg
+}
+
 function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -96,6 +121,27 @@ function LoginContent() {
     setLoading(false)
   }
 
+  /* ── Forgot password ── */
+  const handleForgotPassword = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!email.trim()) return
+    setLoading(true)
+    setStatus(null)
+    const supabase = createClient()
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/app/profile`,
+    })
+    if (error) {
+      setStatus({ type: 'error', msg: error.message })
+    } else {
+      setStatus({
+        type: 'success',
+        msg: 'Password reset email sent! Check your inbox and click the link to set a new password.',
+      })
+    }
+    setLoading(false)
+  }
+
   const switchTab = (t: Tab) => {
     setTab(t)
     setStatus(null)
@@ -126,23 +172,25 @@ function LoginContent() {
           </p>
         )}
 
-        {/* Tabs */}
-        <div className="mb-6 flex rounded-lg border border-neutral-200 bg-neutral-50 p-1 gap-1">
-          {tabs.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => switchTab(key)}
-              className={[
-                'flex-1 rounded-md py-1.5 text-sm font-medium transition-colors',
-                tab === key
-                  ? 'bg-white text-neutral-900 shadow-sm'
-                  : 'text-neutral-500 hover:text-neutral-700',
-              ].join(' ')}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {/* Tabs — only shown for signin / signup */}
+        {(tab === 'signin' || tab === 'signup') && (
+          <div className="mb-6 flex rounded-lg border border-neutral-200 bg-neutral-50 p-1 gap-1">
+            {tabs.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => switchTab(key)}
+                className={[
+                  'flex-1 rounded-md py-1.5 text-sm font-medium transition-colors',
+                  tab === key
+                    ? 'bg-white text-neutral-900 shadow-sm'
+                    : 'text-neutral-500 hover:text-neutral-700',
+                ].join(' ')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* ── Sign in ── */}
         {tab === 'signin' && (
@@ -154,12 +202,13 @@ function LoginContent() {
               <input
                 id="signin-email"
                 type="email"
+                name="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none ring-orange-300 focus:ring"
                 placeholder="you@example.com"
-                autoComplete="email"
+                autoComplete="username email"
               />
             </div>
             <div>
@@ -169,6 +218,7 @@ function LoginContent() {
               <input
                 id="signin-pw"
                 type="password"
+                name="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -180,7 +230,7 @@ function LoginContent() {
 
             {status && (
               <p className={`rounded-lg px-3 py-2 text-sm ${status.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                {status.msg}
+                {friendlyError(status.msg)}
               </p>
             )}
 
@@ -222,12 +272,13 @@ function LoginContent() {
               <input
                 id="signup-email"
                 type="email"
+                name="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none ring-orange-300 focus:ring"
                 placeholder="you@example.com"
-                autoComplete="email"
+                autoComplete="username email"
               />
             </div>
             <div>
@@ -237,6 +288,7 @@ function LoginContent() {
               <input
                 id="signup-pw"
                 type="password"
+                name="password"
                 required
                 minLength={8}
                 value={password}
@@ -253,6 +305,7 @@ function LoginContent() {
               <input
                 id="signup-confirm"
                 type="password"
+                name="confirm-password"
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -264,7 +317,7 @@ function LoginContent() {
 
             {status && (
               <p className={`rounded-lg px-3 py-2 text-sm ${status.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                {status.msg}
+                {friendlyError(status.msg)}
               </p>
             )}
 
@@ -279,65 +332,52 @@ function LoginContent() {
         )}
 
         {/* ── Demo Accounts ── */}
-        <div className="mt-6 border-t border-neutral-200 pt-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-            Demo Accounts
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { name: 'Sophie', role: 'HubCoordinator', email: 'sophie@inspire2live.org', initials: 'SB', color: 'bg-orange-100 text-orange-700' },
-              { name: 'Maria', role: 'PatientAdvocate', email: 'maria@inspire2live.org', initials: 'MH', color: 'bg-rose-100 text-rose-700' },
-              { name: 'Dr. Kai', role: 'Researcher', email: 'kai@inspire2live.org', initials: 'KB', color: 'bg-blue-100 text-blue-700' },
-              { name: 'Dr. Nadia', role: 'Clinician', email: 'nadia@inspire2live.org', initials: 'NR', color: 'bg-emerald-100 text-emerald-700' },
-              { name: 'Peter', role: 'BoardMember', email: 'peter@inspire2live.org', initials: 'PL', color: 'bg-violet-100 text-violet-700' },
-              { name: 'Admin', role: 'PlatformAdmin', email: 'admin@inspire2live.org', initials: 'AD', color: 'bg-red-100 text-red-700' },
-            ].map((demo) => (
-              <button
-                key={demo.email}
-                type="button"
-                onClick={() => {
-                  setEmail(demo.email)
-                  setPassword('demo1234')
-                  setTab('signin')
-                  setStatus(null)
-                }}
-                className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-left hover:bg-neutral-100 transition-colors"
-              >
-                <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${demo.color}`}>
-                  {demo.initials}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-neutral-800 truncate">{demo.name}</p>
-                  <p className="text-xs text-neutral-400 truncate">{demo.role}</p>
-                </div>
-              </button>
-            ))}
+        {(tab === 'signin' || tab === 'signup') && (
+          <div className="mt-6 border-t border-neutral-200 pt-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+              Demo Accounts
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { name: 'Sophie', role: 'HubCoordinator', email: 'sophie@inspire2live.org', initials: 'SB', color: 'bg-orange-100 text-orange-700' },
+                { name: 'Maria', role: 'PatientAdvocate', email: 'maria@inspire2live.org', initials: 'MH', color: 'bg-rose-100 text-rose-700' },
+                { name: 'Dr. Kai', role: 'Researcher', email: 'kai@inspire2live.org', initials: 'KB', color: 'bg-blue-100 text-blue-700' },
+                { name: 'Dr. Nadia', role: 'Clinician', email: 'nadia@inspire2live.org', initials: 'NR', color: 'bg-emerald-100 text-emerald-700' },
+                { name: 'Peter', role: 'BoardMember', email: 'peter@inspire2live.org', initials: 'PL', color: 'bg-violet-100 text-violet-700' },
+                { name: 'Admin', role: 'PlatformAdmin', email: 'admin@inspire2live.org', initials: 'AD', color: 'bg-red-100 text-red-700' },
+              ].map((demo) => (
+                <button
+                  key={demo.email}
+                  type="button"
+                  onClick={() => {
+                    setEmail(demo.email)
+                    setPassword('demo1234')
+                    setTab('signin')
+                    setStatus(null)
+                  }}
+                  className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-left hover:bg-neutral-100 transition-colors"
+                >
+                  <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${demo.color}`}>
+                    {demo.initials}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-neutral-800 truncate">{demo.name}</p>
+                    <p className="text-xs text-neutral-400 truncate">{demo.role}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-neutral-400 text-center">
+              Click any account above · password: <code className="rounded bg-neutral-100 px-1 font-mono">demo1234</code>
+            </p>
           </div>
-          <p className="mt-2 text-xs text-neutral-400 text-center">
-            Click any account above · password: <code className="rounded bg-neutral-100 px-1 font-mono">demo1234</code>
-          </p>
-        </div>
+        )}
 
         {/* ── Forgot password ── */}
         {tab === 'forgot' && (
-          <form onSubmit={async (e: FormEvent) => {
-            e.preventDefault()
-            if (!email.trim()) return
-            setLoading(true)
-            setStatus(null)
-            const supabase = createClient()
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-              redirectTo: `${window.location.origin}/auth/callback?next=/app/profile`,
-            })
-            if (error) {
-              setStatus({ type: 'error', msg: error.message })
-            } else {
-              setStatus({ type: 'success', msg: 'Password reset email sent! Check your inbox and click the link to set a new password.' })
-            }
-            setLoading(false)
-          }} className="space-y-4">
+          <form onSubmit={handleForgotPassword} className="space-y-4">
             <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-700">
-              🔑 Enter your email and we&apos;ll send you a link to reset your password.
+              🔑 Enter your email and we'll send you a link to reset your password.
             </div>
             <div>
               <label className="block text-sm font-medium text-neutral-700" htmlFor="forgot-email">
@@ -346,18 +386,19 @@ function LoginContent() {
               <input
                 id="forgot-email"
                 type="email"
+                name="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none ring-orange-300 focus:ring"
                 placeholder="you@example.com"
-                autoComplete="email"
+                autoComplete="username email"
               />
             </div>
 
             {status && (
               <p className={`rounded-lg px-3 py-2 text-sm ${status.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                {status.msg}
+                {friendlyError(status.msg, () => switchTab('signin'))}
               </p>
             )}
 
@@ -386,7 +427,7 @@ function LoginContent() {
         {tab === 'magic' && (
           <form onSubmit={handleMagicLink} className="space-y-4">
             <p className="text-sm text-neutral-500">
-              We&apos;ll email you a one-time login link. No password needed.
+            We'll email you a one-time login link. No password needed.
             </p>
             <div>
               <label className="block text-sm font-medium text-neutral-700" htmlFor="otp-email">
@@ -395,18 +436,19 @@ function LoginContent() {
               <input
                 id="otp-email"
                 type="email"
+                name="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none ring-orange-300 focus:ring"
                 placeholder="you@example.com"
-                autoComplete="email"
+                autoComplete="username email"
               />
             </div>
 
             {status && (
               <p className={`rounded-lg px-3 py-2 text-sm ${status.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                {status.msg}
+                {friendlyError(status.msg, () => switchTab('signin'))}
               </p>
             )}
 
