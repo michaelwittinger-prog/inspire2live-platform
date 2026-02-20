@@ -76,7 +76,7 @@ const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
     { key: 'profile',       label: 'Profile',        href: '/app/profile' },
   ],
   BoardMember: [
-    { key: 'dashboard',     label: 'Dashboard',      href: '/app/dashboard' },
+    { key: 'dashboard',     label: 'Board Overview', href: '/app/dashboard' },
     { key: 'board',         label: 'Board View',     href: '/app/board' },
     { key: 'initiatives',   label: 'Initiatives',    href: '/app/initiatives' },
     { key: 'network',       label: 'My Network',     href: '/app/network' },

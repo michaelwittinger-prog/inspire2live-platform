@@ -23,9 +23,15 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'pnpm dev',
+    // In CI: use the production build (reliable, no hot-reload overhead).
+    // Locally: use dev server for fast iteration.
+    // In CI the quality job builds and uploads .next as an artifact;
+    // the E2E job downloads it, so we only need `next start` here.
+    // Locally, use the dev server for fast iteration.
+    command: process.env.CI ? 'pnpm start' : 'pnpm dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    // Production build + startup can take up to 3 min on cold CI runners
+    timeout: 180_000,
   },
 })

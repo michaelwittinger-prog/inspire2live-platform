@@ -6,13 +6,16 @@ on:
   pull_request:
     branches: [main, develop]
 
+# Supabase env vars are needed at build time (NEXT_PUBLIC_* are embedded).
+# These are injected from GitHub Secrets into every job.
 env:
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-  NEXT_PUBLIC_APP_URL: http://localhost:3000
 
 jobs:
   # ─── Job 1: Quality Gate ─────────────────────────────────────────────────────
+  # Lint → typecheck → build.
+  # Uploads the .next build as an artifact so downstream jobs skip rebuilding.
   quality:
     name: Quality Gate (lint · typecheck · build)
     runs-on: ubuntu-latest
@@ -44,7 +47,17 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # Share the build artifact with the E2E job to avoid a second build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next
+          retention-days: 1
+
   # ─── Job 2: Unit Tests ───────────────────────────────────────────────────────
+  # Runs in parallel with E2E after quality passes.
+  # Unit tests are pure logic — no browser, no server.
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
@@ -80,6 +93,9 @@ jobs:
           retention-days: 7
 
   # ─── Job 3: E2E Smoke Tests ──────────────────────────────────────────────────
+  # Runs only on main / release branches (not on every PR, to keep CI fast).
+  # Downloads the pre-built .next artifact from quality job — no second build.
+  # playwright.config.ts uses `pnpm start` in CI (not `pnpm dev`).
   e2e:
     name: E2E Smoke Tests
     runs-on: ubuntu-latest
@@ -104,11 +120,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Restore the build from the quality job — skip expensive rebuild
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next
+
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run E2E smoke tests
         run: pnpm test:e2e
+        timeout-minutes: 10
 
       - name: Upload Playwright report on failure
         uses: actions/upload-artifact@v4
