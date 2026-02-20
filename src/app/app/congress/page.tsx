@@ -87,7 +87,7 @@ export default async function CongressPage() {
     .limit(10)
 
   const events: CongressEvent[] = (dbEvents && dbEvents.length > 0)
-    ? dbEvents as CongressEvent[]
+    ? dbEvents as unknown as CongressEvent[]
     : DEMO_CONGRESS_EVENTS
 
   const currentEvent = events.find(e => e.status !== 'archived') ?? events[0]
@@ -101,7 +101,7 @@ export default async function CongressPage() {
 
   const decisions = enrichDecisions(
     (dbDecisions && dbDecisions.length > 0
-      ? dbDecisions as CongressDecision[]
+      ? dbDecisions as unknown as CongressDecision[]
       : DEMO_CONGRESS_DECISIONS
     ).filter(d => !currentEvent || d.congress_year === currentEvent.year || d.event_id === currentEvent.id)
   )

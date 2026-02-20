@@ -99,40 +99,55 @@ export type Database = {
       }
       congress_decisions: {
         Row: {
-          captured_at: string
-          conversion_status: string
-          converted_to_task_id: string | null
-          deadline: string | null
-          description: string
           id: string
+          title: string
+          body: string | null
+          description: string | null
+          event_id: string | null
+          congress_year: number | null
+          session_id: string | null
           initiative_id: string | null
           owner_id: string | null
-          proposed_by: string
-          session_id: string
+          deadline: string | null
+          conversion_status: string
+          converted_task_id: string | null
+          captured_at: string
+          carryover_to_event_id: string | null
+          theme_id: string | null
         }
         Insert: {
-          captured_at?: string
-          conversion_status?: string
-          converted_to_task_id?: string | null
-          deadline?: string | null
-          description: string
           id?: string
+          title: string
+          body?: string | null
+          description?: string | null
+          event_id?: string | null
+          congress_year?: number | null
+          session_id?: string | null
           initiative_id?: string | null
           owner_id?: string | null
-          proposed_by: string
-          session_id: string
+          deadline?: string | null
+          conversion_status?: string
+          converted_task_id?: string | null
+          captured_at?: string
+          carryover_to_event_id?: string | null
+          theme_id?: string | null
         }
         Update: {
-          captured_at?: string
-          conversion_status?: string
-          converted_to_task_id?: string | null
-          deadline?: string | null
-          description?: string
           id?: string
+          title?: string
+          body?: string | null
+          description?: string | null
+          event_id?: string | null
+          congress_year?: number | null
+          session_id?: string | null
           initiative_id?: string | null
           owner_id?: string | null
-          proposed_by?: string
-          session_id?: string
+          deadline?: string | null
+          conversion_status?: string
+          converted_task_id?: string | null
+          captured_at?: string
+          carryover_to_event_id?: string | null
+          theme_id?: string | null
         }
         Relationships: [
           {
@@ -209,156 +224,176 @@ export type Database = {
       }
       congress_events: {
         Row: {
-          created_at: string
-          end_date: string
           id: string
-          location: string
-          registration_url: string | null
-          start_date: string
-          status: string
-          theme: string
           year: number
-        }
-        Insert: {
-          created_at?: string
-          end_date: string
-          id?: string
-          location: string
-          registration_url?: string | null
-          start_date: string
-          status?: string
-          theme: string
-          year: number
-        }
-        Update: {
-          created_at?: string
-          end_date?: string
-          id?: string
-          location?: string
-          registration_url?: string | null
-          start_date?: string
-          status?: string
-          theme?: string
-          year?: number
-        }
-        Relationships: []
-      }
-      congress_sessions: {
-        Row: {
-          congress_id: string
-          created_at: string
-          decision_capture_id: string | null
+          title: string
           description: string | null
-          end_time: string
-          id: string
-          note_taker_id: string | null
-          notes_structured: Json | null
-          room: string | null
-          session_lead_id: string | null
-          start_time: string
-          title: string
-          topic_id: string | null
+          location: string | null
+          start_date: string | null
+          end_date: string | null
+          theme_headline: string | null
+          status: string
+          parent_event_id: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
-          congress_id: string
-          created_at?: string
-          decision_capture_id?: string | null
-          description?: string | null
-          end_time: string
           id?: string
-          note_taker_id?: string | null
-          notes_structured?: Json | null
-          room?: string | null
-          session_lead_id?: string | null
-          start_time: string
+          year: number
           title: string
-          topic_id?: string | null
+          description?: string | null
+          location?: string | null
+          start_date?: string | null
+          end_date?: string | null
+          theme_headline?: string | null
+          status?: string
+          parent_event_id?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
-          congress_id?: string
-          created_at?: string
-          decision_capture_id?: string | null
-          description?: string | null
-          end_time?: string
           id?: string
-          note_taker_id?: string | null
-          notes_structured?: Json | null
-          room?: string | null
-          session_lead_id?: string | null
-          start_time?: string
+          year?: number
           title?: string
-          topic_id?: string | null
+          description?: string | null
+          location?: string | null
+          start_date?: string | null
+          end_date?: string | null
+          theme_headline?: string | null
+          status?: string
+          parent_event_id?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "congress_sessions_congress_id_fkey"
-            columns: ["congress_id"]
+            foreignKeyName: "congress_events_parent_event_id_fkey"
+            columns: ["parent_event_id"]
+            isOneToOne: false
+            referencedRelation: "congress_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      congress_themes: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          color: string
+          first_year: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          color?: string
+          first_year: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          color?: string
+          first_year?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      congress_event_themes: {
+        Row: {
+          event_id: string
+          theme_id: string
+        }
+        Insert: {
+          event_id: string
+          theme_id: string
+        }
+        Update: {
+          event_id?: string
+          theme_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "congress_event_themes_event_id_fkey"
+            columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "congress_events"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "congress_sessions_decision_capture_id_fkey"
-            columns: ["decision_capture_id"]
+            foreignKeyName: "congress_event_themes_theme_id_fkey"
+            columns: ["theme_id"]
             isOneToOne: false
-            referencedRelation: "member_activity_summary"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "congress_sessions_decision_capture_id_fkey"
-            columns: ["decision_capture_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "congress_themes"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      congress_sessions: {
+        Row: {
+          id: string
+          event_id: string
+          topic_id: string | null
+          title: string
+          description: string | null
+          session_type: string
+          agenda_order: number
+          start_time: string | null
+          end_time: string | null
+          room: string | null
+          status: string
+          session_lead_id: string | null
+          note_taker_id: string | null
+          max_attendees: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          topic_id?: string | null
+          title: string
+          description?: string | null
+          session_type?: string
+          agenda_order?: number
+          start_time?: string | null
+          end_time?: string | null
+          room?: string | null
+          status?: string
+          session_lead_id?: string | null
+          note_taker_id?: string | null
+          max_attendees?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          topic_id?: string | null
+          title?: string
+          description?: string | null
+          session_type?: string
+          agenda_order?: number
+          start_time?: string | null
+          end_time?: string | null
+          room?: string | null
+          status?: string
+          session_lead_id?: string | null
+          note_taker_id?: string | null
+          max_attendees?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "congress_sessions_decision_capture_id_fkey"
-            columns: ["decision_capture_id"]
+            foreignKeyName: "congress_sessions_event_id_fkey"
+            columns: ["event_id"]
             isOneToOne: false
-            referencedRelation: "resource_library"
-            referencedColumns: ["uploader_id"]
-          },
-          {
-            foreignKeyName: "congress_sessions_note_taker_id_fkey"
-            columns: ["note_taker_id"]
-            isOneToOne: false
-            referencedRelation: "member_activity_summary"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "congress_sessions_note_taker_id_fkey"
-            columns: ["note_taker_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "congress_events"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "congress_sessions_note_taker_id_fkey"
-            columns: ["note_taker_id"]
-            isOneToOne: false
-            referencedRelation: "resource_library"
-            referencedColumns: ["uploader_id"]
-          },
-          {
-            foreignKeyName: "congress_sessions_session_lead_id_fkey"
-            columns: ["session_lead_id"]
-            isOneToOne: false
-            referencedRelation: "member_activity_summary"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "congress_sessions_session_lead_id_fkey"
-            columns: ["session_lead_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "congress_sessions_session_lead_id_fkey"
-            columns: ["session_lead_id"]
-            isOneToOne: false
-            referencedRelation: "resource_library"
-            referencedColumns: ["uploader_id"]
           },
           {
             foreignKeyName: "congress_sessions_topic_id_fkey"
@@ -367,101 +402,217 @@ export type Database = {
             referencedRelation: "congress_topics"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      congress_topics: {
-        Row: {
-          congress_id: string
-          created_at: string
-          description: string
-          id: string
-          proposed_format: string | null
-          related_initiative_id: string | null
-          status: string
-          submitter_id: string
-          title: string
-          vote_count: number
-        }
-        Insert: {
-          congress_id: string
-          created_at?: string
-          description: string
-          id?: string
-          proposed_format?: string | null
-          related_initiative_id?: string | null
-          status?: string
-          submitter_id: string
-          title: string
-          vote_count?: number
-        }
-        Update: {
-          congress_id?: string
-          created_at?: string
-          description?: string
-          id?: string
-          proposed_format?: string | null
-          related_initiative_id?: string | null
-          status?: string
-          submitter_id?: string
-          title?: string
-          vote_count?: number
-        }
-        Relationships: [
           {
-            foreignKeyName: "congress_topics_congress_id_fkey"
-            columns: ["congress_id"]
-            isOneToOne: false
-            referencedRelation: "congress_events"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "congress_topics_related_initiative_id_fkey"
-            columns: ["related_initiative_id"]
-            isOneToOne: false
-            referencedRelation: "decision_pipeline"
-            referencedColumns: ["initiative_id"]
-          },
-          {
-            foreignKeyName: "congress_topics_related_initiative_id_fkey"
-            columns: ["related_initiative_id"]
-            isOneToOne: false
-            referencedRelation: "initiative_health"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "congress_topics_related_initiative_id_fkey"
-            columns: ["related_initiative_id"]
-            isOneToOne: false
-            referencedRelation: "initiatives"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "congress_topics_related_initiative_id_fkey"
-            columns: ["related_initiative_id"]
-            isOneToOne: false
-            referencedRelation: "resource_library"
-            referencedColumns: ["initiative_id"]
-          },
-          {
-            foreignKeyName: "congress_topics_submitter_id_fkey"
-            columns: ["submitter_id"]
-            isOneToOne: false
-            referencedRelation: "member_activity_summary"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "congress_topics_submitter_id_fkey"
-            columns: ["submitter_id"]
+            foreignKeyName: "congress_sessions_session_lead_id_fkey"
+            columns: ["session_lead_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "congress_topics_submitter_id_fkey"
-            columns: ["submitter_id"]
+            foreignKeyName: "congress_sessions_note_taker_id_fkey"
+            columns: ["note_taker_id"]
             isOneToOne: false
-            referencedRelation: "resource_library"
-            referencedColumns: ["uploader_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      congress_session_notes: {
+        Row: {
+          id: string
+          session_id: string
+          body: string
+          version: number
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          body?: string
+          version?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          body?: string
+          version?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "congress_session_notes_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "congress_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      congress_session_attendees: {
+        Row: {
+          session_id: string
+          user_id: string
+          role: string
+          registered_at: string
+          attended: boolean | null
+        }
+        Insert: {
+          session_id: string
+          user_id: string
+          role?: string
+          registered_at?: string
+          attended?: boolean | null
+        }
+        Update: {
+          session_id?: string
+          user_id?: string
+          role?: string
+          registered_at?: string
+          attended?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "congress_session_attendees_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "congress_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "congress_session_attendees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      congress_assets: {
+        Row: {
+          id: string
+          event_id: string
+          session_id: string | null
+          name: string
+          description: string | null
+          storage_path: string
+          mime_type: string | null
+          asset_type: string
+          uploaded_by: string | null
+          is_public: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          session_id?: string | null
+          name: string
+          description?: string | null
+          storage_path: string
+          mime_type?: string | null
+          asset_type?: string
+          uploaded_by?: string | null
+          is_public?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          session_id?: string | null
+          name?: string
+          description?: string | null
+          storage_path?: string
+          mime_type?: string | null
+          asset_type?: string
+          uploaded_by?: string | null
+          is_public?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "congress_assets_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "congress_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "congress_assets_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "congress_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      congress_topics: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          status: string
+          vote_count: number
+          event_id: string | null
+          theme_id: string | null
+          carryover_from_topic_id: string | null
+          scheduled_session_id: string | null
+          submitted_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          status?: string
+          vote_count?: number
+          event_id?: string | null
+          theme_id?: string | null
+          carryover_from_topic_id?: string | null
+          scheduled_session_id?: string | null
+          submitted_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          status?: string
+          vote_count?: number
+          event_id?: string | null
+          theme_id?: string | null
+          carryover_from_topic_id?: string | null
+          scheduled_session_id?: string | null
+          submitted_by?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "congress_topics_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "congress_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "congress_topics_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "congress_themes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "congress_topics_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
