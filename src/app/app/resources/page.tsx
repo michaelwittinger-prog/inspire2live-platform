@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { DEMO_RESOURCES } from '@/lib/demo-data'
+import { PlaceholderButton, UploadIcon } from '@/components/ui/client-buttons'
 
 const typeColor: Record<string, string> = { document: 'bg-blue-100 text-blue-700', protocol: 'bg-purple-100 text-purple-700', data: 'bg-emerald-100 text-emerald-700', template: 'bg-amber-100 text-amber-700', guide: 'bg-orange-100 text-orange-700' }
 
@@ -21,10 +22,7 @@ export default async function ResourcesPage() {
           <h1 className="text-2xl font-bold text-neutral-900">Resources</h1>
           <p className="mt-1 text-sm text-neutral-500">{resources.length} shared resources across initiatives.</p>
         </div>
-        <button onClick={() => alert('Upload resource feature coming in next release!')} className="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
-          Upload Resource
-        </button>
+        <PlaceholderButton label="Upload Resource" icon={<UploadIcon />} message="Resource upload will be available in the next release." />
       </div>
       <div className="space-y-2">
         {resources.map(r => (

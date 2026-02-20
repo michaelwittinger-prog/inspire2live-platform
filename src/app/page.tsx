@@ -109,7 +109,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3">
             <a
-              href="https://www.inspire2live.com"
+              href="https://www.inspire2live.org"
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-neutral-500 hover:text-neutral-700"
@@ -343,8 +343,8 @@ export default function Home() {
             <span>Inspire2Live Platform</span>
           </div>
           <div className="flex gap-4">
-            <a href="https://www.inspire2live.com" target="_blank" rel="noopener noreferrer" className="hover:text-neutral-700">
-              inspire2live.com
+            <a href="https://www.inspire2live.org" target="_blank" rel="noopener noreferrer" className="hover:text-neutral-700">
+              inspire2live.org
             </a>
             <span>·</span>
             <span>© {new Date().getFullYear()}</span>

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import type { Tables } from '@/types/database'
 import { buildDashboardGreeting, resolveDashboardVariant } from '@/lib/dashboard-view'
+import { DEMO_NOTIFICATIONS, DEMO_NEWSFEED } from '@/lib/demo-data'
 
 type InitiativeHealth = Tables<'initiative_health'>
 type MemberActivity = Tables<'member_activity_summary'>
@@ -423,6 +424,46 @@ export default async function DashboardPage() {
 
   const greeting = buildDashboardGreeting(profile?.name)
 
+  // Notifications: try DB, fallback to demo
+  const { data: dbNotifications } = await supabase
+    .from('notifications')
+    .select('id, type, title, body, is_read, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(8)
+
+  const notifications = (dbNotifications && dbNotifications.length > 0) ? dbNotifications : DEMO_NOTIFICATIONS
+  const unreadCount = notifications.filter(n => !n.is_read).length
+
+  const newsfeed = DEMO_NEWSFEED
+
+  const NOTIF_META: Record<string, { icon: string; color: string }> = {
+    task_assigned:    { icon: '✅', color: 'bg-blue-100 text-blue-700' },
+    milestone_completed: { icon: '🏆', color: 'bg-emerald-100 text-emerald-700' },
+    discussion_reply: { icon: '💬', color: 'bg-purple-100 text-purple-700' },
+    member_joined:    { icon: '👤', color: 'bg-orange-100 text-orange-700' },
+    initiative_update:{ icon: '🚀', color: 'bg-teal-100 text-teal-700' },
+    org_update:       { icon: '📢', color: 'bg-amber-100 text-amber-700' },
+  }
+
+  const NEWSFEED_META: Record<string, { label: string; color: string }> = {
+    medical:  { label: 'Medical',   color: 'bg-blue-100 text-blue-700' },
+    policy:   { label: 'Policy',    color: 'bg-teal-100 text-teal-700' },
+    advocacy: { label: 'Advocacy',  color: 'bg-orange-100 text-orange-700' },
+  }
+
+  const nowMs = new Date().getTime()
+  const timeAgo = (dateStr: string) => {
+    const diff = nowMs - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    const hours = Math.floor(diff / 3600000)
+    const days = Math.floor(diff / 86400000)
+    if (mins < 60) return `${mins}m ago`
+    if (hours < 24) return `${hours}h ago`
+    if (days < 7) return `${days}d ago`
+    return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
@@ -437,6 +478,86 @@ export default async function DashboardPage() {
       {!isCoordinator && !isBoard && (
         <AdvocateDashboard initiatives={myInitiatives} tasks={myTasks} />
       )}
+
+      {/* ── Notifications + Newsfeed ── */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Notifications */}
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold text-neutral-900">Notifications</h2>
+              {unreadCount > 0 && (
+                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                  {unreadCount} new
+                </span>
+              )}
+            </div>
+            <Link href="/app/notifications" className="text-sm font-medium text-orange-600 hover:underline">
+              View all →
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {notifications.slice(0, 6).map(n => {
+              const meta = NOTIF_META[n.type] ?? { icon: '🔔', color: 'bg-neutral-100 text-neutral-600' }
+              return (
+                <div
+                  key={n.id}
+                  className={`flex items-start gap-3 rounded-xl border p-3 shadow-sm transition-colors ${
+                    !n.is_read ? 'border-blue-200 bg-blue-50' : 'border-neutral-200 bg-white'
+                  }`}
+                >
+                  <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm ${meta.color}`}>
+                    {meta.icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className={`text-sm font-medium ${!n.is_read ? 'text-blue-900' : 'text-neutral-900'}`}>
+                        {!n.is_read && <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-blue-500" />}
+                        {n.title}
+                      </p>
+                      <span className="shrink-0 text-[10px] text-neutral-400">{timeAgo(n.created_at)}</span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-neutral-500 line-clamp-2">{n.body}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* Newsfeed */}
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-neutral-900">Field Newsfeed</h2>
+            <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-medium text-neutral-500">
+              Curated · non-live
+            </span>
+          </div>
+          <div className="space-y-2">
+            {newsfeed.map(nf => {
+              const meta = NEWSFEED_META[nf.category] ?? { label: nf.category, color: 'bg-neutral-100 text-neutral-700' }
+              return (
+                <div key={nf.id} className="rounded-xl border border-neutral-200 bg-white p-3.5 shadow-sm">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="text-sm font-semibold text-neutral-900 leading-snug flex-1">{nf.headline}</p>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${meta.color}`}>
+                      {meta.label}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-xs text-neutral-500 line-clamp-2">{nf.summary}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] text-neutral-400">
+                    <span>{nf.source}</span>
+                    <span>·</span>
+                    <span>{nf.region}</span>
+                    <span>·</span>
+                    <span>{new Date(nf.published).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      </div>
     </div>
   )
 }

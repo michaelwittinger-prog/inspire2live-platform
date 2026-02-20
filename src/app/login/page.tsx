@@ -4,7 +4,7 @@ import { Suspense, useState, type FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-type Tab = 'signin' | 'signup' | 'magic'
+type Tab = 'signin' | 'signup' | 'magic' | 'forgot'
 
 export default function LoginPage() {
   return (
@@ -192,16 +192,23 @@ function LoginContent() {
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
 
-            <p className="text-center text-xs text-neutral-400">
-              Forgot password?{' '}
+            <div className="flex items-center justify-center gap-3 text-xs text-neutral-400">
+              <button
+                type="button"
+                onClick={() => switchTab('forgot')}
+                className="text-orange-600 underline-offset-2 hover:underline"
+              >
+                Forgot password?
+              </button>
+              <span>·</span>
               <button
                 type="button"
                 onClick={() => switchTab('magic')}
                 className="text-orange-600 underline-offset-2 hover:underline"
               >
-                Sign in without password
+                Sign in with magic link
               </button>
-            </p>
+            </div>
           </form>
         )}
 
@@ -310,6 +317,70 @@ function LoginContent() {
             Click any account above · password: <code className="rounded bg-neutral-100 px-1 font-mono">demo1234</code>
           </p>
         </div>
+
+        {/* ── Forgot password ── */}
+        {tab === 'forgot' && (
+          <form onSubmit={async (e: FormEvent) => {
+            e.preventDefault()
+            if (!email.trim()) return
+            setLoading(true)
+            setStatus(null)
+            const supabase = createClient()
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+              redirectTo: `${window.location.origin}/auth/callback?next=/app/profile`,
+            })
+            if (error) {
+              setStatus({ type: 'error', msg: error.message })
+            } else {
+              setStatus({ type: 'success', msg: 'Password reset email sent! Check your inbox and click the link to set a new password.' })
+            }
+            setLoading(false)
+          }} className="space-y-4">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-700">
+              🔑 Enter your email and we&apos;ll send you a link to reset your password.
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-neutral-700" htmlFor="forgot-email">
+                Email
+              </label>
+              <input
+                id="forgot-email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none ring-orange-300 focus:ring"
+                placeholder="you@example.com"
+                autoComplete="email"
+              />
+            </div>
+
+            {status && (
+              <p className={`rounded-lg px-3 py-2 text-sm ${status.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                {status.msg}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-60"
+            >
+              {loading ? 'Sending…' : 'Send reset link'}
+            </button>
+
+            <p className="text-center text-xs text-neutral-400">
+              Remember your password?{' '}
+              <button
+                type="button"
+                onClick={() => switchTab('signin')}
+                className="text-orange-600 underline-offset-2 hover:underline"
+              >
+                Sign in
+              </button>
+            </p>
+          </form>
+        )}
 
         {/* ── Magic link (fallback) ── */}
         {tab === 'magic' && (

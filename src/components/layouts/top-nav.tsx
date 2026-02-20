@@ -153,8 +153,12 @@ export function TopNav({ userName, userRole, userInitials, unreadCount = 0, isAd
 
         {/* Center: perspective switcher (admin only, all screens) */}
         {isAdmin && (
-          <div className="flex items-center gap-2">
-            <span className="hidden text-xs text-neutral-400 sm:inline">👁 View as</span>
+          <div className="flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5">
+            <svg className="h-4 w-4 text-orange-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="hidden text-xs font-semibold text-orange-700 sm:inline">Switch Role:</span>
             <select
               value={viewAsRole ?? 'PlatformAdmin'}
               onChange={(e) => {
@@ -167,7 +171,7 @@ export function TopNav({ userName, userRole, userInitials, unreadCount = 0, isAd
                 router.push('/app/dashboard')
                 router.refresh()
               }}
-              className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-700 outline-none ring-orange-300 focus:ring"
+              className="rounded-md border border-orange-300 bg-white px-2 py-1 text-xs font-semibold text-orange-800 outline-none ring-orange-300 focus:ring-2 cursor-pointer"
               aria-label="Switch stakeholder perspective"
             >
               {ALL_PERSPECTIVE_ROLES.map((r) => (

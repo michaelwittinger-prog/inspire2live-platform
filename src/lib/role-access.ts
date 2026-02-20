@@ -15,6 +15,8 @@ export type NavKey =
   | 'congress'
   | 'resources'
   | 'partners'
+  | 'network'
+  | 'board'
   | 'notifications'
   | 'profile'
   | 'admin'
@@ -28,13 +30,13 @@ export type NavItemConfig = {
 const DEFAULT_ROLE: PlatformRole = 'PatientAdvocate'
 
 const ACCESS_BY_ROLE: Record<PlatformRole, string[]> = {
-  PatientAdvocate:  ['dashboard', 'initiatives', 'tasks', 'congress', 'resources', 'notifications', 'profile'],
-  Clinician:        ['dashboard', 'initiatives', 'tasks', 'congress', 'resources', 'notifications', 'profile'],
-  Researcher:       ['dashboard', 'initiatives', 'tasks', 'congress', 'resources', 'notifications', 'profile'],
-  IndustryPartner:  ['dashboard', 'partners', 'congress', 'resources', 'notifications', 'profile'],
-  BoardMember:      ['dashboard', 'initiatives', 'congress', 'resources', 'notifications', 'profile'],
-  HubCoordinator:   ['dashboard', 'bureau', 'initiatives', 'tasks', 'congress', 'partners', 'resources', 'notifications', 'profile'],
-  PlatformAdmin:    ['dashboard', 'bureau', 'initiatives', 'tasks', 'congress', 'partners', 'resources', 'notifications', 'profile', 'admin'],
+  PatientAdvocate:  ['dashboard', 'initiatives', 'tasks', 'congress', 'resources', 'network', 'notifications', 'profile'],
+  Clinician:        ['dashboard', 'initiatives', 'tasks', 'congress', 'resources', 'network', 'notifications', 'profile'],
+  Researcher:       ['dashboard', 'initiatives', 'tasks', 'congress', 'resources', 'network', 'notifications', 'profile'],
+  IndustryPartner:  ['dashboard', 'partners', 'congress', 'resources', 'network', 'notifications', 'profile'],
+  BoardMember:      ['dashboard', 'initiatives', 'congress', 'resources', 'network', 'board', 'notifications', 'profile'],
+  HubCoordinator:   ['dashboard', 'bureau', 'initiatives', 'tasks', 'congress', 'partners', 'resources', 'network', 'notifications', 'profile'],
+  PlatformAdmin:    ['dashboard', 'bureau', 'initiatives', 'tasks', 'congress', 'partners', 'resources', 'network', 'board', 'notifications', 'profile', 'admin'],
 }
 
 const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
@@ -42,6 +44,7 @@ const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
     { key: 'dashboard',     label: 'Dashboard',      href: '/app/dashboard' },
     { key: 'initiatives',   label: 'My Initiatives', href: '/app/initiatives' },
     { key: 'tasks',         label: 'My Tasks',       href: '/app/tasks' },
+    { key: 'network',       label: 'My Network',     href: '/app/network' },
     { key: 'congress',      label: 'Congress',       href: '/app/congress' },
     { key: 'resources',     label: 'Resources',      href: '/app/resources' },
     { key: 'profile',       label: 'Profile',        href: '/app/profile' },
@@ -50,6 +53,7 @@ const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
     { key: 'dashboard',     label: 'Dashboard',      href: '/app/dashboard' },
     { key: 'initiatives',   label: 'My Initiatives', href: '/app/initiatives' },
     { key: 'tasks',         label: 'My Tasks',       href: '/app/tasks' },
+    { key: 'network',       label: 'My Network',     href: '/app/network' },
     { key: 'congress',      label: 'Congress',       href: '/app/congress' },
     { key: 'resources',     label: 'Resources',      href: '/app/resources' },
     { key: 'profile',       label: 'Profile',        href: '/app/profile' },
@@ -58,6 +62,7 @@ const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
     { key: 'dashboard',     label: 'Dashboard',      href: '/app/dashboard' },
     { key: 'initiatives',   label: 'My Initiatives', href: '/app/initiatives' },
     { key: 'tasks',         label: 'My Tasks',       href: '/app/tasks' },
+    { key: 'network',       label: 'My Network',     href: '/app/network' },
     { key: 'congress',      label: 'Congress',       href: '/app/congress' },
     { key: 'resources',     label: 'Resources',      href: '/app/resources' },
     { key: 'profile',       label: 'Profile',        href: '/app/profile' },
@@ -65,13 +70,16 @@ const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
   IndustryPartner: [
     { key: 'dashboard',     label: 'Dashboard',      href: '/app/dashboard' },
     { key: 'partners',      label: 'My Engagements', href: '/app/partners' },
+    { key: 'network',       label: 'My Network',     href: '/app/network' },
     { key: 'congress',      label: 'Congress',       href: '/app/congress' },
     { key: 'resources',     label: 'Resources',      href: '/app/resources' },
     { key: 'profile',       label: 'Profile',        href: '/app/profile' },
   ],
   BoardMember: [
-    { key: 'dashboard',     label: 'Board Overview', href: '/app/dashboard' },
+    { key: 'dashboard',     label: 'Dashboard',      href: '/app/dashboard' },
+    { key: 'board',         label: 'Board View',     href: '/app/board' },
     { key: 'initiatives',   label: 'Initiatives',    href: '/app/initiatives' },
+    { key: 'network',       label: 'My Network',     href: '/app/network' },
     { key: 'congress',      label: 'Congress',       href: '/app/congress' },
     { key: 'resources',     label: 'Resources',      href: '/app/resources' },
     { key: 'profile',       label: 'Profile',        href: '/app/profile' },
@@ -80,6 +88,7 @@ const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
     { key: 'dashboard',     label: 'Dashboard',       href: '/app/dashboard' },
     { key: 'bureau',        label: 'Bureau',          href: '/app/bureau' },
     { key: 'initiatives',   label: 'All Initiatives', href: '/app/initiatives' },
+    { key: 'network',       label: 'My Network',      href: '/app/network' },
     { key: 'congress',      label: 'Congress',        href: '/app/congress' },
     { key: 'partners',      label: 'Partners',        href: '/app/partners' },
     { key: 'resources',     label: 'Resources',       href: '/app/resources' },
@@ -89,6 +98,8 @@ const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
     { key: 'dashboard',     label: 'Dashboard',       href: '/app/dashboard' },
     { key: 'bureau',        label: 'Bureau',          href: '/app/bureau' },
     { key: 'initiatives',   label: 'All Initiatives', href: '/app/initiatives' },
+    { key: 'network',       label: 'My Network',      href: '/app/network' },
+    { key: 'board',         label: 'Board View',      href: '/app/board' },
     { key: 'congress',      label: 'Congress',        href: '/app/congress' },
     { key: 'partners',      label: 'Partners',        href: '/app/partners' },
     { key: 'resources',     label: 'Resources',       href: '/app/resources' },

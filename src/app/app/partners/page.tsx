@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { DEMO_PARTNERS } from '@/lib/demo-data'
+import { PlaceholderButton, PlusIcon } from '@/components/ui/client-buttons'
 
 const neutralityColor: Record<string, string> = { declared: 'bg-emerald-100 text-emerald-700', pending: 'bg-amber-100 text-amber-700', review: 'bg-blue-100 text-blue-700' }
 
@@ -19,10 +20,7 @@ export default async function PartnersPage() {
           <h1 className="text-2xl font-bold text-neutral-900">Partners</h1>
           <p className="mt-1 text-sm text-neutral-500">{partners.length} partnerships with neutrality declarations.</p>
         </div>
-        <button onClick={() => alert('Add partner feature coming in next release!')} className="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-          Add Partner
-        </button>
+        <PlaceholderButton label="Add Partner" icon={<PlusIcon />} message="Partner management will be available in the next release." />
       </div>
       <div className="space-y-3">
         {partners.map(p => (

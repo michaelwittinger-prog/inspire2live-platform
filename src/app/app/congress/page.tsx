@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { DEMO_CONGRESS } from '@/lib/demo-data'
+import { PlaceholderButton, PlusIcon, VoteButton } from '@/components/ui/client-buttons'
 
 export default async function CongressPage() {
   const supabase = await createClient()
@@ -40,18 +41,12 @@ export default async function CongressPage() {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold text-neutral-900">Proposed Topics</h2>
-          <button onClick={() => alert('Propose topic feature coming in next release!')} className="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-700">
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-            Propose Topic
-          </button>
+          <PlaceholderButton label="Propose Topic" icon={<PlusIcon />} message="Topic proposals will be available closer to Congress 2026." />
         </div>
         <div className="space-y-2">
           {congress.topics.map(t => (
             <div key={t.id} className="flex items-center gap-4 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
-              <button className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg border border-neutral-200 bg-neutral-50 hover:bg-orange-50 hover:border-orange-300 transition-colors" onClick={() => alert('Voting coming in next release!')}>
-                <svg className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>
-                <span className="text-sm font-bold text-neutral-700">{t.votes}</span>
-              </button>
+              <VoteButton votes={t.votes} />
               <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-semibold text-neutral-900">{t.title}</h3>
                 <p className="text-xs text-neutral-500">Proposed by {t.proposer} · {t.initiative}</p>

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { DEMO_NOTIFICATIONS } from '@/lib/demo-data'
+import { PlaceholderButton } from '@/components/ui/client-buttons'
 
 const typeIcon: Record<string, string> = { task_assigned: '📋', milestone_completed: '✅', discussion_reply: '💬', member_joined: '👤', initiative_update: '📊' }
 
@@ -23,7 +24,7 @@ export default async function NotificationsPage() {
           <h1 className="text-2xl font-bold text-neutral-900">Notifications</h1>
           <p className="text-sm text-neutral-500">{unread} unread</p>
         </div>
-        <button onClick={() => alert('Mark all read feature coming in next release!')} className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50">Mark all read</button>
+        <PlaceholderButton label="Mark all read" variant="secondary" message="Mark all read will be available in the next update." />
       </div>
       <div className="space-y-2">
         {notifications.map(n => (

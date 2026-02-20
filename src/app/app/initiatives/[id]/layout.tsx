@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { InitiativeTabs } from '@/components/initiatives/initiative-tabs'
 import { canManageInitiativeWorkspace } from '@/lib/initiative-workspace'
+import { normalizeStage, STAGE_META } from '@/lib/demo-data'
 
 export default async function InitiativeLayout({
   children,
@@ -37,6 +38,9 @@ export default async function InitiativeLayout({
 
   if (!initiative) redirect('/app/initiatives')
 
+  const stage = normalizeStage(initiative.phase)
+  const stageMeta = STAGE_META[stage]
+
   const { data: membership } = await supabase
     .from('initiative_members')
     .select('role')
@@ -55,7 +59,7 @@ export default async function InitiativeLayout({
     { label: 'Tasks', href: `/app/initiatives/${id}/tasks` },
     { label: 'Evidence', href: `/app/initiatives/${id}/evidence` },
     { label: 'Team', href: `/app/initiatives/${id}/team` },
-    { label: 'Discussions', href: `/app/initiatives/${id}/discussions` },
+    { label: 'Communication', href: `/app/initiatives/${id}/discussions` },
   ]
 
   return (
@@ -64,9 +68,14 @@ export default async function InitiativeLayout({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-neutral-900">{initiative.title}</h1>
-            <p className="mt-1 text-sm capitalize text-neutral-600">
-              {initiative.phase} · {initiative.status}
-            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${stageMeta.color}`}>
+                {stageMeta.label}
+              </span>
+              <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-0.5 text-xs font-medium capitalize text-neutral-600">
+                {initiative.status}
+              </span>
+            </div>
           </div>
           <div className="flex gap-2">
             <Link

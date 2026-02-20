@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { DEMO_INITIATIVES, withFallback } from '@/lib/demo-data'
+import { CreateInitiativeButton } from '@/components/ui/client-buttons'
 
 export default async function InitiativesIndexPage() {
   const supabase = await createClient()
@@ -54,21 +55,12 @@ export default async function InitiativesIndexPage() {
             {isCoordinator ? 'All initiative workspaces.' : 'Your initiative workspaces.'}
           </p>
         </div>
-        <Link
-          href="/app/initiatives/new"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 transition-colors"
-          onClick={(e) => { e.preventDefault(); alert('Initiative creation coming in next release! For now, initiatives are created by Hub Coordinators.') }}
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          New Initiative
-        </Link>
+        <CreateInitiativeButton />
       </div>
 
       {usingDemo && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-700">
-          Showing demo data. Run <code className="rounded bg-amber-100 px-1 font-mono">seed-demo.sql</code> in Supabase to populate real data.
+          📋 Showing demo data — create your first real initiative using the button above, or seed the database.
         </div>
       )}
 
@@ -126,6 +118,18 @@ export default async function InitiativesIndexPage() {
           </Link>
         ))}
       </div>
+
+      {rows.length === 0 && (
+        <div className="rounded-xl border border-dashed border-neutral-300 bg-white px-6 py-12 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-orange-100">
+            <svg className="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+            </svg>
+          </div>
+          <p className="text-sm font-medium text-neutral-900">No initiatives yet</p>
+          <p className="mt-1 text-sm text-neutral-500">Create your first initiative to get started.</p>
+        </div>
+      )}
     </div>
   )
 }

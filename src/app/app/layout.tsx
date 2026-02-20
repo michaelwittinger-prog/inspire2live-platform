@@ -38,7 +38,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .eq('is_read', false)
 
   const name = profile?.name || user.email || 'Unknown'
-  const actualRole = profile?.role || 'PatientAdvocate'
+  let actualRole = profile?.role || 'PatientAdvocate'
+
+  // Auto-promote bootstrap admin emails to PlatformAdmin
+  const ADMIN_EMAILS = ['michael.wittinger@gmail.com']
+  if (user.email && ADMIN_EMAILS.includes(user.email) && actualRole !== 'PlatformAdmin') {
+    await supabase
+      .from('profiles')
+      .update({ role: 'PlatformAdmin' })
+      .eq('id', user.id)
+    actualRole = 'PlatformAdmin'
+  }
+
   const isAdmin = actualRole === 'PlatformAdmin'
 
   // Admin perspective switching: read cookie
