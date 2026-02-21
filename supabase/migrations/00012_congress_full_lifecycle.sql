@@ -1,4 +1,4 @@
--- ─────────────────────────────────────────────────────────────────────────────
+﻿-- ─────────────────────────────────────────────────────────────────────────────
 -- Migration 00012: Full Congress Lifecycle Schema
 -- Adds multi-year congress events, themes, sessions, session notes,
 -- assets, and cross-year bridging (carryover links).
@@ -161,36 +161,46 @@ ALTER TABLE congress_assets            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE congress_event_themes      ENABLE ROW LEVEL SECURITY;
 
 -- Events & themes: all authenticated users can read
+DROP POLICY IF EXISTS "auth_read_congress_events" ON congress_events;
 CREATE POLICY "auth_read_congress_events" ON congress_events
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "coordinators_manage_congress_events" ON congress_events;
 CREATE POLICY "coordinators_manage_congress_events" ON congress_events
   FOR ALL USING (is_coordinator_or_admin());
 
+DROP POLICY IF EXISTS "auth_read_congress_themes" ON congress_themes;
 CREATE POLICY "auth_read_congress_themes" ON congress_themes
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "coordinators_manage_congress_themes" ON congress_themes;
 CREATE POLICY "coordinators_manage_congress_themes" ON congress_themes
   FOR ALL USING (is_coordinator_or_admin());
 
 -- Sessions: all authenticated users can read; coordinators/admins manage
+DROP POLICY IF EXISTS "auth_read_congress_sessions" ON congress_sessions;
 CREATE POLICY "auth_read_congress_sessions" ON congress_sessions
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "coordinators_manage_congress_sessions" ON congress_sessions;
 CREATE POLICY "coordinators_manage_congress_sessions" ON congress_sessions
   FOR ALL USING (is_coordinator_or_admin());
 
 -- Session attendees: users see their own; coordinators see all
+DROP POLICY IF EXISTS "auth_read_session_attendees" ON congress_session_attendees;
 CREATE POLICY "auth_read_session_attendees" ON congress_session_attendees
   FOR SELECT USING (auth.uid() = user_id OR is_coordinator_or_admin());
 
+DROP POLICY IF EXISTS "auth_manage_own_attendance" ON congress_session_attendees;
 CREATE POLICY "auth_manage_own_attendance" ON congress_session_attendees
   FOR ALL USING (auth.uid() = user_id);
 
 -- Session notes: all authenticated users can read; note-takers and admins can write
+DROP POLICY IF EXISTS "auth_read_session_notes" ON congress_session_notes;
 CREATE POLICY "auth_read_session_notes" ON congress_session_notes
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "notetaker_manage_session_notes" ON congress_session_notes;
 CREATE POLICY "notetaker_manage_session_notes" ON congress_session_notes
   FOR ALL USING (
     auth.uid() = created_by
@@ -203,16 +213,20 @@ CREATE POLICY "notetaker_manage_session_notes" ON congress_session_notes
   );
 
 -- Assets: public assets readable by all authenticated; restricted by is_public flag
+DROP POLICY IF EXISTS "auth_read_public_congress_assets" ON congress_assets;
 CREATE POLICY "auth_read_public_congress_assets" ON congress_assets
   FOR SELECT USING (auth.uid() IS NOT NULL AND is_public = true);
 
+DROP POLICY IF EXISTS "coordinators_manage_congress_assets" ON congress_assets;
 CREATE POLICY "coordinators_manage_congress_assets" ON congress_assets
   FOR ALL USING (is_coordinator_or_admin());
 
 -- Event themes join table: readable by all authenticated
+DROP POLICY IF EXISTS "auth_read_event_themes" ON congress_event_themes;
 CREATE POLICY "auth_read_event_themes" ON congress_event_themes
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "coordinators_manage_event_themes" ON congress_event_themes;
 CREATE POLICY "coordinators_manage_event_themes" ON congress_event_themes
   FOR ALL USING (is_coordinator_or_admin());
 

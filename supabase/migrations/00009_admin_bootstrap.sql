@@ -1,4 +1,4 @@
--- ============================================================
+﻿-- ============================================================
 -- Migration 00009: Admin bootstrap
 -- Sets michael.wittinger@gmail.com as PlatformAdmin
 -- Adds RLS policies so PlatformAdmin can read/update all profiles
@@ -12,6 +12,7 @@ WHERE id = (
 );
 
 -- 2. Allow PlatformAdmin to read ALL profiles (user management)
+DROP POLICY IF EXISTS admin_can_read_all_profiles ON profiles;
 DROP POLICY IF EXISTS admin_can_read_all_profiles ON profiles;
 CREATE POLICY admin_can_read_all_profiles ON profiles
   FOR SELECT
@@ -27,6 +28,7 @@ CREATE POLICY admin_can_read_all_profiles ON profiles
   );
 
 -- 3. Allow PlatformAdmin to update ANY profile's role field
+DROP POLICY IF EXISTS admin_can_update_any_profile ON profiles;
 DROP POLICY IF EXISTS admin_can_update_any_profile ON profiles;
 CREATE POLICY admin_can_update_any_profile ON profiles
   FOR UPDATE

@@ -41,6 +41,15 @@ CREATE INDEX IF NOT EXISTS congress_decisions_initiative_idx ON congress_decisio
 CREATE INDEX IF NOT EXISTS congress_decisions_status_idx ON congress_decisions(conversion_status);
 
 -- ── congress_topics ───────────────────────────────────────────────────────────
+-- Ensure missing columns if table already existed without them
+ALTER TABLE IF EXISTS congress_topics ADD COLUMN IF NOT EXISTS submitted_by uuid REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE IF EXISTS congress_topics ADD COLUMN IF NOT EXISTS initiative_id uuid REFERENCES initiatives(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS congress_topics ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'submitted';
+ALTER TABLE IF EXISTS congress_topics ADD COLUMN IF NOT EXISTS vote_count integer NOT NULL DEFAULT 0;
+ALTER TABLE IF EXISTS congress_topics ADD COLUMN IF NOT EXISTS session_date date;
+ALTER TABLE IF EXISTS congress_topics ADD COLUMN IF NOT EXISTS resolution text;
+ALTER TABLE IF EXISTS congress_topics ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+
 CREATE TABLE IF NOT EXISTS congress_topics (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   title            text NOT NULL,
@@ -94,33 +103,41 @@ ALTER TABLE congress_topics        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE congress_topic_votes   ENABLE ROW LEVEL SECURITY;
 
 -- Notifications: users see only their own
+DROP POLICY IF EXISTS "users_read_own_notifications" ON notifications;
 CREATE POLICY "users_read_own_notifications" ON notifications
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "users_update_own_notifications" ON notifications;
 CREATE POLICY "users_update_own_notifications" ON notifications
   FOR UPDATE USING (auth.uid() = user_id);
 
 -- Congress decisions: all authenticated users can read
+DROP POLICY IF EXISTS "auth_read_congress_decisions" ON congress_decisions;
 CREATE POLICY "auth_read_congress_decisions" ON congress_decisions
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
 -- Congress decisions: only coordinators/admins can insert/update
+DROP POLICY IF EXISTS "coordinators_manage_congress_decisions" ON congress_decisions;
 CREATE POLICY "coordinators_manage_congress_decisions" ON congress_decisions
   FOR ALL USING (is_coordinator_or_admin());
 
 -- Congress topics: all authenticated users can read
+DROP POLICY IF EXISTS "auth_read_congress_topics" ON congress_topics;
 CREATE POLICY "auth_read_congress_topics" ON congress_topics
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
 -- Congress topics: any authenticated user can submit
+DROP POLICY IF EXISTS "auth_insert_congress_topics" ON congress_topics;
 CREATE POLICY "auth_insert_congress_topics" ON congress_topics
   FOR INSERT WITH CHECK (auth.uid() = submitted_by);
 
 -- Congress topics: owner or coordinator can update
+DROP POLICY IF EXISTS "owner_or_coordinator_update_topic" ON congress_topics;
 CREATE POLICY "owner_or_coordinator_update_topic" ON congress_topics
   FOR UPDATE USING (auth.uid() = submitted_by OR is_coordinator_or_admin());
 
 -- Topic votes: users manage their own votes
+DROP POLICY IF EXISTS "users_manage_own_votes" ON congress_topic_votes;
 CREATE POLICY "users_manage_own_votes" ON congress_topic_votes
   FOR ALL USING (auth.uid() = user_id);
 

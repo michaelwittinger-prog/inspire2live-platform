@@ -1,4 +1,4 @@
--- ─────────────────────────────────────────────────────────────────────────────
+﻿-- ─────────────────────────────────────────────────────────────────────────────
 -- Migration 00013: Congress assignments (2-layer role model)
 -- Adds congress-level responsibility mapping without duplicating platform roles.
 --
@@ -48,6 +48,7 @@ create index if not exists congress_assignments_congress_idx on public.congress_
 alter table public.congress_assignments enable row level security;
 
 -- Users can read their own assignments; coordinators/admins can read all.
+DROP POLICY IF EXISTS "congress_assignments_select" ON public.congress_assignments;
 create policy "congress_assignments_select" on public.congress_assignments
   for select using (
     auth.uid() = user_id
@@ -55,6 +56,7 @@ create policy "congress_assignments_select" on public.congress_assignments
   );
 
 -- Only coordinators/admins can manage assignments (insert/update/delete).
+DROP POLICY IF EXISTS "congress_assignments_manage" ON public.congress_assignments;
 create policy "congress_assignments_manage" on public.congress_assignments
   for all using (public.is_coordinator_or_admin())
   with check (public.is_coordinator_or_admin());

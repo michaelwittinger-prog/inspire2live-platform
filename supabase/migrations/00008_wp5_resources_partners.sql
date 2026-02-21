@@ -1,4 +1,4 @@
--- ─────────────────────────────────────────────────────────────────────────────
+﻿-- ─────────────────────────────────────────────────────────────────────────────
 -- WP-5: Resource Library + Partner Portal
 -- New tables: resource_translations, partner_applications, partner_audit_log
 -- Extends: resources (adds version, translation_status, is_partner_contribution,
@@ -83,29 +83,36 @@ ALTER TABLE partner_applications   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE partner_audit_log      ENABLE ROW LEVEL SECURITY;
 
 -- Resource translations: all authenticated users can read
+DROP POLICY IF EXISTS "auth_read_resource_translations" ON resource_translations;
 CREATE POLICY "auth_read_resource_translations" ON resource_translations
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
 -- Resource translations: coordinators/admins can write
+DROP POLICY IF EXISTS "coordinators_manage_resource_translations" ON resource_translations;
 CREATE POLICY "coordinators_manage_resource_translations" ON resource_translations
   FOR ALL USING (is_coordinator_or_admin());
 
 -- Partner applications: submitter sees their own; coordinators see all
+DROP POLICY IF EXISTS "submitter_or_coordinator_read_apps" ON partner_applications;
 CREATE POLICY "submitter_or_coordinator_read_apps" ON partner_applications
   FOR SELECT USING (
     auth.uid() = submitted_by_id OR is_coordinator_or_admin()
   );
 
+DROP POLICY IF EXISTS "auth_insert_partner_application" ON partner_applications;
 CREATE POLICY "auth_insert_partner_application" ON partner_applications
   FOR INSERT WITH CHECK (auth.uid() = submitted_by_id);
 
+DROP POLICY IF EXISTS "coordinator_update_partner_application" ON partner_applications;
 CREATE POLICY "coordinator_update_partner_application" ON partner_applications
   FOR UPDATE USING (is_coordinator_or_admin());
 
 -- Audit log: coordinators and board members only
+DROP POLICY IF EXISTS "governance_read_partner_audit" ON partner_audit_log;
 CREATE POLICY "governance_read_partner_audit" ON partner_audit_log
   FOR SELECT USING (is_coordinator_or_admin());
 
+DROP POLICY IF EXISTS "coordinator_insert_partner_audit" ON partner_audit_log;
 CREATE POLICY "coordinator_insert_partner_audit" ON partner_audit_log
   FOR INSERT WITH CHECK (is_coordinator_or_admin());
 
