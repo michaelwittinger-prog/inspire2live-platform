@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
 import { WorkstreamCreateForm } from '@/components/congress/workspace/create-forms'
 
@@ -49,7 +50,7 @@ export default async function CongressWorkspaceWorkstreamsPage() {
 
   const { data: events } = await supabase
     .from('congress_events').select('id, title').order('year', { ascending: false }).limit(1)
-  const event = events?.[0]
+  const event = events?.[0] ?? DEMO_CONGRESS_EVENTS[0]
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any
@@ -70,7 +71,7 @@ export default async function CongressWorkspaceWorkstreamsPage() {
             {event?.title ?? 'Congress'} — {workstreams.length} workstream{workstreams.length !== 1 ? 's' : ''}
           </p>
         </div>
-        {canCreate && event && <WorkstreamCreateForm congressId={event.id} />}
+        {canCreate && <WorkstreamCreateForm congressId={event.id} />}
       </div>
 
       <WorkspaceNav active="workstreams" />

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 
 // ─── Guard ───────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,44 @@ async function requireCoordinator() {
   return { supabase: supabase as ReturnType<typeof createClient> extends Promise<infer T> ? T : never, userId: user.id }
 }
 
+// ─── Ensure the congress event exists in DB ──────────────────────────────────
+
+async function ensureCongressEvent(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  congressId: string,
+) {
+  // Check if event already exists
+  const { data: existing } = await supabase
+    .from('congress_events')
+    .select('id')
+    .eq('id', congressId)
+    .maybeSingle()
+
+  if (existing) return // already in DB
+
+  // Auto-create from demo template
+  const demo = DEMO_CONGRESS_EVENTS.find(e => e.id === congressId) ?? DEMO_CONGRESS_EVENTS[0]
+  const { error } = await supabase.from('congress_events').insert({
+    id:              congressId,
+    year:            demo.year,
+    title:           demo.title,
+    description:     demo.description,
+    location:        demo.location,
+    start_date:      demo.start_date,
+    end_date:        demo.end_date,
+    theme_headline:  demo.theme_headline,
+    status:          demo.status ?? 'planning',
+    parent_event_id: null,
+  })
+  if (error) {
+    // Ignore duplicate-key race condition
+    if (!error.message?.includes('duplicate') && !error.code?.includes('23505')) {
+      throw new Error(`Failed to bootstrap congress event: ${error.message}`)
+    }
+  }
+}
+
 // ─── Workstreams ──────────────────────────────────────────────────────────────
 
 export async function createWorkstream(formData: FormData) {
@@ -35,12 +74,15 @@ export async function createWorkstream(formData: FormData) {
 
   if (!title || !congressId) throw new Error('Title and congress required')
 
+  await ensureCongressEvent(supabase, congressId)
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
     .from('congress_workstreams')
     .insert({ congress_id: congressId, title, description, owner_role: ownerRole, health, progress_pct: progressPct, next_milestone: nextMilestone })
   if (error) throw new Error(error.message)
   revalidatePath('/app/congress/workspace/workstreams')
+  revalidatePath('/app/congress/workspace/overview')
 }
 
 // ─── Tasks ────────────────────────────────────────────────────────────────────
@@ -57,6 +99,8 @@ export async function createTask(formData: FormData) {
   const workstreamId = (formData.get('workstream_id') as string | null)?.trim() || null
 
   if (!title || !congressId) throw new Error('Title and congress required')
+
+  await ensureCongressEvent(supabase, congressId)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
@@ -81,7 +125,6 @@ export async function createTask(formData: FormData) {
 export async function createMessage(formData: FormData) {
   const { supabase, userId } = await requireCoordinator()
 
-  // Get author name from profile (use email as fallback label)
   const { data: profRow } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle()
   const authorName = (formData.get('author_name') as string | null)?.trim() || profRow?.role || 'Unknown'
 
@@ -93,6 +136,8 @@ export async function createMessage(formData: FormData) {
   const labels      = labelsRaw ? labelsRaw.split(',').map(l => l.trim()).filter(Boolean) : []
 
   if (!subject || !body || !congressId) throw new Error('Subject, body, and congress required')
+
+  await ensureCongressEvent(supabase, congressId)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
@@ -113,6 +158,8 @@ export async function createMilestone(formData: FormData) {
   const workstreamId  = (formData.get('workstream_id') as string | null)?.trim() || null
 
   if (!title || !milestoneDate || !congressId) throw new Error('Title, date, and congress required')
+
+  await ensureCongressEvent(supabase, congressId)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
@@ -135,6 +182,8 @@ export async function createRaidItem(formData: FormData) {
   const description = (formData.get('description') as string | null)?.trim() || null
 
   if (!title || !congressId) throw new Error('Title and congress required')
+
+  await ensureCongressEvent(supabase, congressId)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)

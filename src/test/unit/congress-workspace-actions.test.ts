@@ -31,6 +31,10 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
+vi.mock('@/lib/demo-data', () => ({
+  DEMO_CONGRESS_EVENTS: [{ id: 'evt-2026', year: 2026, title: 'Demo Congress 2026', description: '', location: '', start_date: '2026-11-13', end_date: '2026-11-14', theme_headline: '', status: 'planning' }],
+}))
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fd(data: Record<string, string>) {

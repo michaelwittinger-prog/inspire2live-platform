@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
 import { PriorityBadge } from '@/components/ui/priority-badge'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -34,7 +35,7 @@ export default async function CongressWorkspaceTasksPage() {
     .select('id, title')
     .order('year', { ascending: false })
     .limit(1)
-  const event = events?.[0]
+  const event = events?.[0] ?? DEMO_CONGRESS_EVENTS[0]
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any
@@ -84,7 +85,7 @@ export default async function CongressWorkspaceTasksPage() {
             )}
           </p>
         </div>
-        {canCreate && event && (
+        {canCreate && (
           <TaskCreateForm congressId={event.id} workstreams={wsRows} />
         )}
       </div>
