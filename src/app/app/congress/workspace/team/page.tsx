@@ -10,7 +10,7 @@
  */
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_CONGRESS_EVENTS, DEMO_CONGRESS_ASSIGNMENTS } from '@/lib/demo-data'
+import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 import { rowToCongressAssignment } from '@/lib/congress-assignments'
 import type { CongressAssignmentRow, CongressProjectRole } from '@/lib/congress-assignments'
 import type { CongressEvent } from '@/lib/congress'
@@ -39,15 +39,6 @@ const PLATFORM_ROLE_LABEL: Record<string, string> = {
   IndustryPartner: 'Industry Partner',
   BoardMember:     'Board Member',
   PlatformAdmin:   'Platform Admin',
-}
-
-// Demo profile data to enrich assignments when no real profiles
-const DEMO_PROFILES: Record<string, { name: string; platformRole: string; organization?: string }> = {
-  'demo-user-1': { name: 'Sophie van der Berg', platformRole: 'HubCoordinator', organization: 'Inspire2Live' },
-  'demo-user-2': { name: 'Nadia Al-Rashid',     platformRole: 'PatientAdvocate', organization: 'Patient Forum NL' },
-  'demo-user-3': { name: 'Peter de Groot',       platformRole: 'Researcher',      organization: 'LUMC' },
-  'demo-user-4': { name: 'Maria Santos',         platformRole: 'Clinician',       organization: 'AMC' },
-  'demo-user-5': { name: 'James Okafor',         platformRole: 'IndustryPartner', organization: 'Pharma NV' },
 }
 
 function initials(name: string) {
@@ -87,12 +78,8 @@ export default async function CongressWorkspaceTeamPage() {
     .select('*')
     .eq('congress_id', currentEvent.id)
 
-  const assignmentRows: CongressAssignmentRow[] = (dbAssignments && dbAssignments.length > 0)
-    ? (dbAssignments as unknown as CongressAssignmentRow[])
-    : (DEMO_CONGRESS_ASSIGNMENTS as unknown as CongressAssignmentRow[])
-        .filter(a => a.congress_id === currentEvent.id)
-
-  const usingDemo = !(dbAssignments && dbAssignments.length > 0)
+  const assignmentRows: CongressAssignmentRow[] = (dbAssignments ?? []) as unknown as CongressAssignmentRow[]
+  const usingDemo = false
 
   // ── Viewer's own congress roles ──
   const myAssignments = assignmentRows.filter(r => r.user_id === user.id)
@@ -105,7 +92,8 @@ export default async function CongressWorkspaceTeamPage() {
     .select('id, role')
     .in('id', allUserIds.length > 0 ? allUserIds : ['__none__'])
 
-  // Build lookup: userId → { platformRole } (name falls back to demo or userId)
+  // Build lookup: userId → { platformRole }
+  // profiles table does not store display names; show truncated userId as fallback
   const profileMap: Record<string, { platformRole: string }> = {}
   for (const p of profileRows ?? []) {
     profileMap[p.id] = { platformRole: (p.role as string) ?? 'PatientAdvocate' }
@@ -125,12 +113,11 @@ export default async function CongressWorkspaceTeamPage() {
     if (!memberMap[a.userId]) {
       // Real profile first, then demo fallback
       const real = profileMap[a.userId]
-      const demo = DEMO_PROFILES[a.userId]
       memberMap[a.userId] = {
         userId: a.userId,
-        name: demo?.name ?? a.userId,
-        platformRole: real?.platformRole ?? demo?.platformRole ?? 'PatientAdvocate',
-        organization: demo?.organization,
+        name: a.userId.slice(0, 8) + '…',
+        platformRole: real?.platformRole ?? 'PatientAdvocate',
+        organization: undefined,
         congressRoles: [],
       }
     }

@@ -1,15 +1,13 @@
 /**
- * Congress Workspace – Overview (Clean v2)
+ * Congress Workspace – Overview
  *
- * UX redesign goals:
- *  1. Role authority visible in <5s — no passive explanation banners.
- *  2. Primary job: triage today's work. "Now" items front and centre.
- *  3. Governance / risk / activity below the fold or in sidebar.
- *  4. Demo/setup warnings only visible to PlatformAdmin.
+ * All operational data now comes from Supabase (congress_tasks,
+ * congress_workstreams, congress_raid_items, congress_approval_requests).
+ * No demo/hardcoded data is rendered.
  */
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_CONGRESS_EVENTS, DEMO_CONGRESS_ASSIGNMENTS } from '@/lib/demo-data'
+import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 import { rowToCongressAssignment } from '@/lib/congress-assignments'
 import type { CongressEvent } from '@/lib/congress'
 import type { CongressAssignmentRow } from '@/lib/congress-assignments'
@@ -20,14 +18,40 @@ import { ContextPanel } from '@/components/congress/workspace/context-panel'
 import { HealthChip } from '@/components/ui/health-chip'
 import { ActivityItem } from '@/components/ui/activity-item'
 import { responsibilitySummary } from '@/lib/congress-policy'
-import {
-  DEMO_ACTIVITY,
-  DEMO_DEP_ALERTS,
-  DEMO_KPIS,
-  DEMO_RAID,
-  DEMO_TASKS_WORKSPACE,
-  DEMO_WORKSTREAMS,
-} from '@/lib/congress-workspace-demo'
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type DbTask = {
+  id: string
+  title: string
+  status: string
+  priority: string
+  lane: string
+  due_date: string | null
+  owner_name: string | null
+}
+
+type DbWorkstream = {
+  id: string
+  title: string
+  health: string
+  progress_pct: number
+  next_milestone: string | null
+  owner_role: string | null
+}
+
+type DbRaidItem = {
+  id: string
+  title: string
+  type: string
+  status: string
+  priority: string
+}
+
+type DbApproval = {
+  id: string
+  status: string
+}
 
 // ─── Local UI helpers ────────────────────────────────────────────────────────
 
@@ -79,7 +103,6 @@ function PhaseBadge({ status }: { status: CongressEvent['status'] }) {
   )
 }
 
-/** Replaces EscalationBanner — answers "what can I do?" not "why can't I?". */
 function AuthorityStrip({
   platformRole,
   congressRoles,
@@ -93,18 +116,14 @@ function AuthorityStrip({
 }) {
   const hasCongressRole = congressRoles.length > 0
   const isAdmin = platformRole === 'PlatformAdmin'
-
-  // Derive a terse action statement from the responsibility summary
   const canEdit = tone === 'success' || isAdmin
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
-      {/* Platform role */}
       <span>
         <span className="font-semibold text-neutral-900">Platform:</span> {platformRole}
       </span>
       <span className="text-neutral-300">·</span>
-      {/* Congress role */}
       {hasCongressRole ? (
         <span>
           <span className="font-semibold text-neutral-900">Congress role:</span>{' '}
@@ -123,7 +142,6 @@ function AuthorityStrip({
         </span>
       )}
       <span className="text-neutral-300">·</span>
-      {/* Permission summary */}
       <span className={canEdit ? 'text-green-700' : 'text-amber-700'}>
         {canEdit ? '✓ Can edit' : '⚠ View only'}
       </span>
@@ -159,30 +177,76 @@ export default async function CongressWorkspaceOverviewPage() {
     : DEMO_CONGRESS_EVENTS[0]
   const usingDemoEvent = !dbEvents?.[0]
 
-  // ── Assignments ──
+  // ── Assignments for current user ──
   const { data: dbAssignments } = await supabase
     .from('congress_assignments')
     .select('*')
     .eq('congress_id', currentEvent.id)
     .eq('user_id', user.id)
 
-  const assignmentRows: CongressAssignmentRow[] = (dbAssignments && dbAssignments.length > 0)
-    ? (dbAssignments as unknown as CongressAssignmentRow[])
-    : (DEMO_CONGRESS_ASSIGNMENTS as unknown as CongressAssignmentRow[])
-        .filter(a => a.congress_id === currentEvent.id && a.user_id === user.id)
-  const usingDemoAssignments = !(dbAssignments && dbAssignments.length > 0)
+  const assignmentRows: CongressAssignmentRow[] = (dbAssignments ?? []) as unknown as CongressAssignmentRow[]
+  const usingDemoAssignments = assignmentRows.length === 0
 
   const assignments = assignmentRows.map(r => rowToCongressAssignment(r))
   const congressRoles = assignments.map(a => a.projectRole)
   const resp = responsibilitySummary(platformRole, congressRoles)
 
-  // ── Derived data ──
-  const nowTasks   = DEMO_TASKS_WORKSPACE.filter(t => t.lane === 'now')
-  const nextTasks  = DEMO_TASKS_WORKSPACE.filter(t => t.lane === 'next')
-  const laterTasks = DEMO_TASKS_WORKSPACE.filter(t => t.lane === 'later')
+  // ── Operational data — all from DB ──
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any
+
+  const [
+    { data: rawTasks },
+    { data: rawWorkstreams },
+    { data: rawRaid },
+    { data: rawApprovals },
+  ] = await Promise.all([
+    sb
+      .from('congress_tasks')
+      .select('id, title, status, priority, lane, due_date, owner_name')
+      .eq('congress_id', currentEvent.id)
+      .neq('status', 'done')
+      .order('priority'),
+    sb
+      .from('congress_workstreams')
+      .select('id, title, health, progress_pct, next_milestone, owner_role')
+      .eq('congress_id', currentEvent.id)
+      .order('sort_order'),
+    sb
+      .from('congress_raid_items')
+      .select('id, title, type, status, priority')
+      .eq('congress_id', currentEvent.id)
+      .in('status', ['open', 'mitigating'])
+      .order('priority'),
+    sb
+      .from('congress_approval_requests')
+      .select('id, status')
+      .eq('congress_id', currentEvent.id)
+      .in('status', ['submitted', 'in_review']),
+  ])
+
+  const tasks: DbTask[]        = (rawTasks       ?? []) as DbTask[]
+  const workstreams: DbWorkstream[] = (rawWorkstreams ?? []) as DbWorkstream[]
+  const raidItems: DbRaidItem[] = (rawRaid        ?? []) as DbRaidItem[]
+  const approvals: DbApproval[] = (rawApprovals   ?? []) as DbApproval[]
+
+  // ── Derived data from DB records ──
+  const nowTasks   = tasks.filter(t => t.lane === 'now')
+  const nextTasks  = tasks.filter(t => t.lane === 'next')
+  const laterTasks = tasks.filter(t => t.lane === 'later')
   const urgentNow  = nowTasks.filter(t => t.priority === 'urgent' || t.priority === 'high').slice(0, 3)
-  const changedSince = DEMO_ACTIVITY.slice(0, 3)
-  const depAlerts  = DEMO_DEP_ALERTS
+
+  const topWorkstream  = workstreams[0] ?? null
+  const topRiskItem    = raidItems.find(r => r.type === 'risk' || r.type === 'issue') ?? raidItems[0] ?? null
+  const pendingCount   = approvals.length
+
+  // KPIs derived from workstream health
+  const kpis = workstreams.slice(0, 4).map(ws => ({
+    id: ws.id,
+    label: ws.title.split('&')[0].trim(),
+    value: ws.health === 'on_track' ? 'On track' : ws.health === 'blocked' ? 'Blocked' : 'At risk',
+    status: ws.health === 'on_track' ? 'good' as const : ws.health === 'blocked' ? 'bad' as const : 'warn' as const,
+  }))
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -213,9 +277,7 @@ export default async function CongressWorkspaceOverviewPage() {
         </div>
       )}
 
-      {/* ── ROLE AUTHORITY STRIP ────────────────────────────────────────────
-           Replaces the passive EscalationBanner.
-           Answers: "What am I? What can I do?"  in one compact line.         */}
+      {/* ── ROLE AUTHORITY STRIP ──────────────────────────────────────────── */}
       <div className="mt-3">
         <AuthorityStrip
           platformRole={platformRole}
@@ -230,8 +292,7 @@ export default async function CongressWorkspaceOverviewPage() {
         <WorkspaceNav active="overview" />
       </div>
 
-      {/* ── ADMIN ONLY: setup warning ───────────────────────────────────────
-           Regular users don't need to know about demo data — it distracts.   */}
+      {/* ── ADMIN ONLY: setup warning ───────────────────────────────────────── */}
       {isAdmin && (usingDemoEvent || usingDemoAssignments) && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs">
           <p className="font-semibold text-amber-900">Admin: production data missing</p>
@@ -246,8 +307,7 @@ export default async function CongressWorkspaceOverviewPage() {
       <div className="mt-5 flex gap-6">
         <div className="min-w-0 flex-1 space-y-6">
 
-          {/* PRIMARY ACTION ZONE: urgent "Now" items ─────────────────────
-               Kept at top-of-fold so the user knows what to do in <5s.      */}
+          {/* PRIMARY ACTION ZONE: urgent "Now" items */}
           {urgentNow.length > 0 && (
             <section>
               <div className="flex items-baseline justify-between">
@@ -267,15 +327,14 @@ export default async function CongressWorkspaceOverviewPage() {
                       {t.priority}
                     </p>
                     <p className="text-sm font-semibold text-neutral-900 leading-tight">{t.title}</p>
-                    <p className="text-xs text-neutral-500">{t.owner ?? 'Unowned'}</p>
+                    <p className="text-xs text-neutral-500">{t.owner_name ?? 'Unowned'}</p>
                   </div>
                 ))}
               </div>
             </section>
           )}
 
-          {/* TRIAGE VIEW: Now / Next / Later ─────────────────────────────
-               Primary work management view. Now shown prominently.          */}
+          {/* TRIAGE VIEW: Now / Next / Later */}
           <section>
             <h2 className="text-sm font-semibold text-neutral-700">This week</h2>
             <div className="mt-2 grid gap-3 md:grid-cols-3">
@@ -285,60 +344,64 @@ export default async function CongressWorkspaceOverviewPage() {
                   { label: 'NEXT', tasks: nextTasks,  accent: 'border-neutral-200 bg-white' },
                   { label: 'LATER',tasks: laterTasks, accent: 'border-neutral-200 bg-neutral-50' },
                 ] as const
-              ).map(({ label, tasks, accent }) => (
+              ).map(({ label, tasks: laneTasks, accent }) => (
                 <div key={label} className={`rounded-xl border p-3 ${accent}`}>
                   <p className="text-xs font-bold uppercase tracking-wide text-neutral-500">{label}</p>
                   <div className="mt-2 space-y-1.5">
-                    {tasks.length === 0 && (
+                    {laneTasks.length === 0 && (
                       <p className="text-xs text-neutral-400 italic">Nothing here</p>
                     )}
-                    {tasks.map(t => (
+                    {laneTasks.map(t => (
                       <div key={t.id}
                            className="rounded-lg border border-neutral-200 bg-white/70 px-2.5 py-1.5">
                         <p className="text-xs font-medium text-neutral-900 leading-snug">{t.title}</p>
-                        <p className="text-[10px] text-neutral-400">{t.status} · {t.owner ?? 'Unowned'}</p>
+                        <p className="text-[10px] text-neutral-400">{t.status} · {t.owner_name ?? 'Unowned'}</p>
                       </div>
                     ))}
                   </div>
                 </div>
               ))}
             </div>
+            {tasks.length === 0 && (
+              <p className="mt-3 text-center text-xs text-neutral-400">
+                No open tasks for this congress yet.{' '}
+                <a href="/app/congress/workspace/tasks" className="text-orange-600 hover:underline">View tasks →</a>
+              </p>
+            )}
           </section>
 
-          {/* WATCH SECTION: risks + dependency alerts ─────────────────────
-               Kept below triage — important, but not the primary driver.    */}
-          {depAlerts.length > 0 && (
+          {/* OPEN RISKS from DB */}
+          {raidItems.length > 0 && (
             <section>
               <div className="flex items-baseline justify-between">
-                <h2 className="text-sm font-semibold text-neutral-700">Blockers & risks</h2>
+                <h2 className="text-sm font-semibold text-neutral-700">Open risks & issues</h2>
                 <a href="/app/congress/workspace/raid"
                    className="text-xs text-neutral-500 hover:underline">
                   Full RAID log →
                 </a>
               </div>
               <div className="mt-2 space-y-2">
-                {depAlerts.map(a => (
-                  <div key={a.id}
+                {raidItems.slice(0, 3).map(r => (
+                  <div key={r.id}
                        className={['flex items-start gap-3 rounded-lg border px-3 py-2 text-xs',
-                         a.severity === 'critical'
+                         r.priority === 'high'
                            ? 'border-red-200 bg-red-50 text-red-800'
                            : 'border-amber-200 bg-amber-50 text-amber-800',
                        ].join(' ')}>
-                    <span className="font-semibold uppercase mt-0.5">{a.severity}</span>
-                    <span>{a.message}</span>
+                    <span className="font-semibold uppercase mt-0.5">{r.type}</span>
+                    <span>{r.title}</span>
                   </div>
                 ))}
               </div>
             </section>
           )}
 
-          {/* ACTIVITY FEED ───────────────────────────────────────────────── */}
+          {/* ACTIVITY (placeholder — no activity log table yet) */}
           <section>
             <h2 className="text-sm font-semibold text-neutral-700">Recent changes</h2>
             <div className="mt-2 space-y-1.5">
-              {changedSince.map(i => (
-                <ActivityItem key={i.id} at={i.at} actor={i.actor} message={i.message} />
-              ))}
+              {/* Activity log table not yet implemented. Show empty state. */}
+              <p className="text-xs text-neutral-400 italic">No recent activity recorded yet.</p>
             </div>
           </section>
         </div>
@@ -353,7 +416,7 @@ export default async function CongressWorkspaceOverviewPage() {
               Next milestone
             </p>
             <p className="mt-1 text-sm font-semibold text-neutral-900 leading-tight">
-              {DEMO_WORKSTREAMS[0].nextMilestone}
+              {topWorkstream?.next_milestone ?? 'No milestone recorded'}
             </p>
           </div>
 
@@ -362,7 +425,7 @@ export default async function CongressWorkspaceOverviewPage() {
               Top risk
             </p>
             <p className="mt-1 text-sm font-semibold text-neutral-900 leading-tight">
-              {DEMO_RAID[0].title}
+              {topRiskItem?.title ?? 'No open risks'}
             </p>
             <a href="/app/congress/workspace/raid"
                className="mt-1 text-[10px] text-orange-600 hover:underline block">
@@ -374,18 +437,22 @@ export default async function CongressWorkspaceOverviewPage() {
             <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
               Pending approvals
             </p>
-            <p className="mt-1 text-sm text-neutral-700">1 in review</p>
+            <p className="mt-1 text-sm text-neutral-700">
+              {pendingCount > 0 ? `${pendingCount} pending` : 'None pending'}
+            </p>
             <a href="/app/congress/workspace/approvals"
                className="mt-1 text-[10px] text-orange-600 hover:underline block">
               Review →
             </a>
           </div>
 
-          <div className="space-y-1.5">
-            {DEMO_KPIS.map(k => (
-              <HealthChip key={k.id} label={k.label} value={k.value} status={k.status} />
-            ))}
-          </div>
+          {kpis.length > 0 && (
+            <div className="space-y-1.5">
+              {kpis.map(k => (
+                <HealthChip key={k.id} label={k.label} value={k.value} status={k.status} />
+              ))}
+            </div>
+          )}
         </ContextPanel>
       </div>
     </div>

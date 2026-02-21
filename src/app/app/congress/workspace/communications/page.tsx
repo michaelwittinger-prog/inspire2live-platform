@@ -2,21 +2,31 @@
  * Congress Workspace — Communications
  *
  * Operational communications hub for the current congress event.
- * Mirrors the mental model of Initiatives "Discussions" but scoped to congress.
- *
- * Uses existing DEMO_EMAIL_THREADS + DEMO_TEAM_CHAT + DEMO_ACTIVITY patterns.
- * No new DB tables required.
+ * Data source: congress_messages (DB), congress_assignments (DB).
+ * No hard-coded demo data.
  */
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_CONGRESS_EVENTS, DEMO_CONGRESS_ASSIGNMENTS } from '@/lib/demo-data'
+import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 import { rowToCongressAssignment } from '@/lib/congress-assignments'
 import type { CongressAssignmentRow } from '@/lib/congress-assignments'
 import type { CongressEvent } from '@/lib/congress'
 import { SetCongressRoles } from '@/components/roles/set-congress-roles'
 import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
-import { DEMO_ACTIVITY } from '@/lib/congress-workspace-demo'
-import { DEMO_EMAIL_THREADS, DEMO_TEAM_CHAT } from '@/lib/demo-data'
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type CongressMessage = {
+  id: string
+  thread_type: string
+  subject: string
+  body: string
+  author_name: string | null
+  labels: string[]
+  created_at: string
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const PLATFORM_ROLE_LABEL: Record<string, string> = {
   PatientAdvocate: 'Patient Advocate',
@@ -29,9 +39,9 @@ const PLATFORM_ROLE_LABEL: Record<string, string> = {
 }
 
 const THREAD_TYPE_META: Record<string, { color: string; label: string }> = {
-  update:          { color: 'bg-blue-100 text-blue-700',      label: 'Update' },
-  action_required: { color: 'bg-red-100 text-red-700',        label: 'Action Required' },
-  decision:        { color: 'bg-amber-100 text-amber-700',    label: 'Decision' },
+  update:          { color: 'bg-blue-100 text-blue-700',       label: 'Update' },
+  action_required: { color: 'bg-red-100 text-red-700',         label: 'Action Required' },
+  decision:        { color: 'bg-amber-100 text-amber-700',     label: 'Decision' },
   fyi:             { color: 'bg-neutral-100 text-neutral-600', label: 'FYI' },
 }
 
@@ -94,18 +104,20 @@ export default async function CongressWorkspaceCommunicationsPage() {
     .eq('congress_id', currentEvent.id)
     .eq('user_id', user.id)
 
-  const assignmentRows: CongressAssignmentRow[] = (dbAssignments && dbAssignments.length > 0)
-    ? (dbAssignments as unknown as CongressAssignmentRow[])
-    : (DEMO_CONGRESS_ASSIGNMENTS as unknown as CongressAssignmentRow[])
-        .filter(a => a.congress_id === currentEvent.id && a.user_id === user.id)
-
+  const assignmentRows: CongressAssignmentRow[] = (dbAssignments ?? []) as unknown as CongressAssignmentRow[]
   const assignments = assignmentRows.map(r => rowToCongressAssignment(r))
   const congressRoles = assignments.map(a => a.projectRole)
 
-  const emails = DEMO_EMAIL_THREADS
-  const chat = DEMO_TEAM_CHAT
-  const activity = DEMO_ACTIVITY
-  const unreadCount = emails.filter(e => e.unread).length
+  // ── Messages from DB ──
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rawMessages } = await (supabase as any)
+    .from('congress_messages')
+    .select('id, thread_type, subject, body, author_name, labels, created_at')
+    .eq('congress_id', currentEvent.id)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  const messages: CongressMessage[] = (rawMessages ?? []) as CongressMessage[]
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -136,8 +148,6 @@ export default async function CongressWorkspaceCommunicationsPage() {
           <span className="font-semibold text-neutral-900">Congress role(s):</span>{' '}
           {congressRoles.length > 0 ? congressRoles.join(', ') : <span className="text-neutral-400">None assigned</span>}
         </span>
-        <span className="text-neutral-300">·</span>
-        <span className="text-neutral-500">Share updates and track key messages for this congress.</span>
       </div>
 
       {/* ── WORKSPACE NAV ─────────────────────────────────────────────────── */}
@@ -148,139 +158,84 @@ export default async function CongressWorkspaceCommunicationsPage() {
       {/* ── MAIN AREA ─────────────────────────────────────────────────────── */}
       <div className="mt-5 grid gap-6 lg:grid-cols-2">
 
-        {/* ── Email Feed ── */}
+        {/* ── Message Feed (from congress_messages) ── */}
         <section>
           <div className="mb-3 flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-neutral-900">Email Feed</h2>
-            {unreadCount > 0 && (
-              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-                {unreadCount} unread
-              </span>
-            )}
+            <h2 className="text-sm font-semibold text-neutral-900">Congress Updates</h2>
+            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">
+              {messages.length} messages
+            </span>
             <div className="h-px flex-1 bg-neutral-200" />
           </div>
 
-          <div className="space-y-2">
-            {emails.map(em => {
-              const typeMeta = THREAD_TYPE_META[em.thread_type] ?? THREAD_TYPE_META.fyi
-              return (
-                <div key={em.id} className={[
-                  'rounded-xl border p-4 shadow-sm',
-                  em.unread ? 'border-blue-200 bg-blue-50' : 'border-neutral-200 bg-white',
-                ].join(' ')}>
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <p className={`text-sm font-semibold ${em.unread ? 'text-blue-900' : 'text-neutral-900'}`}>
-                      {em.unread && <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-blue-500" />}
-                      {em.subject}
-                    </p>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${typeMeta.color}`}>
-                        {typeMeta.label}
-                      </span>
-                      <span className="text-xs text-neutral-400">{timeAgo(em.date)}</span>
+          {messages.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-6 text-center text-xs text-neutral-400">
+              No messages yet for this congress event.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {messages.map(msg => {
+                const typeMeta = THREAD_TYPE_META[msg.thread_type] ?? THREAD_TYPE_META.fyi
+                const authorName = msg.author_name ?? 'Unknown'
+                return (
+                  <div key={msg.id}
+                       className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="text-sm font-semibold text-neutral-900">{msg.subject}</p>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${typeMeta.color}`}>
+                          {typeMeta.label}
+                        </span>
+                        <span className="text-xs text-neutral-400">{timeAgo(msg.created_at)}</span>
+                      </div>
                     </div>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <div className={`flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold ${avatarColor(authorName)}`}>
+                        {initials(authorName)}
+                      </div>
+                      <span className="text-xs font-medium text-neutral-600">{authorName}</span>
+                    </div>
+                    <p className="mt-1.5 text-xs text-neutral-600 line-clamp-2">{msg.body}</p>
+                    {msg.labels && msg.labels.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {msg.labels.map(l => (
+                          <span key={l} className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-500">
+                            {l}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    <span className="font-medium">{em.from.name}</span>
-                    {em.to.length > 0 && <> → {em.to.map(t => t.name).join(', ')}</>}
-                    {em.reply_count > 0 && <span className="ml-2 text-neutral-400">{em.reply_count} replies</span>}
-                  </p>
-                  <p className="mt-1.5 text-xs text-neutral-600 line-clamp-2">{em.preview}</p>
-                  {em.labels && em.labels.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {em.labels.map(l => (
-                        <span key={l} className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-500">{l}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Compose placeholder */}
-          <div className="mt-3 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-3">
-            <p className="text-xs font-medium text-neutral-500">✉️ Compose update</p>
-            <div className="mt-2 h-8 rounded-lg border border-neutral-200 bg-white px-3 flex items-center">
-              <span className="text-xs text-neutral-300">To: congress team…</span>
+                )
+              })}
             </div>
-            <div className="mt-1.5 h-14 rounded-lg border border-neutral-200 bg-white px-3 py-2">
-              <span className="text-xs text-neutral-300">Message…</span>
-            </div>
-            <div className="mt-2 flex justify-end">
-              <div className="rounded-lg bg-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-500 cursor-not-allowed">
-                Send (coming soon)
-              </div>
-            </div>
-          </div>
+          )}
         </section>
 
-        {/* ── Right column: Chat + Activity ── */}
+        {/* ── Right column: Chat (future) + Activity ── */}
         <div className="space-y-6">
-          {/* Team Chat */}
+          {/* Team Chat — not yet backed by a DB table */}
           <section>
             <div className="mb-3 flex items-center gap-2">
               <h2 className="text-sm font-semibold text-neutral-900">Team Chat</h2>
               <div className="h-px flex-1 bg-neutral-200" />
-              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
-                Preview
+              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-500">
+                Coming soon
               </span>
             </div>
-            <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
-              <div className="space-y-4 p-4 max-h-64 overflow-y-auto">
-                {chat.map(msg => (
-                  <div key={msg.id} className="flex items-start gap-3">
-                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${avatarColor(msg.author)}`}>
-                      {initials(msg.author)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-xs font-semibold text-neutral-800">{msg.author}</span>
-                        <span className="text-[10px] text-neutral-400">{timeAgo(msg.timestamp)}</span>
-                      </div>
-                      <p className="mt-0.5 text-sm text-neutral-700 leading-relaxed">{msg.message}</p>
-                      {msg.reactions && msg.reactions.length > 0 && (
-                        <div className="mt-1.5 flex flex-wrap gap-1">
-                          {msg.reactions.map((r, i) => (
-                            <span key={i} className="rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs">
-                              {r.emoji} {r.count}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="border-t border-neutral-200 bg-neutral-50 p-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs text-neutral-300">
-                    Type a message… (coming soon)
-                  </div>
-                </div>
-              </div>
+            <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50 p-6 text-center text-xs text-neutral-400">
+              Real-time team chat will be available in a future release.
             </div>
           </section>
 
-          {/* Recent activity */}
+          {/* Activity — no activity log table yet */}
           <section>
             <div className="mb-3 flex items-center gap-2">
               <h2 className="text-sm font-semibold text-neutral-900">Recent activity</h2>
               <div className="h-px flex-1 bg-neutral-200" />
             </div>
-            <div className="space-y-2">
-              {activity.slice(0, 5).map(a => (
-                <div key={a.id} className="flex items-start gap-2 text-xs text-neutral-600">
-                  <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${avatarColor(a.actor)}`}>
-                    {initials(a.actor)}
-                  </div>
-                  <div>
-                    <span className="font-semibold text-neutral-800">{a.actor}</span>{' '}
-                    {a.message}
-                    <span className="ml-1 text-neutral-400">{timeAgo(a.at)}</span>
-                  </div>
-                </div>
-              ))}
+            <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50 p-6 text-center text-xs text-neutral-400">
+              Activity log will be available in a future release.
             </div>
           </section>
         </div>
