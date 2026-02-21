@@ -4,6 +4,7 @@ import { DEMO_CONGRESS_EVENTS, DEMO_CONGRESS_ASSIGNMENTS } from '@/lib/demo-data
 import { rowToCongressAssignment } from '@/lib/congress-assignments'
 import type { CongressEvent } from '@/lib/congress'
 import type { CongressAssignmentRow } from '@/lib/congress-assignments'
+import { EVENT_STATUS_META, normalizeEventStatus } from '@/lib/congress'
 import { SetCongressRoles } from '@/components/roles/set-congress-roles'
 import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
 import { ContextPanel } from '@/components/congress/workspace/context-panel'
@@ -19,6 +20,69 @@ import {
   DEMO_TASKS_WORKSPACE,
   DEMO_WORKSTREAMS,
 } from '@/lib/congress-workspace-demo'
+
+// ── UI helpers (kept local to avoid broad refactors) ─────────────────────────
+
+function CyclePhaseBar({ status }: { status: CongressEvent['status'] }) {
+  const phases = [
+    { key: 'planning',        label: 'Planning' },
+    { key: 'open_for_topics', label: 'Topics Open' },
+    { key: 'agenda_set',      label: 'Agenda Set' },
+    { key: 'live',            label: 'Live' },
+    { key: 'post_congress',   label: 'Post-Congress' },
+    { key: 'archived',        label: 'Archived' },
+  ] as const
+
+  const activeIdx = phases.findIndex((p) => p.key === normalizeEventStatus(status))
+
+  return (
+    <div className="flex items-center gap-0">
+      {phases.map((phase, i) => {
+        const past = i < activeIdx
+        const current = i === activeIdx
+        return (
+          <div key={phase.key} className="flex items-center">
+            <div className="flex flex-col items-center gap-0.5">
+              <div
+                className={[
+                  'h-2.5 w-2.5 rounded-full border-2',
+                  past ? 'bg-orange-500 border-orange-500' : '',
+                  current ? 'bg-white border-orange-500 ring-2 ring-orange-300' : '',
+                  !past && !current ? 'bg-neutral-200 border-neutral-300' : '',
+                ].join(' ')}
+              />
+              <span
+                className={[
+                  'text-[10px] hidden sm:block',
+                  current ? 'font-bold text-orange-700' : 'text-neutral-400',
+                ].join(' ')}
+              >
+                {phase.label}
+              </span>
+            </div>
+            {i < phases.length - 1 && (
+              <div
+                className={[
+                  'h-0.5 w-6 sm:w-10 mx-0.5 -mt-3.5',
+                  i < activeIdx ? 'bg-orange-400' : 'bg-neutral-200',
+                ].join(' ')}
+              />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function EventStatusBadge({ status }: { status: CongressEvent['status'] }) {
+  const m = EVENT_STATUS_META[normalizeEventStatus(status)]
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${m.badge}`}>
+      {m.label}
+    </span>
+  )
+}
 
 export default async function CongressWorkspaceOverviewPage() {
   const supabase = await createClient()
@@ -84,6 +148,17 @@ export default async function CongressWorkspaceOverviewPage() {
           </p>
         </div>
       </div>
+
+      {/* Program phase */}
+      {currentEvent?.status && (
+        <div className="mt-4 rounded-xl border border-orange-200 bg-linear-to-br from-orange-50 to-amber-50 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <EventStatusBadge status={currentEvent.status} />
+            <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide">Program phase</span>
+          </div>
+          <CyclePhaseBar status={currentEvent.status} />
+        </div>
+      )}
 
       <div className="mt-4">
         <WorkspaceNav active="overview" />
