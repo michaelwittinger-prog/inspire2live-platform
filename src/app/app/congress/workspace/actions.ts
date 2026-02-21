@@ -21,6 +21,22 @@ async function requireCoordinator() {
   return { supabase: supabase as ReturnType<typeof createClient> extends Promise<infer T> ? T : never, userId: user.id }
 }
 
+async function requireAdmin() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+  const role: string = profile?.role ?? ''
+  if (role !== 'PlatformAdmin') {
+    throw new Error('Not authorized — requires PlatformAdmin')
+  }
+  return { supabase: supabase as ReturnType<typeof createClient> extends Promise<infer T> ? T : never, userId: user.id }
+}
+
 // ─── Activity log helper ─────────────────────────────────────────────────────
 
 async function logActivity(
@@ -486,5 +502,34 @@ export async function updateLiveOpsStatus(formData: FormData) {
   }
 
   revalidatePath('/app/congress/workspace/live-ops')
+  revalidatePath('/app/congress/workspace/overview')
+}
+
+// ─── Congress stage transitions ───────────────────────────────────────────
+
+export async function updateCongressStatus(formData: FormData) {
+  const { supabase, userId } = await requireAdmin()
+  const congressId = (formData.get('congress_id') as string | null)?.trim() || ''
+  const status = (formData.get('status') as string | null)?.trim() || ''
+
+  if (!congressId || !status) throw new Error('congress_id + status required')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('congress_events')
+    .update({ status })
+    .eq('id', congressId)
+
+  if (error) throw new Error(error.message)
+
+  await logActivity(supabase, {
+    congressId,
+    actorId: userId,
+    action: 'updated_congress_status',
+    entityType: 'congress_events',
+    entityId: congressId,
+    entityTitle: `status=${status}`,
+  })
+
   revalidatePath('/app/congress/workspace/overview')
 }

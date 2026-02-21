@@ -127,33 +127,14 @@ export function WorkspaceNav({
 
   return (
     <nav aria-label="Congress workspace sections" className="space-y-2">
-      {SECTION_GROUPS.map(group => {
-        const items = group.items.filter(i => visible.has(i.key) || i.key === active)
-        if (items.length === 0) return null
-        return (
+      {SECTION_GROUPS.map(group => (
         <div key={group.label} className="flex flex-wrap items-center gap-1.5">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400 w-20 shrink-0">
             {group.label}
           </span>
-          {items.map(s => {
+          {group.items.map(s => {
             const isActive = s.key === active
             const enabled = visible.has(s.key)
-
-            if (isActive && !enabled) {
-              return (
-                <span
-                  key={s.key}
-                  className={[
-                    'rounded-full border px-3 py-1 text-xs font-semibold',
-                    'border-amber-200 bg-amber-50 text-amber-800',
-                  ].join(' ')}
-                  aria-current="page"
-                  title="This section is outside the current congress stage"
-                >
-                  {s.label}
-                </span>
-              )
-            }
 
             return (
               <Link
@@ -163,16 +144,19 @@ export function WorkspaceNav({
                   'rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
                   isActive
                     ? 'border-orange-200 bg-orange-50 text-orange-800'
-                    : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50',
+                    : enabled
+                      ? 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
+                      : 'border-neutral-200 bg-neutral-50 text-neutral-400 hover:bg-neutral-50 opacity-70',
                 ].join(' ')}
                 aria-current={isActive ? 'page' : undefined}
+                title={!enabled ? 'This section is outside the current congress stage (still accessible)' : undefined}
               >
                 {s.label}
               </Link>
             )
           })}
         </div>
-      )})}
+      ))}
     </nav>
   )
 }

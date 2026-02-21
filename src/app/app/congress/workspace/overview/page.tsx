@@ -18,6 +18,7 @@ import { responsibilitySummary } from '@/lib/congress-policy'
 import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
 import { WorkspaceDiagnostics } from '@/components/congress/workspace/workspace-diagnostics'
 import { StageBanner } from '@/components/congress/workspace/stage-banner'
+import { updateCongressStatus } from '@/app/app/congress/workspace/actions'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -62,7 +63,15 @@ type DbActivity = {
 
 // ─── Local UI helpers ────────────────────────────────────────────────────────
 
-function CyclePhaseBar({ status }: { status: unknown }) {
+function CyclePhaseBar({
+  status,
+  canEdit,
+  congressId,
+}: {
+  status: unknown
+  canEdit: boolean
+  congressId: string | null
+}) {
   const phases = [
     { key: 'planning',        label: 'Planning' },
     { key: 'open_for_topics', label: 'Topics Open' },
@@ -77,18 +86,41 @@ function CyclePhaseBar({ status }: { status: unknown }) {
       {phases.map((phase, i) => {
         const past = i < activeIdx
         const current = i === activeIdx
+        const interactive = canEdit && Boolean(congressId)
         return (
           <div key={phase.key} className="flex items-center">
-            <div className="flex flex-col items-center gap-0.5">
-              <div className={['h-2.5 w-2.5 rounded-full border-2',
-                past    ? 'bg-orange-500 border-orange-500' : '',
-                current ? 'bg-white border-orange-500 ring-2 ring-orange-300' : '',
-                !past && !current ? 'bg-neutral-200 border-neutral-300' : '',
-              ].join(' ')} />
-              <span className={['text-[10px] hidden sm:block',
-                current ? 'font-bold text-orange-700' : 'text-neutral-400',
-              ].join(' ')}>{phase.label}</span>
-            </div>
+            <form action={updateCongressStatus} className="flex flex-col items-center gap-0.5">
+              <input type="hidden" name="congress_id" value={congressId ?? ''} />
+              <input type="hidden" name="status" value={phase.key} />
+              <button
+                type="submit"
+                disabled={!interactive}
+                className={[
+                  'flex flex-col items-center gap-0.5 focus:outline-none',
+                  interactive ? 'cursor-pointer' : 'cursor-default',
+                ].join(' ')}
+                title={
+                  interactive
+                    ? `Set stage to: ${phase.label}`
+                    : 'Only Platform Admins can change the congress stage'
+                }
+              >
+                <div className={[
+                  'h-2.5 w-2.5 rounded-full border-2',
+                  past    ? 'bg-orange-500 border-orange-500' : '',
+                  current ? 'bg-white border-orange-500 ring-2 ring-orange-300' : '',
+                  !past && !current ? 'bg-neutral-200 border-neutral-300' : '',
+                  interactive ? 'hover:scale-110 transition-transform' : '',
+                ].join(' ')} />
+                <span className={[
+                  'text-[10px] hidden sm:block',
+                  current ? 'font-bold text-orange-700' : 'text-neutral-400',
+                  interactive ? 'hover:text-neutral-700' : '',
+                ].join(' ')}>
+                  {phase.label}
+                </span>
+              </button>
+            </form>
             {i < phases.length - 1 && (
               <div className={['h-0.5 w-6 sm:w-10 mx-0.5 -mt-3.5',
                 i < activeIdx ? 'bg-orange-400' : 'bg-neutral-200',
@@ -298,7 +330,11 @@ export default async function CongressWorkspaceOverviewPage() {
       {/* ── PHASE BAR ──────────────────────────────────────────────────────── */}
       {currentEvent?.status && (
         <div className="mt-3 rounded-xl border border-orange-100 bg-orange-50/60 px-4 py-3">
-          <CyclePhaseBar status={currentEvent.status} />
+          <CyclePhaseBar
+            status={currentEvent.status}
+            canEdit={isAdmin}
+            congressId={currentEvent?.id ?? null}
+          />
         </div>
       )}
 
