@@ -1,4 +1,4 @@
--- ─────────────────────────────────────────────────────────────────────────────
+﻿-- ─────────────────────────────────────────────────────────────────────────────
 -- Migration 00014: Congress Workspace operational tables
 -- Adds persistent backing for all workspace tabs:
 --   workstreams · milestones · tasks · RAID · live-ops · follow-up · messages · approvals
@@ -194,7 +194,7 @@ CREATE POLICY "coord_manage_approvals"     ON public.congress_approval_requests 
 INSERT INTO public.congress_workstreams (id, congress_id, title, description, owner_role, health, progress_pct, next_milestone, sort_order)
 VALUES
   (
-    '00000000-ws01-0000-0000-000000000001',
+    '00000000-ae01-0000-0000-000000000001',
     '00000000-c003-0000-0000-000000000003',
     'Programme & Agenda',
     'Owns the full scientific and session programme from topic call to finalised agenda.',
@@ -203,7 +203,7 @@ VALUES
     1
   ),
   (
-    '00000000-ws02-0000-0000-000000000002',
+    '00000000-ae02-0000-0000-000000000002',
     '00000000-c003-0000-0000-000000000003',
     'Operations & Logistics',
     'Venue, AV, catering, transport, and day-of execution runbook.',
@@ -212,7 +212,7 @@ VALUES
     2
   ),
   (
-    '00000000-ws03-0000-0000-000000000003',
+    '00000000-ae03-0000-0000-000000000003',
     '00000000-c003-0000-0000-000000000003',
     'Comms & Community',
     'External messaging, topic call campaign, social, and attendee communications.',
@@ -221,7 +221,7 @@ VALUES
     3
   ),
   (
-    '00000000-ws04-0000-0000-000000000004',
+    '00000000-ae04-0000-0000-000000000004',
     '00000000-c003-0000-0000-000000000003',
     'Compliance & Neutrality',
     'Sponsor neutrality review, regulatory compliance, and documentation sign-off.',
@@ -234,69 +234,69 @@ ON CONFLICT DO NOTHING;
 -- ── Seed: milestones for 2026 ─────────────────────────────────────────────────
 INSERT INTO public.congress_milestones (id, congress_id, workstream_id, title, milestone_date, status, sort_order)
 VALUES
-  ('00000000-ml01-0000-0000-000000000001', '00000000-c003-0000-0000-000000000003', '00000000-ws03-0000-0000-000000000003', 'Call for topics opens', '2026-07-01', 'completed', 1),
-  ('00000000-ml02-0000-0000-000000000002', '00000000-c003-0000-0000-000000000003', '00000000-ws03-0000-0000-000000000003', 'Call for topics closes', '2026-08-31', 'upcoming', 2),
-  ('00000000-ml03-0000-0000-000000000003', '00000000-c003-0000-0000-000000000003', '00000000-ws01-0000-0000-000000000001', 'Agenda draft v0.3 published', '2026-09-15', 'upcoming', 3),
-  ('00000000-ml04-0000-0000-000000000004', '00000000-c003-0000-0000-000000000003', '00000000-ws04-0000-0000-000000000004', 'Sponsor neutrality review complete', '2026-09-30', 'upcoming', 4),
-  ('00000000-ml05-0000-0000-000000000005', '00000000-c003-0000-0000-000000000003', '00000000-ws01-0000-0000-000000000001', 'Final agenda published', '2026-10-15', 'upcoming', 5),
-  ('00000000-ml06-0000-0000-000000000006', '00000000-c003-0000-0000-000000000003', '00000000-ws02-0000-0000-000000000002', 'Venue runbook signed off', '2026-10-31', 'upcoming', 6),
-  ('00000000-ml07-0000-0000-000000000007', '00000000-c003-0000-0000-000000000003', NULL, 'Congress Day 1', '2026-11-13', 'upcoming', 7),
-  ('00000000-ml08-0000-0000-000000000008', '00000000-c003-0000-0000-000000000003', NULL, 'Congress Day 2 + Decisions captured', '2026-11-14', 'upcoming', 8),
-  ('00000000-ml09-0000-0000-000000000009', '00000000-c003-0000-0000-000000000003', NULL, '48h decision conversion deadline', '2026-11-16', 'upcoming', 9)
+  ('00000000-ab01-0000-0000-000000000001', '00000000-c003-0000-0000-000000000003', '00000000-ae03-0000-0000-000000000003', 'Call for topics opens', '2026-07-01', 'completed', 1),
+  ('00000000-ab02-0000-0000-000000000002', '00000000-c003-0000-0000-000000000003', '00000000-ae03-0000-0000-000000000003', 'Call for topics closes', '2026-08-31', 'upcoming', 2),
+  ('00000000-ab03-0000-0000-000000000003', '00000000-c003-0000-0000-000000000003', '00000000-ae01-0000-0000-000000000001', 'Agenda draft v0.3 published', '2026-09-15', 'upcoming', 3),
+  ('00000000-ab04-0000-0000-000000000004', '00000000-c003-0000-0000-000000000003', '00000000-ae04-0000-0000-000000000004', 'Sponsor neutrality review complete', '2026-09-30', 'upcoming', 4),
+  ('00000000-ab05-0000-0000-000000000005', '00000000-c003-0000-0000-000000000003', '00000000-ae01-0000-0000-000000000001', 'Final agenda published', '2026-10-15', 'upcoming', 5),
+  ('00000000-ab06-0000-0000-000000000006', '00000000-c003-0000-0000-000000000003', '00000000-ae02-0000-0000-000000000002', 'Venue runbook signed off', '2026-10-31', 'upcoming', 6),
+  ('00000000-ab07-0000-0000-000000000007', '00000000-c003-0000-0000-000000000003', NULL, 'Congress Day 1', '2026-11-13', 'upcoming', 7),
+  ('00000000-ab08-0000-0000-000000000008', '00000000-c003-0000-0000-000000000003', NULL, 'Congress Day 2 + Decisions captured', '2026-11-14', 'upcoming', 8),
+  ('00000000-ab09-0000-0000-000000000009', '00000000-c003-0000-0000-000000000003', NULL, '48h decision conversion deadline', '2026-11-16', 'upcoming', 9)
 ON CONFLICT DO NOTHING;
 
 -- ── Seed: tasks for 2026 ──────────────────────────────────────────────────────
 INSERT INTO public.congress_tasks (id, congress_id, workstream_id, title, status, priority, lane, due_date, owner_name)
 VALUES
   (
-    '00000000-ct01-0000-0000-000000000001',
+    '00000000-cd01-0000-0000-000000000001',
     '00000000-c003-0000-0000-000000000003',
-    '00000000-ws02-0000-0000-000000000002',
+    '00000000-ae02-0000-0000-000000000002',
     'Confirm venue contract addendum',
     'in_progress', 'urgent', 'now',
     (current_date + 2)::date,
     'Sophie van der Berg'
   ),
   (
-    '00000000-ct02-0000-0000-000000000002',
+    '00000000-cd02-0000-0000-000000000002',
     '00000000-c003-0000-0000-000000000003',
-    '00000000-ws01-0000-0000-000000000001',
+    '00000000-ae01-0000-0000-000000000001',
     'Draft agenda v0.3 (session order + leads)',
     'todo', 'high', 'now',
     (current_date + 5)::date,
     'Peter de Groot'
   ),
   (
-    '00000000-ct03-0000-0000-000000000003',
+    '00000000-cd03-0000-0000-000000000003',
     '00000000-c003-0000-0000-000000000003',
-    '00000000-ws03-0000-0000-000000000003',
+    '00000000-ae03-0000-0000-000000000003',
     'Publish "Call for topics" landing update',
     'todo', 'medium', 'next',
     (current_date + 8)::date,
     'Maria Santos'
   ),
   (
-    '00000000-ct04-0000-0000-000000000004',
+    '00000000-cd04-0000-0000-000000000004',
     '00000000-c003-0000-0000-000000000003',
-    '00000000-ws04-0000-0000-000000000004',
+    '00000000-ae04-0000-0000-000000000004',
     'Neutrality review for sponsor pack (draft)',
     'blocked', 'urgent', 'now',
     (current_date + 3)::date,
     'Nadia Al-Rashid'
   ),
   (
-    '00000000-ct05-0000-0000-000000000005',
+    '00000000-cd05-0000-0000-000000000005',
     '00000000-c003-0000-0000-000000000003',
-    '00000000-ws01-0000-0000-000000000001',
+    '00000000-ae01-0000-0000-000000000001',
     'Collect session proposals shortlist',
     'in_progress', 'high', 'now',
     (current_date + 4)::date,
     NULL
   ),
   (
-    '00000000-ct06-0000-0000-000000000006',
+    '00000000-cd06-0000-0000-000000000006',
     '00000000-c003-0000-0000-000000000003',
-    '00000000-ws04-0000-0000-000000000004',
+    '00000000-ae04-0000-0000-000000000004',
     'Sponsor deck v1 from partners team',
     'todo', 'high', 'next',
     (current_date + 6)::date,
@@ -306,15 +306,15 @@ ON CONFLICT DO NOTHING;
 
 -- Task dependencies
 INSERT INTO public.congress_task_dependencies (task_id, depends_on_id) VALUES
-  ('00000000-ct02-0000-0000-000000000002', '00000000-ct05-0000-0000-000000000005'),
-  ('00000000-ct04-0000-0000-000000000004', '00000000-ct06-0000-0000-000000000006')
+  ('00000000-cd02-0000-0000-000000000002', '00000000-cd05-0000-0000-000000000005'),
+  ('00000000-cd04-0000-0000-000000000004', '00000000-cd06-0000-0000-000000000006')
 ON CONFLICT DO NOTHING;
 
 -- ── Seed: RAID items for 2026 ─────────────────────────────────────────────────
 INSERT INTO public.congress_raid_items (id, congress_id, type, title, description, status, priority, owner_role)
 VALUES
   (
-    '00000000-rd01-0000-0000-000000000001',
+    '00000000-da01-0000-0000-000000000001',
     '00000000-c003-0000-0000-000000000003',
     'risk',
     'Venue AV provider availability for day 2',
@@ -322,7 +322,7 @@ VALUES
     'mitigating', 'high', 'Ops Lead'
   ),
   (
-    '00000000-rd02-0000-0000-000000000002',
+    '00000000-da02-0000-0000-000000000002',
     '00000000-c003-0000-0000-000000000003',
     'issue',
     'Sponsor neutrality review pending (legal)',
@@ -330,7 +330,7 @@ VALUES
     'open', 'high', 'Compliance Reviewer'
   ),
   (
-    '00000000-rd03-0000-0000-000000000003',
+    '00000000-da03-0000-0000-000000000003',
     '00000000-c003-0000-0000-000000000003',
     'assumption',
     'Keynote speaker will confirm by end of month',
@@ -343,7 +343,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO public.congress_live_ops_updates (id, congress_id, title, description, status, severity)
 VALUES
   (
-    '00000000-lo01-0000-0000-000000000001',
+    '00000000-ef01-0000-0000-000000000001',
     '00000000-c003-0000-0000-000000000003',
     'Registration form intermittent 500 errors',
     'The registration form returns 500 errors for ~5% of submissions. Root cause under investigation. Workaround: manual registration via admin.',
@@ -355,7 +355,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO public.congress_follow_up_actions (id, congress_id, title, description, status, priority, owner_name, due_date)
 VALUES
   (
-    '00000000-fu01-0000-0000-000000000001',
+    '00000000-fa01-0000-0000-000000000001',
     '00000000-c003-0000-0000-000000000003',
     'Publish 2025 congress decisions summary report',
     'The formal report summarising all 2025 congress decisions and their current status. Due before 2026 congress opens.',
@@ -364,7 +364,7 @@ VALUES
     '2026-10-01'
   ),
   (
-    '00000000-fu02-0000-0000-000000000002',
+    '00000000-fa02-0000-0000-000000000002',
     '00000000-c003-0000-0000-000000000003',
     'Validate 2025 initiative outcomes against congress commitments',
     'Cross-reference all 2025 congress decisions with initiative progress reports to identify fulfilled vs. outstanding commitments.',
@@ -373,7 +373,7 @@ VALUES
     '2026-10-15'
   ),
   (
-    '00000000-fu03-0000-0000-000000000003',
+    '00000000-fa03-0000-0000-000000000003',
     '00000000-c003-0000-0000-000000000003',
     'Update equitable access working group terms of reference',
     'Refresh the ToR based on 2025 congress feedback. Requires input from patient advocate network leads.',
@@ -387,7 +387,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO public.congress_messages (id, congress_id, thread_type, subject, body, author_name, labels)
 VALUES
   (
-    '00000000-cm01-0000-0000-000000000001',
+    '00000000-ca01-0000-0000-000000000001',
     '00000000-c003-0000-0000-000000000003',
     'update',
     'Venue contract addendum — status update',
@@ -396,7 +396,7 @@ VALUES
     ARRAY['ops', 'venue']
   ),
   (
-    '00000000-cm02-0000-0000-000000000002',
+    '00000000-ca02-0000-0000-000000000002',
     '00000000-c003-0000-0000-000000000003',
     'action_required',
     'Compliance review blocked — sponsor deck needed',
@@ -405,7 +405,7 @@ VALUES
     ARRAY['compliance', 'sponsor', 'blocked']
   ),
   (
-    '00000000-cm03-0000-0000-000000000003',
+    '00000000-ca03-0000-0000-000000000003',
     '00000000-c003-0000-0000-000000000003',
     'fyi',
     'Comms campaign outline ready for review',
@@ -419,7 +419,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO public.congress_approval_requests (id, congress_id, title, description, status, requested_by_name)
 VALUES
   (
-    '00000000-ap01-0000-0000-000000000001',
+    '00000000-a001-0000-0000-000000000001',
     '00000000-c003-0000-0000-000000000003',
     'Approve agenda v0.3 for public preview',
     'Agenda v0.3 includes all confirmed session leads and time slots. Requesting approval to publish the public preview page.',
