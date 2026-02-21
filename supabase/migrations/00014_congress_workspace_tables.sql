@@ -1,4 +1,4 @@
-﻿-- ─────────────────────────────────────────────────────────────────────────────
+-- ─────────────────────────────────────────────────────────────────────────────
 -- Migration 00014: Congress Workspace operational tables
 -- Adds persistent backing for all workspace tabs:
 --   workstreams · milestones · tasks · RAID · live-ops · follow-up · messages · approvals
