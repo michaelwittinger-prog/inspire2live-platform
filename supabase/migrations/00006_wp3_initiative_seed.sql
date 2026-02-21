@@ -17,11 +17,12 @@ declare
   kai     uuid := 'a0000001-0000-0000-0000-000000000004';
   nadia   uuid := 'a0000001-0000-0000-0000-000000000005';
 
-  -- Initiative IDs: resolved after insert so we use the real production UUID
-  -- (production may already have these slugs with different UUIDs)
-  init_mced  uuid;
-  init_mdx   uuid;
-  init_prom  uuid;
+  -- Initiative IDs: preferred UUIDs for the INSERT; ON CONFLICT (slug) handles
+  -- the case where production already has these slugs with different UUIDs.
+  -- After each insert we resolve the actual DB UUID (ours or existing).
+  init_mced  uuid := 'b0000001-0000-0000-0000-000000000001';
+  init_mdx   uuid := 'b0000001-0000-0000-0000-000000000002';
+  init_prom  uuid := 'b0000001-0000-0000-0000-000000000003';
 
 begin
 
