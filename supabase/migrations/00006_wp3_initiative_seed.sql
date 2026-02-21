@@ -17,10 +17,11 @@ declare
   kai     uuid := 'a0000001-0000-0000-0000-000000000004';
   nadia   uuid := 'a0000001-0000-0000-0000-000000000005';
 
-  -- Initiative IDs
-  init_mced  uuid := 'b0000001-0000-0000-0000-000000000001';
-  init_mdx   uuid := 'b0000001-0000-0000-0000-000000000002';
-  init_prom  uuid := 'b0000001-0000-0000-0000-000000000003';
+  -- Initiative IDs: resolved after insert so we use the real production UUID
+  -- (production may already have these slugs with different UUIDs)
+  init_mced  uuid;
+  init_mdx   uuid;
+  init_prom  uuid;
 
 begin
 
@@ -115,7 +116,9 @@ values (
   ARRAY['breast','colorectal','lung','pancreatic','ovarian'],
   ARRAY['NL','DE','FR','AT','BE'],
   '["Evaluate top-5 MCED assays against patient-centred criteria","Build a pan-European evidence dossier by Q3 2026","Engage 3 national HTA bodies with a unified patient position","Publish open-access policy brief on equitable reimbursement"]'::jsonb
-) on conflict (id) do nothing;
+) on conflict (slug) do nothing;
+-- Resolve actual UUID (handles case where slug existed with a different UUID)
+init_mced := (select id from public.initiatives where slug = 'multi-cancer-early-detection');
 
 -- Members
 insert into public.initiative_members (initiative_id, user_id, role)
@@ -214,7 +217,9 @@ values (
   ARRAY['lung','colorectal','breast','haematological'],
   ARRAY['PL','CZ','HU','RO','SK'],
   '["Map molecular diagnostics availability across 5 CEE countries","Identify top-3 systemic barriers per country through patient and clinician interviews","Co-design a policy toolkit with 15 patient and clinical stakeholders","Submit toolkit to European Cancer Organisation by end 2026"]'::jsonb
-) on conflict (id) do nothing;
+) on conflict (slug) do nothing;
+-- Resolve actual UUID
+init_mdx := (select id from public.initiatives where slug = 'molecular-diagnostics-access-eu');
 
 -- Members
 insert into public.initiative_members (initiative_id, user_id, role)
@@ -310,7 +315,9 @@ values (
   ARRAY['breast','lung','haematological','colorectal'],
   ARRAY['FR','NL','DE','IT'],
   '["Co-develop a minimum PROM dataset validated by at least 20 patients and 10 clinicians","Pilot the dataset in 4 oncology centres across 4 countries","Analyse 6-month pilot data and publish implementation guidance","Present findings at European Congress 2026"]'::jsonb
-) on conflict (id) do nothing;
+) on conflict (slug) do nothing;
+-- Resolve actual UUID
+init_prom := (select id from public.initiatives where slug = 'patient-reported-outcome-measures');
 
 -- Members
 insert into public.initiative_members (initiative_id, user_id, role)
