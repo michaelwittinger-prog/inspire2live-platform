@@ -1,9 +1,20 @@
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
-import { StatusBadge } from '@/components/ui/status-badge'
-import type { StatusTone } from '@/components/ui/status-badge'
+import { WorkstreamCreateForm } from '@/components/congress/workspace/create-forms'
+
+const HEALTH_BADGE: Record<string, string> = {
+  on_track: 'bg-green-100 text-green-800 border-green-200',
+  at_risk:  'bg-amber-100 text-amber-800 border-amber-200',
+  blocked:  'bg-red-100 text-red-800 border-red-200',
+}
+function HealthBadge({ health }: { health: string }) {
+  return (
+    <span className={`rounded border px-2 py-0.5 text-xs font-semibold ${HEALTH_BADGE[health] ?? HEALTH_BADGE.on_track}`}>
+      {health.replace('_', ' ')}
+    </span>
+  )
+}
 
 type Workstream = {
   id: string
@@ -13,6 +24,17 @@ type Workstream = {
   health: string
   progress_pct: number
   next_milestone: string | null
+  sort_order: number | null
+}
+
+function ProgressBar({ pct }: { pct: number }) {
+  const clamped = Math.min(100, Math.max(0, pct))
+  const color = clamped >= 80 ? 'bg-green-500' : clamped >= 40 ? 'bg-orange-400' : 'bg-red-400'
+  return (
+    <div className="h-1.5 w-full rounded-full bg-neutral-200">
+      <div className={`h-1.5 rounded-full ${color}`} style={{ width: `${clamped}%` }} />
+    </div>
+  )
 }
 
 export default async function CongressWorkspaceWorkstreamsPage() {
@@ -20,89 +42,84 @@ export default async function CongressWorkspaceWorkstreamsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).maybeSingle()
+  const platformRole: string = (profile as { role?: string } | null)?.role ?? 'PatientAdvocate'
+  const canCreate = ['PlatformAdmin', 'HubCoordinator'].includes(platformRole)
+
   const { data: events } = await supabase
-    .from('congress_events')
-    .select('id, title')
-    .order('year', { ascending: false })
-    .limit(1)
+    .from('congress_events').select('id, title').order('year', { ascending: false }).limit(1)
   const event = events?.[0]
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: rows } = event
-    ? await (supabase as any)
-        .from('congress_workstreams')
-        .select('id, title, description, owner_role, health, progress_pct, next_milestone')
+  const sb = supabase as any
+  const { data: rawRows } = event
+    ? await sb.from('congress_workstreams')
+        .select('id, title, description, owner_role, health, progress_pct, next_milestone, sort_order')
         .eq('congress_id', event.id)
-        .order('sort_order')
+        .order('sort_order', { ascending: true })
     : { data: [] }
-
-  const workstreams: Workstream[] = (rows ?? []) as unknown as Workstream[]
+  const workstreams = (rawRows ?? []) as Workstream[]
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-neutral-900">Workstreams</h1>
-        <p className="mt-1 text-sm text-neutral-600">
-          {event?.title ?? 'Congress'} — {workstreams.length} workstream{workstreams.length !== 1 ? 's' : ''}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900">Workstreams</h1>
+          <p className="mt-1 text-sm text-neutral-600">
+            {event?.title ?? 'Congress'} — {workstreams.length} workstream{workstreams.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        {canCreate && event && <WorkstreamCreateForm congressId={event.id} />}
       </div>
 
       <WorkspaceNav active="workstreams" />
 
       {workstreams.length === 0 && (
         <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-8 text-center text-sm text-neutral-500">
-          No workstreams yet. An admin can create them for this congress event.
+          {canCreate
+            ? 'No workstreams yet. Use "+ Add workstream" above to create the first one.'
+            : 'No workstreams configured for this congress event yet.'}
         </div>
       )}
 
-      <div className="grid gap-3 md:grid-cols-2">
-        {workstreams.map(ws => {
-          const tone: StatusTone = ws.health === 'on_track' ? 'green' : ws.health === 'blocked' ? 'red' : 'amber'
-          const healthLabel = ws.health === 'on_track' ? 'On track' : ws.health === 'blocked' ? 'Blocked' : 'At risk'
-          return (
+      {workstreams.length > 0 && (
+        <div className="space-y-3">
+          {workstreams.map(ws => (
             <div key={ws.id} className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-neutral-900">{ws.title}</p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <h3 className="text-sm font-bold text-neutral-900">{ws.title}</h3>
+                    <HealthBadge health={ws.health} />
+                  </div>
                   {ws.description && (
-                    <p className="mt-1 text-xs text-neutral-500 line-clamp-2">{ws.description}</p>
+                    <p className="text-xs text-neutral-500 mb-2">{ws.description}</p>
                   )}
-                  <p className="mt-1 text-xs text-neutral-500">
-                    <span className="font-medium">Congress role owner:</span>{' '}
-                    {ws.owner_role ?? <span className="italic text-neutral-400">unassigned</span>}
-                  </p>
+                  <div className="flex flex-wrap gap-4 text-xs text-neutral-600">
+                    {ws.owner_role && (
+                      <span className="rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5">
+                        {ws.owner_role}
+                      </span>
+                    )}
+                    {ws.next_milestone && (
+                      <span className="text-neutral-500">
+                        Next: <span className="font-medium text-neutral-700">{ws.next_milestone}</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <StatusBadge label={healthLabel} tone={tone} />
-              </div>
-
-              <div className="mt-3">
-                <div className="flex items-center justify-between text-xs text-neutral-500">
-                  <span>Progress</span>
-                  <span>{ws.progress_pct}%</span>
+                <div className="flex flex-col items-end gap-1 min-w-[80px]">
+                  <span className="text-xs font-semibold text-neutral-700">{ws.progress_pct ?? 0}%</span>
+                  <div className="w-24">
+                    <ProgressBar pct={ws.progress_pct ?? 0} />
+                  </div>
                 </div>
-                <div className="mt-1 h-2 w-full rounded-full bg-neutral-100 overflow-hidden">
-                  <div className="h-full bg-orange-500 transition-all" style={{ width: `${ws.progress_pct}%` }} />
-                </div>
-              </div>
-
-              {ws.next_milestone && (
-                <p className="mt-3 text-sm text-neutral-700">
-                  <span className="font-semibold">Next milestone:</span> {ws.next_milestone}
-                </p>
-              )}
-
-              <div className="mt-3 flex gap-2">
-                <Link href="/app/congress/workspace/tasks" className="text-xs font-semibold text-orange-700 hover:underline">
-                  View tasks →
-                </Link>
-                <Link href="/app/congress/workspace/timeline" className="text-xs font-semibold text-blue-600 hover:underline">
-                  Timeline →
-                </Link>
               </div>
             </div>
-          )
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
