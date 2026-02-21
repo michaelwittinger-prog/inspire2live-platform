@@ -35,6 +35,9 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
+      - name: Validate vercel.json (if present)
+        run: node scripts/validate-vercel-json.mjs
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 

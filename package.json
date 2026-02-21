@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "check:vercel-json": "node scripts/validate-vercel-json.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
