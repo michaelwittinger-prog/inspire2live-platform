@@ -17,6 +17,7 @@ import { HealthChip } from '@/components/ui/health-chip'
 import { responsibilitySummary } from '@/lib/congress-policy'
 import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
 import { WorkspaceDiagnostics } from '@/components/congress/workspace/workspace-diagnostics'
+import { StageBanner } from '@/components/congress/workspace/stage-banner'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -301,6 +302,12 @@ export default async function CongressWorkspaceOverviewPage() {
         </div>
       )}
 
+      {currentEvent?.status && (
+        <div className="mt-3">
+          <StageBanner status={currentEvent.status} startDate={currentEvent?.start_date ?? null} />
+        </div>
+      )}
+
       {/* ── ROLE AUTHORITY STRIP ──────────────────────────────────────────── */}
       <div className="mt-3">
         <AuthorityStrip
@@ -312,7 +319,7 @@ export default async function CongressWorkspaceOverviewPage() {
 
       {/* ── WORKSPACE NAV ──────────────────────────────────────────────────── */}
       <div className="mt-4">
-        <WorkspaceNav active="overview" />
+        <WorkspaceNav active="overview" status={currentEvent?.status} />
       </div>
 
       {/* ── ADMIN ONLY: setup warning ───────────────────────────────────────── */}

@@ -196,7 +196,7 @@ export default async function CongressWorkspaceTeamPage() {
 
       {/* ── WORKSPACE NAV ─────────────────────────────────────────────────── */}
       <div className="mt-4">
-        <WorkspaceNav active="team" />
+        <WorkspaceNav active="team" status={currentEvent?.status} />
       </div>
 
       {/* ── TEAM ROSTER ───────────────────────────────────────────────────── */}

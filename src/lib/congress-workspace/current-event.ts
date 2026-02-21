@@ -14,6 +14,8 @@ export type WorkspaceEvent = {
   title: string
   /** Raw status string from DB (may differ by schema version) */
   status: string | null
+  /** Optional start date (ISO string) used for countdown UX */
+  start_date: string | null
 }
 
 function issue(scope: string, err: PostgrestError | null): WorkspaceQueryIssue | null {
@@ -74,6 +76,7 @@ export async function fetchLatestWorkspaceEvent(
     year,
     title,
     status: row.status ? String(row.status) : null,
+    start_date: row.start_date ? String(row.start_date) : null,
   }
 
   return { event, issues }

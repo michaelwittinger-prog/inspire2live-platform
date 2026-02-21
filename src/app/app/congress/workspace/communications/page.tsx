@@ -61,7 +61,7 @@ export default async function CongressWorkspaceCommunicationsPage() {
         {canCreate && event && <MessageCreateForm congressId={event.id} />}
       </div>
 
-      <WorkspaceNav active="communications" />
+      <WorkspaceNav active="communications" status={event?.status} />
 
       {messages.length === 0 && (
         <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-8 text-center text-sm text-neutral-500">

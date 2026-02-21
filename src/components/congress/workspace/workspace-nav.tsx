@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { normalizeEventStatus, type CongressEventStatus } from '@/lib/congress'
 
 export type WorkspaceSection =
   | 'overview'
@@ -45,16 +46,115 @@ const SECTION_GROUPS: SectionGroup[] = [
   },
 ]
 
-export function WorkspaceNav({ active }: { active: WorkspaceSection }) {
+const ALL_SECTIONS: WorkspaceSection[] = SECTION_GROUPS.flatMap(g => g.items.map(i => i.key))
+
+/**
+ * Stage-gated visibility for the congress workspace.
+ *
+ * Note: This is intentionally permissive (we hide obviously-irrelevant tabs,
+ * but we don't hard-block deep links yet). Pages can still be visited directly.
+ */
+const STAGE_SECTIONS: Record<CongressEventStatus, WorkspaceSection[]> = {
+  planning: [
+    'overview',
+    'workstreams',
+    'timeline',
+    'team',
+    'communications',
+  ],
+  open_for_topics: [
+    'overview',
+    'workstreams',
+    'timeline',
+    'team',
+    'communications',
+  ],
+  agenda_set: [
+    'overview',
+    'workstreams',
+    'timeline',
+    'tasks',
+    'raid',
+    'team',
+    'communications',
+  ],
+  live: [
+    'live-ops',
+    'overview',
+    'tasks',
+    'raid',
+    'workstreams',
+    'timeline',
+    'team',
+    'communications',
+    'approvals',
+  ],
+  post_congress: [
+    'approvals',
+    'follow-up',
+    'tasks',
+    'raid',
+    'overview',
+    'team',
+    'communications',
+  ],
+  archived: [
+    'overview',
+    'approvals',
+    'raid',
+    'tasks',
+    'workstreams',
+    'timeline',
+    'team',
+    'communications',
+  ],
+}
+
+function visibleSections(status: unknown | null | undefined): Set<WorkspaceSection> {
+  if (!status) return new Set(ALL_SECTIONS)
+  return new Set(STAGE_SECTIONS[normalizeEventStatus(status)])
+}
+
+export function WorkspaceNav({
+  active,
+  status,
+}: {
+  active: WorkspaceSection
+  /** CongressEventStatus (or unknown DB value); used to stage-gate which tabs show */
+  status?: unknown | null
+}) {
+  const visible = visibleSections(status)
+
   return (
     <nav aria-label="Congress workspace sections" className="space-y-2">
-      {SECTION_GROUPS.map(group => (
+      {SECTION_GROUPS.map(group => {
+        const items = group.items.filter(i => visible.has(i.key) || i.key === active)
+        if (items.length === 0) return null
+        return (
         <div key={group.label} className="flex flex-wrap items-center gap-1.5">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400 w-20 shrink-0">
             {group.label}
           </span>
-          {group.items.map(s => {
+          {items.map(s => {
             const isActive = s.key === active
+            const enabled = visible.has(s.key)
+
+            if (isActive && !enabled) {
+              return (
+                <span
+                  key={s.key}
+                  className={[
+                    'rounded-full border px-3 py-1 text-xs font-semibold',
+                    'border-amber-200 bg-amber-50 text-amber-800',
+                  ].join(' ')}
+                  aria-current="page"
+                  title="This section is outside the current congress stage"
+                >
+                  {s.label}
+                </span>
+              )
+            }
+
             return (
               <Link
                 key={s.key}
@@ -72,7 +172,7 @@ export function WorkspaceNav({ active }: { active: WorkspaceSection }) {
             )
           })}
         </div>
-      ))}
+      )})}
     </nav>
   )
 }
