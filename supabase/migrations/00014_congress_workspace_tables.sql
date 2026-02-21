@@ -191,6 +191,11 @@ CREATE POLICY "coord_manage_messages"      ON public.congress_messages          
 CREATE POLICY "coord_manage_approvals"     ON public.congress_approval_requests   FOR ALL USING (public.is_coordinator_or_admin());
 
 -- ── Seed: workstreams for 2026 ────────────────────────────────────────────────
+
+-- ── Seed data: only insert if the congress event exists (guards against missing FK from 00012) ──
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.congress_events WHERE id = '00000000-c003-0000-0000-000000000003') THEN
 INSERT INTO public.congress_workstreams (id, congress_id, title, description, owner_role, health, progress_pct, next_milestone, sort_order)
 VALUES
   (
@@ -427,3 +432,5 @@ VALUES
     'Peter de Groot'
   )
 ON CONFLICT DO NOTHING;
+  END IF;
+END $$;
