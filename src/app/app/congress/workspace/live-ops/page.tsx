@@ -6,6 +6,7 @@ import type { StatusTone } from '@/components/ui/status-badge'
 import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
 import { WorkspaceDiagnostics } from '@/components/congress/workspace/workspace-diagnostics'
 import { LiveOpsCreateForm, LiveOpsStatusActions } from '@/components/congress/workspace/create-forms'
+import { StageGuide } from '@/components/congress/workspace/stage-guide'
 
 type LiveOpsUpdate = {
   id: string
@@ -72,6 +73,8 @@ export default async function CongressWorkspaceLiveOpsPage() {
       </div>
 
       <WorkspaceNav active="live-ops" status={event?.status} />
+
+      <StageGuide status={event?.status} section="live-ops" />
 
       {items.length === 0 && (
         <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-8 text-center text-sm text-neutral-500">

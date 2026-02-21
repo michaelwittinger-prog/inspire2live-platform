@@ -16,6 +16,7 @@ import { SetCongressRoles } from '@/components/roles/set-congress-roles'
 import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
 import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
 import { WorkspaceDiagnostics } from '@/components/congress/workspace/workspace-diagnostics'
+import { StageGuide } from '@/components/congress/workspace/stage-guide'
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
 
@@ -197,6 +198,10 @@ export default async function CongressWorkspaceTeamPage() {
       {/* ── WORKSPACE NAV ─────────────────────────────────────────────────── */}
       <div className="mt-4">
         <WorkspaceNav active="team" status={currentEvent?.status} />
+      </div>
+
+      <div className="mt-4">
+        <StageGuide status={currentEvent?.status} section="team" />
       </div>
 
       {/* ── TEAM ROSTER ───────────────────────────────────────────────────── */}

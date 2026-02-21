@@ -4,6 +4,7 @@ import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
 import { WorkstreamCreateForm } from '@/components/congress/workspace/create-forms'
 import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
 import { WorkspaceDiagnostics } from '@/components/congress/workspace/workspace-diagnostics'
+import { StageGuide } from '@/components/congress/workspace/stage-guide'
 
 const HEALTH_BADGE: Record<string, string> = {
   on_track: 'bg-green-100 text-green-800 border-green-200',
@@ -81,6 +82,8 @@ export default async function CongressWorkspaceWorkstreamsPage() {
       </div>
 
       <WorkspaceNav active="workstreams" status={event?.status} />
+
+      <StageGuide status={event?.status} section="workstreams" />
 
       {workstreams.length === 0 && (
         <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-8 text-center text-sm text-neutral-500">
