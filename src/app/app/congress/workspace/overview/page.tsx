@@ -44,6 +44,8 @@ export default async function CongressWorkspaceOverviewPage() {
     : DEMO_CONGRESS_EVENTS[0]
   )
 
+  const usingDemoEvent = !dbEvents?.[0]
+
   const { data: dbAssignments } = await supabase
     .from('congress_assignments')
     .select('*')
@@ -54,6 +56,8 @@ export default async function CongressWorkspaceOverviewPage() {
     ? (dbAssignments as unknown as CongressAssignmentRow[])
     : (DEMO_CONGRESS_ASSIGNMENTS as unknown as CongressAssignmentRow[])
       .filter(a => a.congress_id === currentEvent.id && a.user_id === user.id)
+
+  const usingDemoAssignments = !(dbAssignments && dbAssignments.length > 0)
 
   const assignments = assignmentRows.map(r => rowToCongressAssignment(r))
   const congressRoles = assignments.map(a => a.projectRole)
@@ -84,6 +88,40 @@ export default async function CongressWorkspaceOverviewPage() {
       <div className="mt-4">
         <WorkspaceNav active="overview" />
       </div>
+
+      {(usingDemoEvent || usingDemoAssignments) && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-900">Setup needed in production</p>
+          <p className="mt-1 text-sm text-amber-800">
+            This page is currently using fallback demo data because the database returned no rows for
+            {usingDemoEvent ? ' congress events' : ''}
+            {usingDemoEvent && usingDemoAssignments ? ' and' : ''}
+            {usingDemoAssignments ? ' your congress assignments' : ''}.
+          </p>
+          <ul className="mt-2 list-disc pl-5 text-sm text-amber-800 space-y-1">
+            {usingDemoEvent && (
+              <li>
+                Ensure <code className="rounded bg-white/60 px-1">congress_events</code> has at least one row (current event).
+              </li>
+            )}
+            {usingDemoAssignments && (
+              <li>
+                Ensure <code className="rounded bg-white/60 px-1">congress_assignments</code> has rows for your user for the current event.
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+
+      {assignments.length === 0 && (
+        <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+          <p className="text-sm font-semibold text-neutral-900">No congress responsibilities assigned</p>
+          <p className="mt-1 text-sm text-neutral-600">
+            You can view the workspace, but your role-based responsibilities are empty. Ask an admin to add a
+            congress assignment for you.
+          </p>
+        </div>
+      )}
 
       <div className="mt-6 flex gap-6">
         <div className="min-w-0 flex-1 space-y-6">

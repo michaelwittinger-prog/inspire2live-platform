@@ -256,6 +256,13 @@ export default async function CongressPage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               {
+                href: '/app/congress/workspace',
+                icon: '🧭',
+                label: 'Workspace',
+                sub: 'Execution view',
+                color: 'border-orange-200 hover:bg-orange-50',
+              },
+              {
                 href: '/app/congress/topics',
                 icon: '💡',
                 label: 'Topics',
