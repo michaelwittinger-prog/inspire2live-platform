@@ -5,6 +5,14 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- ── notifications (created here if not already in 00001) ─────────────────────
+-- Ensure columns if table existed with different schema
+ALTER TABLE IF EXISTS notifications ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE IF EXISTS notifications ADD COLUMN IF NOT EXISTS initiative_id uuid REFERENCES initiatives(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS notifications ADD COLUMN IF NOT EXISTS type text;
+ALTER TABLE IF EXISTS notifications ADD COLUMN IF NOT EXISTS title text;
+ALTER TABLE IF EXISTS notifications ADD COLUMN IF NOT EXISTS body text;
+ALTER TABLE IF EXISTS notifications ADD COLUMN IF NOT EXISTS is_read boolean NOT NULL DEFAULT false;
+
 CREATE TABLE IF NOT EXISTS notifications (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id          uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -20,6 +28,17 @@ CREATE INDEX IF NOT EXISTS notifications_user_id_idx  ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS notifications_is_read_idx  ON notifications(user_id, is_read) WHERE is_read = false;
 
 -- ── congress_decisions ────────────────────────────────────────────────────────
+-- Ensure columns if table existed with different schema
+ALTER TABLE IF EXISTS congress_decisions ADD COLUMN IF NOT EXISTS title text;
+ALTER TABLE IF EXISTS congress_decisions ADD COLUMN IF NOT EXISTS body text;
+ALTER TABLE IF EXISTS congress_decisions ADD COLUMN IF NOT EXISTS initiative_id uuid REFERENCES initiatives(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS congress_decisions ADD COLUMN IF NOT EXISTS session_date date;
+ALTER TABLE IF EXISTS congress_decisions ADD COLUMN IF NOT EXISTS captured_at timestamptz NOT NULL DEFAULT now();
+ALTER TABLE IF EXISTS congress_decisions ADD COLUMN IF NOT EXISTS conversion_status text NOT NULL DEFAULT 'pending';
+ALTER TABLE IF EXISTS congress_decisions ADD COLUMN IF NOT EXISTS converted_task_id uuid REFERENCES tasks(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS congress_decisions ADD COLUMN IF NOT EXISTS converted_by uuid REFERENCES profiles(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS congress_decisions ADD COLUMN IF NOT EXISTS converted_at timestamptz;
+
 CREATE TABLE IF NOT EXISTS congress_decisions (
   id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   title               text NOT NULL,
