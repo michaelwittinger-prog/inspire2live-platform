@@ -10,12 +10,12 @@
  */
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 import { rowToCongressAssignment } from '@/lib/congress-assignments'
 import type { CongressAssignmentRow, CongressProjectRole } from '@/lib/congress-assignments'
-import type { CongressEvent } from '@/lib/congress'
 import { SetCongressRoles } from '@/components/roles/set-congress-roles'
 import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
+import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
+import { WorkspaceDiagnostics } from '@/components/congress/workspace/workspace-diagnostics'
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
 
@@ -62,21 +62,13 @@ export default async function CongressWorkspaceTeamPage() {
   const isAdmin = platformRole === 'PlatformAdmin'
 
   // ── Current event ──
-  const { data: dbEvents } = await supabase
-    .from('congress_events')
-    .select('*')
-    .order('year', { ascending: false })
-    .limit(1)
-
-  const currentEvent: CongressEvent = dbEvents?.[0]
-    ? (dbEvents[0] as unknown as CongressEvent)
-    : DEMO_CONGRESS_EVENTS[0]
+  const { event: currentEvent, issues } = await fetchLatestWorkspaceEvent(supabase)
 
   // ── All assignments for event ──
-  const { data: dbAssignments } = await supabase
+  const { data: dbAssignments, error: assignmentsError } = await supabase
     .from('congress_assignments')
     .select('*')
-    .eq('congress_id', currentEvent.id)
+    .eq('congress_id', currentEvent?.id ?? '__none__')
 
   const assignmentRows: CongressAssignmentRow[] = (dbAssignments ?? []) as unknown as CongressAssignmentRow[]
   const usingDemo = false
@@ -87,10 +79,14 @@ export default async function CongressWorkspaceTeamPage() {
 
   // ── Fetch real profiles for all user_ids ──
   const allUserIds = [...new Set(assignmentRows.map(r => r.user_id))]
-  const { data: profileRows } = await supabase
+  const { data: profileRows, error: profilesError } = await supabase
     .from('profiles')
     .select('id, role')
     .in('id', allUserIds.length > 0 ? allUserIds : ['__none__'])
+
+  const allIssues = [...issues]
+  if (assignmentsError) allIssues.push({ scope: 'congress_assignments.select_all', message: assignmentsError.message, code: assignmentsError.code, hint: (assignmentsError as unknown as { hint?: string }).hint })
+  if (profilesError) allIssues.push({ scope: 'profiles.select_for_assignments', message: profilesError.message, code: profilesError.code, hint: (profilesError as unknown as { hint?: string }).hint })
 
   // Build lookup: userId → { platformRole }
   // profiles table does not store display names; show truncated userId as fallback
@@ -113,9 +109,10 @@ export default async function CongressWorkspaceTeamPage() {
     if (!memberMap[a.userId]) {
       // Real profile first, then demo fallback
       const real = profileMap[a.userId]
+      const displayName = (row as unknown as { display_name?: string | null }).display_name
       memberMap[a.userId] = {
         userId: a.userId,
-        name: a.userId.slice(0, 8) + '…',
+        name: (displayName && displayName.trim()) ? displayName.trim() : (a.userId.slice(0, 8) + '…'),
         platformRole: real?.platformRole ?? 'PatientAdvocate',
         organization: undefined,
         congressRoles: [],
@@ -135,6 +132,8 @@ export default async function CongressWorkspaceTeamPage() {
 
   return (
     <div className="mx-auto max-w-6xl">
+      <WorkspaceDiagnostics issues={allIssues} />
+
       <SetCongressRoles roles={myCongressRoles} />
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
@@ -142,7 +141,7 @@ export default async function CongressWorkspaceTeamPage() {
         <div>
           <h1 className="text-xl font-bold text-neutral-900">Congress Team</h1>
           <p className="text-xs text-neutral-500">
-            {members.length} contributor{members.length !== 1 ? 's' : ''} assigned to {currentEvent.title ?? 'this congress'}
+            {members.length} contributor{members.length !== 1 ? 's' : ''} assigned to {currentEvent?.title ?? 'this congress'}
           </p>
         </div>
         {isAdmin && (

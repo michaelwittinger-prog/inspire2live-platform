@@ -4,6 +4,9 @@ import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { PriorityBadge } from '@/components/ui/priority-badge'
 import type { StatusTone } from '@/components/ui/status-badge'
+import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
+import { WorkspaceDiagnostics } from '@/components/congress/workspace/workspace-diagnostics'
+import { FollowUpCreateForm } from '@/components/congress/workspace/create-forms'
 
 type FollowUpAction = {
   id: string
@@ -20,15 +23,15 @@ export default async function CongressWorkspaceFollowUpPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: events } = await supabase
-    .from('congress_events')
-    .select('id, title')
-    .order('year', { ascending: false })
-    .limit(1)
-  const event = events?.[0]
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).maybeSingle()
+  const platformRole: string = (profile as { role?: string } | null)?.role ?? 'PatientAdvocate'
+  const canCreate = ['PlatformAdmin', 'HubCoordinator'].includes(platformRole)
+
+  const { event, issues } = await fetchLatestWorkspaceEvent(supabase)
 
   /* eslint-disable @typescript-eslint/no-explicit-any */
-  const { data: rows } = event
+  const { data: rows, error: followUpError } = event
     ? await (supabase as any)
         .from('congress_follow_up_actions')
         .select('id, title, description, status, priority, owner_name, due_date')
@@ -42,18 +45,26 @@ export default async function CongressWorkspaceFollowUpPage() {
   const openCount = items.filter(i => i.status !== 'done' && i.status !== 'cancelled').length
   const today = new Date().toISOString().slice(0, 10)
 
+  const allIssues = [...issues]
+  if (followUpError) allIssues.push({ scope: 'congress_follow_up_actions.select', message: followUpError.message, code: followUpError.code, hint: (followUpError as unknown as { hint?: string }).hint })
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-neutral-900">Follow-up</h1>
-        <p className="mt-1 text-sm text-neutral-600">
-          Post-congress actions and commitments — {items.length} item{items.length !== 1 ? 's' : ''}
-          {openCount > 0 && (
-            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
-              {openCount} open
-            </span>
-          )}
-        </p>
+      <WorkspaceDiagnostics issues={allIssues} />
+
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900">Follow-up</h1>
+          <p className="mt-1 text-sm text-neutral-600">
+            Post-congress actions and commitments — {items.length} item{items.length !== 1 ? 's' : ''}
+            {openCount > 0 && (
+              <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                {openCount} open
+              </span>
+            )}
+          </p>
+        </div>
+        {canCreate && event && <FollowUpCreateForm congressId={event.id} />}
       </div>
 
       <WorkspaceNav active="follow-up" />

@@ -115,6 +115,20 @@
 
 ---
 
+## WP-4b — Congress Workspace (Operational Execution) (Week 4)
+**Status: ✅ COMPLETE**  
+**Completed: 2026-02-21**
+
+| Deliverable | REQ-ID | Status | Code Location |
+|---|---|---|---|
+| Workspace operational tables (workstreams, tasks, RAID, approvals, live-ops, follow-up, messages) | REQ-TECH-012 | ✅ | `supabase/migrations/00014_congress_workspace_tables.sql` |
+| Activity log table + congress assignment display names | REQ-TECH-013 | ✅ | `supabase/migrations/00015_congress_activity_log.sql` |
+| Workspace UI (overview + 9 tabs) reading from Supabase (no demo rows rendered) | REQ-CONGRESS-004 | ✅ | `src/app/app/congress/workspace/**` |
+| Server actions for create + status transitions (coordinator/admin only) | REQ-CONGRESS-005 | ✅ | `src/app/app/congress/workspace/actions.ts` |
+| Unit tests: workspace actions (create + status) | — | ✅ | `src/test/unit/congress-workspace-actions.test.ts` |
+
+---
+
 ## WP-5 — Resource Library + Partner Portal (Week 5)
 **Status: ✅ COMPLETE**  
 **Completed: 2026-02-19**

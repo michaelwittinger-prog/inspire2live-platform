@@ -1,11 +1,13 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
 import { PriorityBadge } from '@/components/ui/priority-badge'
 import { StatusBadge } from '@/components/ui/status-badge'
 import type { StatusTone } from '@/components/ui/status-badge'
 import { TaskCreateForm } from '@/components/congress/workspace/create-forms'
+import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
+import { WorkspaceDiagnostics } from '@/components/congress/workspace/workspace-diagnostics'
+import { TaskStatusActions } from '@/components/congress/workspace/create-forms'
 
 type Task = {
   id: string
@@ -30,17 +32,12 @@ export default async function CongressWorkspaceTasksPage() {
   const platformRole: string = (profile as { role?: string } | null)?.role ?? 'PatientAdvocate'
   const canCreate = ['PlatformAdmin', 'HubCoordinator'].includes(platformRole)
 
-  const { data: events } = await supabase
-    .from('congress_events')
-    .select('id, title')
-    .order('year', { ascending: false })
-    .limit(1)
-  const event = events?.[0] ?? DEMO_CONGRESS_EVENTS[0]
+  const { event, issues } = await fetchLatestWorkspaceEvent(supabase)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any
 
-  const { data: rawTaskRows } = event
+  const { data: rawTaskRows, error: taskError } = event
     ? await sb.from('congress_tasks')
         .select('id, title, status, priority, lane, due_date, owner_name, workstream_id')
         .eq('congress_id', event.id)
@@ -48,7 +45,7 @@ export default async function CongressWorkspaceTasksPage() {
     : { data: [] }
   const taskRows = (rawTaskRows ?? []) as Array<{id:string;title:string;status:string;priority:string;lane:string;due_date:string|null;owner_name:string|null;workstream_id:string|null}>
 
-  const { data: rawWsRows } = event
+  const { data: rawWsRows, error: wsError } = event
     ? await sb.from('congress_workstreams').select('id, title').eq('congress_id', event.id)
     : { data: [] }
   const wsRows = (rawWsRows ?? []) as Array<{id:string;title:string}>
@@ -57,7 +54,7 @@ export default async function CongressWorkspaceTasksPage() {
   for (const ws of wsRows) wsMap[ws.id] = ws.title
 
   const taskIds = taskRows.map(t => t.id)
-  const { data: rawDepRows } = taskIds.length > 0
+  const { data: rawDepRows, error: depError } = taskIds.length > 0
     ? await sb.from('congress_task_dependencies').select('task_id').in('task_id', taskIds)
     : { data: [] }
   const depRows = (rawDepRows ?? []) as Array<{task_id:string}>
@@ -71,8 +68,15 @@ export default async function CongressWorkspaceTasksPage() {
   }))
   const blocked = tasks.filter(t => t.status === 'blocked')
 
+  const allIssues = [...issues]
+  if (taskError) allIssues.push({ scope: 'congress_tasks.select', message: taskError.message, code: taskError.code, hint: (taskError as unknown as { hint?: string }).hint })
+  if (wsError) allIssues.push({ scope: 'congress_workstreams.select_for_tasks', message: wsError.message, code: wsError.code, hint: (wsError as unknown as { hint?: string }).hint })
+  if (depError) allIssues.push({ scope: 'congress_task_dependencies.select', message: depError.message, code: depError.code, hint: (depError as unknown as { hint?: string }).hint })
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      <WorkspaceDiagnostics issues={allIssues} />
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">Tasks</h1>
@@ -85,7 +89,7 @@ export default async function CongressWorkspaceTasksPage() {
             )}
           </p>
         </div>
-        {canCreate && (
+        {canCreate && event && (
           <TaskCreateForm congressId={event.id} workstreams={wsRows} />
         )}
       </div>
@@ -111,6 +115,7 @@ export default async function CongressWorkspaceTasksPage() {
                 <th className="px-4 py-3 font-semibold">Owner</th>
                 <th className="px-4 py-3 font-semibold">Due</th>
                 <th className="px-4 py-3 font-semibold">Deps</th>
+                {canCreate && event && <th className="px-4 py-3 font-semibold text-right">Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -145,6 +150,11 @@ export default async function CongressWorkspaceTasksPage() {
                         ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{t.dep_count}</span>
                         : <span className="text-neutral-400 text-xs">—</span>}
                     </td>
+                    {canCreate && event && (
+                      <td className="px-4 py-3 text-right">
+                        <TaskStatusActions congressId={event.id} taskId={t.id} status={t.status} />
+                      </td>
+                    )}
                   </tr>
                 )
               })}

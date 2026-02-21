@@ -2,7 +2,6 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 
 // ─── Guard ───────────────────────────────────────────────────────────────────
 
@@ -22,48 +21,53 @@ async function requireCoordinator() {
   return { supabase: supabase as ReturnType<typeof createClient> extends Promise<infer T> ? T : never, userId: user.id }
 }
 
-// ─── Ensure the congress event exists in DB ──────────────────────────────────
+// ─── Activity log helper ─────────────────────────────────────────────────────
 
-async function ensureCongressEvent(
+async function logActivity(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
-  congressId: string,
+  {
+    congressId,
+    actorId,
+    action,
+    entityType,
+    entityId,
+    entityTitle,
+  }: {
+    congressId: string
+    actorId: string
+    action: string
+    entityType?: string
+    entityId?: string
+    entityTitle?: string
+  },
 ) {
-  // Check if event already exists
-  const { data: existing } = await supabase
-    .from('congress_events')
-    .select('id')
-    .eq('id', congressId)
-    .maybeSingle()
-
-  if (existing) return // already in DB
-
-  // Auto-create from demo template
-  const demo = DEMO_CONGRESS_EVENTS.find(e => e.id === congressId) ?? DEMO_CONGRESS_EVENTS[0]
-  const { error } = await supabase.from('congress_events').insert({
-    id:              congressId,
-    year:            demo.year,
-    title:           demo.title,
-    description:     demo.description,
-    location:        demo.location,
-    start_date:      demo.start_date,
-    end_date:        demo.end_date,
-    theme_headline:  demo.theme_headline,
-    status:          demo.status ?? 'planning',
-    parent_event_id: null,
-  })
-  if (error) {
-    // Ignore duplicate-key race condition
-    if (!error.message?.includes('duplicate') && !error.code?.includes('23505')) {
-      throw new Error(`Failed to bootstrap congress event: ${error.message}`)
-    }
+  // Best-effort logging: never fail the primary write due to logging.
+  try {
+    await supabase
+      .from('congress_activity_log')
+      .insert({
+        congress_id: congressId,
+        actor_id: actorId,
+        action,
+        entity_type: entityType ?? null,
+        entity_id: entityId ?? null,
+        entity_title: entityTitle ?? null,
+      })
+  } catch {
+    // ignore
   }
 }
+
+// NOTE: We intentionally do NOT auto-create congress_events from demo templates.
+// Rationale: prod/staging schema can drift (e.g. missing `title`), and writing demo-shaped
+// rows can fail or create inconsistent data. Workspace UI should surface missing data
+// clearly and require an admin to create the event explicitly.
 
 // ─── Workstreams ──────────────────────────────────────────────────────────────
 
 export async function createWorkstream(formData: FormData) {
-  const { supabase } = await requireCoordinator()
+  const { supabase, userId } = await requireCoordinator()
   const congressId   = formData.get('congress_id') as string
   const title        = (formData.get('title') as string).trim()
   const description  = (formData.get('description') as string | null)?.trim() || null
@@ -74,13 +78,23 @@ export async function createWorkstream(formData: FormData) {
 
   if (!title || !congressId) throw new Error('Title and congress required')
 
-  await ensureCongressEvent(supabase, congressId)
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const { error, data } = await (supabase as any)
     .from('congress_workstreams')
     .insert({ congress_id: congressId, title, description, owner_role: ownerRole, health, progress_pct: progressPct, next_milestone: nextMilestone })
+    .select('id')
+    .maybeSingle()
   if (error) throw new Error(error.message)
+
+  await logActivity(supabase, {
+    congressId,
+    actorId: userId,
+    action: 'created_workstream',
+    entityType: 'congress_workstreams',
+    entityId: data?.id ? String(data.id) : undefined,
+    entityTitle: title,
+  })
+
   revalidatePath('/app/congress/workspace/workstreams')
   revalidatePath('/app/congress/workspace/overview')
 }
@@ -88,7 +102,7 @@ export async function createWorkstream(formData: FormData) {
 // ─── Tasks ────────────────────────────────────────────────────────────────────
 
 export async function createTask(formData: FormData) {
-  const { supabase } = await requireCoordinator()
+  const { supabase, userId } = await requireCoordinator()
   const congressId   = formData.get('congress_id') as string
   const title        = (formData.get('title') as string).trim()
   const status       = (formData.get('status') as string) || 'todo'
@@ -100,10 +114,8 @@ export async function createTask(formData: FormData) {
 
   if (!title || !congressId) throw new Error('Title and congress required')
 
-  await ensureCongressEvent(supabase, congressId)
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const { error, data } = await (supabase as any)
     .from('congress_tasks')
     .insert({
       congress_id:   congressId,
@@ -115,7 +127,19 @@ export async function createTask(formData: FormData) {
       owner_name:    ownerName,
       workstream_id: workstreamId || null,
     })
+    .select('id')
+    .maybeSingle()
   if (error) throw new Error(error.message)
+
+  await logActivity(supabase, {
+    congressId,
+    actorId: userId,
+    action: 'created_task',
+    entityType: 'congress_tasks',
+    entityId: data?.id ? String(data.id) : undefined,
+    entityTitle: title,
+  })
+
   revalidatePath('/app/congress/workspace/tasks')
   revalidatePath('/app/congress/workspace/overview')
 }
@@ -137,20 +161,30 @@ export async function createMessage(formData: FormData) {
 
   if (!subject || !body || !congressId) throw new Error('Subject, body, and congress required')
 
-  await ensureCongressEvent(supabase, congressId)
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const { error, data } = await (supabase as any)
     .from('congress_messages')
     .insert({ congress_id: congressId, subject, body, thread_type: threadType, author_name: authorName, labels })
+    .select('id')
+    .maybeSingle()
   if (error) throw new Error(error.message)
+
+  await logActivity(supabase, {
+    congressId,
+    actorId: userId,
+    action: 'created_message',
+    entityType: 'congress_messages',
+    entityId: data?.id ? String(data.id) : undefined,
+    entityTitle: subject,
+  })
+
   revalidatePath('/app/congress/workspace/communications')
 }
 
 // ─── Milestones ───────────────────────────────────────────────────────────────
 
 export async function createMilestone(formData: FormData) {
-  const { supabase } = await requireCoordinator()
+  const { supabase, userId } = await requireCoordinator()
   const congressId    = formData.get('congress_id') as string
   const title         = (formData.get('title') as string).trim()
   const milestoneDate = (formData.get('milestone_date') as string).trim()
@@ -159,20 +193,30 @@ export async function createMilestone(formData: FormData) {
 
   if (!title || !milestoneDate || !congressId) throw new Error('Title, date, and congress required')
 
-  await ensureCongressEvent(supabase, congressId)
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const { error, data } = await (supabase as any)
     .from('congress_milestones')
     .insert({ congress_id: congressId, title, milestone_date: milestoneDate, status, workstream_id: workstreamId || null })
+    .select('id')
+    .maybeSingle()
   if (error) throw new Error(error.message)
+
+  await logActivity(supabase, {
+    congressId,
+    actorId: userId,
+    action: 'created_milestone',
+    entityType: 'congress_milestones',
+    entityId: data?.id ? String(data.id) : undefined,
+    entityTitle: title,
+  })
+
   revalidatePath('/app/congress/workspace/timeline')
 }
 
 // ─── RAID items ───────────────────────────────────────────────────────────────
 
 export async function createRaidItem(formData: FormData) {
-  const { supabase } = await requireCoordinator()
+  const { supabase, userId } = await requireCoordinator()
   const congressId = formData.get('congress_id') as string
   const title      = (formData.get('title') as string).trim()
   const type       = (formData.get('type') as string) || 'risk'
@@ -183,13 +227,264 @@ export async function createRaidItem(formData: FormData) {
 
   if (!title || !congressId) throw new Error('Title and congress required')
 
-  await ensureCongressEvent(supabase, congressId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error, data } = await (supabase as any)
+    .from('congress_raid_items')
+    .insert({ congress_id: congressId, title, type, status, priority, owner_role: ownerRole, description })
+    .select('id')
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+
+  await logActivity(supabase, {
+    congressId,
+    actorId: userId,
+    action: 'created_raid_item',
+    entityType: 'congress_raid_items',
+    entityId: data?.id ? String(data.id) : undefined,
+    entityTitle: title,
+  })
+
+  revalidatePath('/app/congress/workspace/raid')
+  revalidatePath('/app/congress/workspace/overview')
+}
+
+// ─── Live Ops ───────────────────────────────────────────────────────────────
+
+export async function createLiveOpsUpdate(formData: FormData) {
+  const { supabase, userId } = await requireCoordinator()
+  const congressId  = formData.get('congress_id') as string
+  const title       = (formData.get('title') as string).trim()
+  const description = (formData.get('description') as string | null)?.trim() || null
+  const status      = (formData.get('status') as string) || 'open'
+  const severity    = (formData.get('severity') as string) || 'sev3'
+
+  if (!title || !congressId) throw new Error('Title and congress required')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error, data } = await (supabase as any)
+    .from('congress_live_ops_updates')
+    .insert({ congress_id: congressId, title, description, status, severity })
+    .select('id')
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+
+  await logActivity(supabase, {
+    congressId,
+    actorId: userId,
+    action: 'created_live_ops_update',
+    entityType: 'congress_live_ops_updates',
+    entityId: data?.id ? String(data.id) : undefined,
+    entityTitle: title,
+  })
+
+  revalidatePath('/app/congress/workspace/live-ops')
+  revalidatePath('/app/congress/workspace/overview')
+}
+
+// ─── Follow-up actions ──────────────────────────────────────────────────────
+
+export async function createFollowUpAction(formData: FormData) {
+  const { supabase, userId } = await requireCoordinator()
+  const congressId  = formData.get('congress_id') as string
+  const title       = (formData.get('title') as string).trim()
+  const description = (formData.get('description') as string | null)?.trim() || null
+  const status      = (formData.get('status') as string) || 'todo'
+  const priority    = (formData.get('priority') as string) || 'medium'
+  const ownerName   = (formData.get('owner_name') as string | null)?.trim() || null
+  const dueDate     = (formData.get('due_date') as string | null)?.trim() || null
+
+  if (!title || !congressId) throw new Error('Title and congress required')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error, data } = await (supabase as any)
+    .from('congress_follow_up_actions')
+    .insert({
+      congress_id: congressId,
+      title,
+      description,
+      status,
+      priority,
+      owner_name: ownerName,
+      due_date: dueDate || null,
+    })
+    .select('id')
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+
+  await logActivity(supabase, {
+    congressId,
+    actorId: userId,
+    action: 'created_follow_up_action',
+    entityType: 'congress_follow_up_actions',
+    entityId: data?.id ? String(data.id) : undefined,
+    entityTitle: title,
+  })
+
+  revalidatePath('/app/congress/workspace/follow-up')
+  revalidatePath('/app/congress/workspace/overview')
+}
+
+// ─── Approvals ──────────────────────────────────────────────────────────────
+
+export async function createApprovalRequest(formData: FormData) {
+  const { supabase, userId } = await requireCoordinator()
+  const congressId  = formData.get('congress_id') as string
+  const title       = (formData.get('title') as string).trim()
+  const description = (formData.get('description') as string | null)?.trim() || null
+  const requestedByName = (formData.get('requested_by_name') as string | null)?.trim() || null
+
+  if (!title || !congressId) throw new Error('Title and congress required')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error, data } = await (supabase as any)
+    .from('congress_approval_requests')
+    .insert({
+      congress_id: congressId,
+      title,
+      description,
+      requested_by_name: requestedByName,
+      status: 'submitted',
+    })
+    .select('id')
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+
+  await logActivity(supabase, {
+    congressId,
+    actorId: userId,
+    action: 'created_approval_request',
+    entityType: 'congress_approval_requests',
+    entityId: data?.id ? String(data.id) : undefined,
+    entityTitle: title,
+  })
+
+  revalidatePath('/app/congress/workspace/approvals')
+  revalidatePath('/app/congress/workspace/overview')
+}
+
+// ─── Status transition actions ──────────────────────────────────────────────
+
+export async function updateTaskStatus(formData: FormData) {
+  const { supabase, userId } = await requireCoordinator()
+  const taskId = (formData.get('task_id') as string).trim()
+  const status = (formData.get('status') as string).trim()
+  const congressId = (formData.get('congress_id') as string).trim()
+
+  if (!taskId || !status) throw new Error('Task id + status required')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('congress_tasks')
+    .update({ status })
+    .eq('id', taskId)
+
+  if (error) throw new Error(error.message)
+
+  if (congressId) {
+    await logActivity(supabase, {
+      congressId,
+      actorId: userId,
+      action: 'updated_task_status',
+      entityType: 'congress_tasks',
+      entityId: taskId,
+      entityTitle: `status=${status}`,
+    })
+  }
+
+  revalidatePath('/app/congress/workspace/tasks')
+  revalidatePath('/app/congress/workspace/overview')
+}
+
+export async function updateRaidItemStatus(formData: FormData) {
+  const { supabase, userId } = await requireCoordinator()
+  const raidId = (formData.get('raid_id') as string).trim()
+  const status = (formData.get('status') as string).trim()
+  const congressId = (formData.get('congress_id') as string).trim()
+
+  if (!raidId || !status) throw new Error('RAID id + status required')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
     .from('congress_raid_items')
-    .insert({ congress_id: congressId, title, type, status, priority, owner_role: ownerRole, description })
+    .update({ status })
+    .eq('id', raidId)
+
   if (error) throw new Error(error.message)
+
+  if (congressId) {
+    await logActivity(supabase, {
+      congressId,
+      actorId: userId,
+      action: 'updated_raid_status',
+      entityType: 'congress_raid_items',
+      entityId: raidId,
+      entityTitle: `status=${status}`,
+    })
+  }
+
   revalidatePath('/app/congress/workspace/raid')
+  revalidatePath('/app/congress/workspace/overview')
+}
+
+export async function updateApprovalStatus(formData: FormData) {
+  const { supabase, userId } = await requireCoordinator()
+  const approvalId = (formData.get('approval_id') as string).trim()
+  const status = (formData.get('status') as string).trim()
+  const congressId = (formData.get('congress_id') as string).trim()
+
+  if (!approvalId || !status) throw new Error('Approval id + status required')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('congress_approval_requests')
+    .update({ status })
+    .eq('id', approvalId)
+  if (error) throw new Error(error.message)
+
+  if (congressId) {
+    await logActivity(supabase, {
+      congressId,
+      actorId: userId,
+      action: 'updated_approval_status',
+      entityType: 'congress_approval_requests',
+      entityId: approvalId,
+      entityTitle: `status=${status}`,
+    })
+  }
+
+  revalidatePath('/app/congress/workspace/approvals')
+  revalidatePath('/app/congress/workspace/overview')
+}
+
+export async function updateLiveOpsStatus(formData: FormData) {
+  const { supabase, userId } = await requireCoordinator()
+  const incidentId = (formData.get('incident_id') as string).trim()
+  const status = (formData.get('status') as string).trim()
+  const congressId = (formData.get('congress_id') as string).trim()
+
+  if (!incidentId || !status) throw new Error('Incident id + status required')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('congress_live_ops_updates')
+    .update({
+      status,
+      resolved_at: status === 'resolved' ? new Date().toISOString() : null,
+    })
+    .eq('id', incidentId)
+  if (error) throw new Error(error.message)
+
+  if (congressId) {
+    await logActivity(supabase, {
+      congressId,
+      actorId: userId,
+      action: 'updated_live_ops_status',
+      entityType: 'congress_live_ops_updates',
+      entityId: incidentId,
+      entityTitle: `status=${status}`,
+    })
+  }
+
+  revalidatePath('/app/congress/workspace/live-ops')
   revalidatePath('/app/congress/workspace/overview')
 }

@@ -1,9 +1,11 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
 import { PriorityBadge } from '@/components/ui/priority-badge'
 import { RaidCreateForm } from '@/components/congress/workspace/create-forms'
+import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
+import { WorkspaceDiagnostics } from '@/components/congress/workspace/workspace-diagnostics'
+import { RaidStatusActions } from '@/components/congress/workspace/create-forms'
 
 type RaidItem = {
   id: string
@@ -38,13 +40,11 @@ export default async function CongressWorkspaceRaidPage() {
   const platformRole: string = (profile as { role?: string } | null)?.role ?? 'PatientAdvocate'
   const canCreate = ['PlatformAdmin', 'HubCoordinator'].includes(platformRole)
 
-  const { data: events } = await supabase
-    .from('congress_events').select('id, title').order('year', { ascending: false }).limit(1)
-  const event = events?.[0] ?? DEMO_CONGRESS_EVENTS[0]
+  const { event, issues } = await fetchLatestWorkspaceEvent(supabase)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any
-  const { data: rawRows } = event
+  const { data: rawRows, error: raidError } = event
     ? await sb.from('congress_raid_items')
         .select('id, title, type, status, priority, owner_role, description')
         .eq('congress_id', event.id)
@@ -52,11 +52,16 @@ export default async function CongressWorkspaceRaidPage() {
     : { data: [] }
   const items = (rawRows ?? []) as RaidItem[]
 
+  const allIssues = [...issues]
+  if (raidError) allIssues.push({ scope: 'congress_raid_items.select', message: raidError.message, code: raidError.code, hint: (raidError as unknown as { hint?: string }).hint })
+
   const openItems = items.filter(i => i.status !== 'resolved')
   const resolvedItems = items.filter(i => i.status === 'resolved')
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      <WorkspaceDiagnostics issues={allIssues} />
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">RAID Log</h1>
@@ -69,7 +74,7 @@ export default async function CongressWorkspaceRaidPage() {
             )}
           </p>
         </div>
-        {canCreate && <RaidCreateForm congressId={event.id} />}
+        {canCreate && event && <RaidCreateForm congressId={event.id} />}
       </div>
 
       <WorkspaceNav active="raid" />
@@ -94,6 +99,7 @@ export default async function CongressWorkspaceRaidPage() {
                   <th className="px-4 py-3 font-semibold">Priority</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 font-semibold">Owner</th>
+                  {canCreate && event && <th className="px-4 py-3 font-semibold text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -119,6 +125,11 @@ export default async function CongressWorkspaceRaidPage() {
                     <td className="px-4 py-3 text-xs text-neutral-500">
                       {i.owner_role ?? <span className="text-neutral-300">—</span>}
                     </td>
+                    {canCreate && event && (
+                      <td className="px-4 py-3 text-right">
+                        <RaidStatusActions congressId={event.id} raidId={i.id} status={i.status} />
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

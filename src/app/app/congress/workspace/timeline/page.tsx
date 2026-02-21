@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
 import { MilestoneCreateForm } from '@/components/congress/workspace/create-forms'
+import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
+import { WorkspaceDiagnostics } from '@/components/congress/workspace/workspace-diagnostics'
 
 type Milestone = {
   id: string
@@ -30,9 +31,7 @@ export default async function CongressWorkspaceTimelinePage() {
   const platformRole: string = (profile as { role?: string } | null)?.role ?? 'PatientAdvocate'
   const canCreate = ['PlatformAdmin', 'HubCoordinator'].includes(platformRole)
 
-  const { data: events } = await supabase
-    .from('congress_events').select('id, title').order('year', { ascending: false }).limit(1)
-  const event = events?.[0] ?? DEMO_CONGRESS_EVENTS[0]
+  const { event, issues } = await fetchLatestWorkspaceEvent(supabase)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any
@@ -47,6 +46,14 @@ export default async function CongressWorkspaceTimelinePage() {
       ? sb.from('congress_workstreams').select('id, title').eq('congress_id', event.id)
       : { data: [] },
   ])
+
+  const allIssues = [...issues]
+  if (milestonesResult.error) {
+    allIssues.push({ scope: 'congress_milestones.select', message: milestonesResult.error.message, code: milestonesResult.error.code, hint: (milestonesResult.error as unknown as { hint?: string }).hint })
+  }
+  if (workstreamsResult.error) {
+    allIssues.push({ scope: 'congress_workstreams.select_for_timeline', message: workstreamsResult.error.message, code: workstreamsResult.error.code, hint: (workstreamsResult.error as unknown as { hint?: string }).hint })
+  }
 
   const wsMap: Record<string, string> = {}
   for (const ws of (workstreamsResult.data ?? []) as Array<{id:string;title:string}>) {
@@ -68,6 +75,8 @@ export default async function CongressWorkspaceTimelinePage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      <WorkspaceDiagnostics issues={allIssues} />
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">Timeline</h1>
@@ -75,7 +84,7 @@ export default async function CongressWorkspaceTimelinePage() {
             {event?.title ?? 'Congress'} — {milestones.length} milestone{milestones.length !== 1 ? 's' : ''}
           </p>
         </div>
-        {canCreate && (
+        {canCreate && event && (
           <MilestoneCreateForm congressId={event.id} workstreams={wsRows} />
         )}
       </div>

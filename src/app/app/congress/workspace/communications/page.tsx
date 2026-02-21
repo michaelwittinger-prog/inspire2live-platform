@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
 import { MessageCreateForm } from '@/components/congress/workspace/create-forms'
+import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
+import { WorkspaceDiagnostics } from '@/components/congress/workspace/workspace-diagnostics'
 
 type Message = {
   id: string
@@ -31,13 +32,11 @@ export default async function CongressWorkspaceCommunicationsPage() {
   const platformRole: string = (profile as { role?: string } | null)?.role ?? 'PatientAdvocate'
   const canCreate = ['PlatformAdmin', 'HubCoordinator'].includes(platformRole)
 
-  const { data: events } = await supabase
-    .from('congress_events').select('id, title').order('year', { ascending: false }).limit(1)
-  const event = events?.[0] ?? DEMO_CONGRESS_EVENTS[0]
+  const { event, issues } = await fetchLatestWorkspaceEvent(supabase)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any
-  const { data: rawRows } = event
+  const { data: rawRows, error: msgError } = event
     ? await sb.from('congress_messages')
         .select('id, subject, body, thread_type, author_name, labels, created_at')
         .eq('congress_id', event.id)
@@ -45,8 +44,13 @@ export default async function CongressWorkspaceCommunicationsPage() {
     : { data: [] }
   const messages = (rawRows ?? []) as Message[]
 
+  const allIssues = [...issues]
+  if (msgError) allIssues.push({ scope: 'congress_messages.select', message: msgError.message, code: msgError.code, hint: (msgError as unknown as { hint?: string }).hint })
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      <WorkspaceDiagnostics issues={allIssues} />
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">Communications</h1>
@@ -54,7 +58,7 @@ export default async function CongressWorkspaceCommunicationsPage() {
             {event?.title ?? 'Congress'} — {messages.length} update{messages.length !== 1 ? 's' : ''}
           </p>
         </div>
-        {canCreate && <MessageCreateForm congressId={event.id} />}
+        {canCreate && event && <MessageCreateForm congressId={event.id} />}
       </div>
 
       <WorkspaceNav active="communications" />

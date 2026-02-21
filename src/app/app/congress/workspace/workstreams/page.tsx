@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
 import { WorkstreamCreateForm } from '@/components/congress/workspace/create-forms'
+import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
+import { WorkspaceDiagnostics } from '@/components/congress/workspace/workspace-diagnostics'
 
 const HEALTH_BADGE: Record<string, string> = {
   on_track: 'bg-green-100 text-green-800 border-green-200',
@@ -48,13 +49,11 @@ export default async function CongressWorkspaceWorkstreamsPage() {
   const platformRole: string = (profile as { role?: string } | null)?.role ?? 'PatientAdvocate'
   const canCreate = ['PlatformAdmin', 'HubCoordinator'].includes(platformRole)
 
-  const { data: events } = await supabase
-    .from('congress_events').select('id, title').order('year', { ascending: false }).limit(1)
-  const event = events?.[0] ?? DEMO_CONGRESS_EVENTS[0]
+  const { event, issues } = await fetchLatestWorkspaceEvent(supabase)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any
-  const { data: rawRows } = event
+  const { data: rawRows, error: wsError } = event
     ? await sb.from('congress_workstreams')
         .select('id, title, description, owner_role, health, progress_pct, next_milestone, sort_order')
         .eq('congress_id', event.id)
@@ -62,8 +61,15 @@ export default async function CongressWorkspaceWorkstreamsPage() {
     : { data: [] }
   const workstreams = (rawRows ?? []) as Workstream[]
 
+  const allIssues = [...issues]
+  if (wsError) {
+    allIssues.push({ scope: 'congress_workstreams.select', message: wsError.message, code: wsError.code, hint: (wsError as unknown as { hint?: string }).hint })
+  }
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      <WorkspaceDiagnostics issues={allIssues} />
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">Workstreams</h1>
@@ -71,7 +77,7 @@ export default async function CongressWorkspaceWorkstreamsPage() {
             {event?.title ?? 'Congress'} — {workstreams.length} workstream{workstreams.length !== 1 ? 's' : ''}
           </p>
         </div>
-        {canCreate && <WorkstreamCreateForm congressId={event.id} />}
+        {canCreate && event && <WorkstreamCreateForm congressId={event.id} />}
       </div>
 
       <WorkspaceNav active="workstreams" />

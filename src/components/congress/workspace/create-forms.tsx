@@ -14,6 +14,13 @@ import {
   createMessage,
   createMilestone,
   createRaidItem,
+  createLiveOpsUpdate,
+  createFollowUpAction,
+  createApprovalRequest,
+  updateTaskStatus,
+  updateRaidItemStatus,
+  updateApprovalStatus,
+  updateLiveOpsStatus,
 } from '@/app/app/congress/workspace/actions'
 
 // ─── Shared UI ───────────────────────────────────────────────────────────────
@@ -440,5 +447,453 @@ export function RaidCreateForm({ congressId }: { congressId: string }) {
         <SubmitBtn pending={pending} label="Save RAID item" />
       </form>
     </FormPanel>
+  )
+}
+
+// ─── 6. Live Ops Create Form ────────────────────────────────────────────────
+
+export function LiveOpsCreateForm({ congressId }: { congressId: string }) {
+  const [open, setOpen] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setErr(null)
+    const fd = new FormData(e.currentTarget)
+    startTransition(async () => {
+      try {
+        await createLiveOpsUpdate(fd)
+        setOpen(false)
+      } catch (ex: unknown) {
+        setErr(ex instanceof Error ? ex.message : 'Unknown error')
+      }
+    })
+  }
+
+  if (!open) return <AddButton label="New incident" onClick={() => setOpen(true)} />
+
+  return (
+    <FormPanel title="New live-ops update" onClose={() => setOpen(false)}>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <input type="hidden" name="congress_id" value={congressId} />
+
+        <FormRow label="Title *">
+          <input name="title" required placeholder="Short incident title" className={inputCls} />
+        </FormRow>
+
+        <div className="grid grid-cols-2 gap-3">
+          <FormRow label="Status">
+            <select name="status" className={selectCls}>
+              <option value="open">Open</option>
+              <option value="monitoring">Monitoring</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </FormRow>
+          <FormRow label="Severity">
+            <select name="severity" className={selectCls}>
+              <option value="sev3">SEV3</option>
+              <option value="sev2">SEV2</option>
+              <option value="sev1">SEV1</option>
+            </select>
+          </FormRow>
+        </div>
+
+        <FormRow label="Description">
+          <textarea name="description" rows={3} placeholder="Details / context…" className={inputCls} />
+        </FormRow>
+
+        <ErrorMsg msg={err} />
+        <SubmitBtn pending={pending} label="Save update" />
+      </form>
+    </FormPanel>
+  )
+}
+
+// ─── 7. Follow-up Create Form ───────────────────────────────────────────────
+
+export function FollowUpCreateForm({ congressId }: { congressId: string }) {
+  const [open, setOpen] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setErr(null)
+    const fd = new FormData(e.currentTarget)
+    startTransition(async () => {
+      try {
+        await createFollowUpAction(fd)
+        setOpen(false)
+      } catch (ex: unknown) {
+        setErr(ex instanceof Error ? ex.message : 'Unknown error')
+      }
+    })
+  }
+
+  if (!open) return <AddButton label="New follow-up" onClick={() => setOpen(true)} />
+
+  return (
+    <FormPanel title="New follow-up action" onClose={() => setOpen(false)}>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <input type="hidden" name="congress_id" value={congressId} />
+
+        <FormRow label="Title *">
+          <input name="title" required placeholder="What needs to be done post-congress?" className={inputCls} />
+        </FormRow>
+
+        <FormRow label="Description">
+          <textarea name="description" rows={2} placeholder="More detail…" className={inputCls} />
+        </FormRow>
+
+        <div className="grid grid-cols-2 gap-3">
+          <FormRow label="Status">
+            <select name="status" className={selectCls}>
+              <option value="todo">To do</option>
+              <option value="in_progress">In progress</option>
+              <option value="done">Done</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </FormRow>
+          <FormRow label="Priority">
+            <select name="priority" className={selectCls}>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+              <option value="low">Low</option>
+            </select>
+          </FormRow>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <FormRow label="Owner">
+            <input name="owner_name" placeholder="Name or role" className={inputCls} />
+          </FormRow>
+          <FormRow label="Due date">
+            <input name="due_date" type="date" className={inputCls} />
+          </FormRow>
+        </div>
+
+        <ErrorMsg msg={err} />
+        <SubmitBtn pending={pending} label="Save follow-up" />
+      </form>
+    </FormPanel>
+  )
+}
+
+// ─── 8. Approval Request Create Form ────────────────────────────────────────
+
+export function ApprovalCreateForm({ congressId }: { congressId: string }) {
+  const [open, setOpen] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setErr(null)
+    const fd = new FormData(e.currentTarget)
+    startTransition(async () => {
+      try {
+        await createApprovalRequest(fd)
+        setOpen(false)
+      } catch (ex: unknown) {
+        setErr(ex instanceof Error ? ex.message : 'Unknown error')
+      }
+    })
+  }
+
+  if (!open) return <AddButton label="Request approval" onClick={() => setOpen(true)} />
+
+  return (
+    <FormPanel title="New approval request" onClose={() => setOpen(false)}>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <input type="hidden" name="congress_id" value={congressId} />
+
+        <FormRow label="Title *">
+          <input name="title" required placeholder="What needs approval?" className={inputCls} />
+        </FormRow>
+
+        <FormRow label="Description">
+          <textarea name="description" rows={2} placeholder="Context, links, rationale…" className={inputCls} />
+        </FormRow>
+
+        <FormRow label="Requested by (display name)">
+          <input name="requested_by_name" placeholder="Your name" className={inputCls} />
+        </FormRow>
+
+        <ErrorMsg msg={err} />
+        <SubmitBtn pending={pending} label="Submit request" />
+      </form>
+    </FormPanel>
+  )
+}
+
+// ─── Inline status buttons (client → server action) ────────────────────────
+
+function InlineActionBtn({
+  label,
+  onClick,
+  tone,
+}: {
+  label: string
+  onClick: () => void
+  tone?: 'neutral' | 'orange' | 'red' | 'green'
+}) {
+  const cls =
+    tone === 'green'  ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100' :
+    tone === 'red'    ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100' :
+    tone === 'orange' ? 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100' :
+    'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg border px-2 py-1 text-[11px] font-semibold ${cls}`}
+    >
+      {label}
+    </button>
+  )
+}
+
+function useInlineStatusAction({
+  action,
+}: {
+  action: (fd: FormData) => Promise<void>
+}) {
+  const [err, setErr] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+  return {
+    err,
+    pending,
+    run: (fd: FormData) => {
+      setErr(null)
+      startTransition(async () => {
+        try {
+          await action(fd)
+        } catch (ex: unknown) {
+          setErr(ex instanceof Error ? ex.message : 'Unknown error')
+        }
+      })
+    },
+  }
+}
+
+export function TaskStatusActions({
+  congressId,
+  taskId,
+  status,
+}: {
+  congressId: string
+  taskId: string
+  status: string
+}) {
+  const { err, pending, run } = useInlineStatusAction({ action: updateTaskStatus })
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex flex-wrap justify-end gap-1">
+        {status !== 'done' && (
+          <InlineActionBtn
+            label={pending ? '…' : 'Mark done'}
+            tone="green"
+            onClick={() => {
+              const fd = new FormData()
+              fd.set('congress_id', congressId)
+              fd.set('task_id', taskId)
+              fd.set('status', 'done')
+              run(fd)
+            }}
+          />
+        )}
+        {status !== 'in_progress' && status !== 'done' && (
+          <InlineActionBtn
+            label={pending ? '…' : 'In progress'}
+            tone="orange"
+            onClick={() => {
+              const fd = new FormData()
+              fd.set('congress_id', congressId)
+              fd.set('task_id', taskId)
+              fd.set('status', 'in_progress')
+              run(fd)
+            }}
+          />
+        )}
+        {status !== 'blocked' && status !== 'done' && (
+          <InlineActionBtn
+            label={pending ? '…' : 'Block'}
+            tone="red"
+            onClick={() => {
+              const fd = new FormData()
+              fd.set('congress_id', congressId)
+              fd.set('task_id', taskId)
+              fd.set('status', 'blocked')
+              run(fd)
+            }}
+          />
+        )}
+      </div>
+      {err ? <span className="text-[10px] text-red-700">{err}</span> : null}
+    </div>
+  )
+}
+
+export function RaidStatusActions({
+  congressId,
+  raidId,
+  status,
+}: {
+  congressId: string
+  raidId: string
+  status: string
+}) {
+  const { err, pending, run } = useInlineStatusAction({ action: updateRaidItemStatus })
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex flex-wrap justify-end gap-1">
+        {status !== 'resolved' && (
+          <InlineActionBtn
+            label={pending ? '…' : 'Resolve'}
+            tone="green"
+            onClick={() => {
+              const fd = new FormData()
+              fd.set('congress_id', congressId)
+              fd.set('raid_id', raidId)
+              fd.set('status', 'resolved')
+              run(fd)
+            }}
+          />
+        )}
+        {status !== 'mitigating' && status !== 'resolved' && (
+          <InlineActionBtn
+            label={pending ? '…' : 'Mitigating'}
+            tone="orange"
+            onClick={() => {
+              const fd = new FormData()
+              fd.set('congress_id', congressId)
+              fd.set('raid_id', raidId)
+              fd.set('status', 'mitigating')
+              run(fd)
+            }}
+          />
+        )}
+      </div>
+      {err ? <span className="text-[10px] text-red-700">{err}</span> : null}
+    </div>
+  )
+}
+
+export function ApprovalStatusActions({
+  congressId,
+  approvalId,
+  status,
+}: {
+  congressId: string
+  approvalId: string
+  status: string
+}) {
+  const { err, pending, run } = useInlineStatusAction({ action: updateApprovalStatus })
+  const actionable = status === 'submitted' || status === 'in_review'
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex flex-wrap justify-end gap-1">
+        {actionable && (
+          <InlineActionBtn
+            label={pending ? '…' : 'Approve'}
+            tone="green"
+            onClick={() => {
+              const fd = new FormData()
+              fd.set('congress_id', congressId)
+              fd.set('approval_id', approvalId)
+              fd.set('status', 'approved')
+              run(fd)
+            }}
+          />
+        )}
+        {actionable && (
+          <InlineActionBtn
+            label={pending ? '…' : 'Reject'}
+            tone="red"
+            onClick={() => {
+              const fd = new FormData()
+              fd.set('congress_id', congressId)
+              fd.set('approval_id', approvalId)
+              fd.set('status', 'rejected')
+              run(fd)
+            }}
+          />
+        )}
+        {status === 'submitted' && (
+          <InlineActionBtn
+            label={pending ? '…' : 'In review'}
+            tone="orange"
+            onClick={() => {
+              const fd = new FormData()
+              fd.set('congress_id', congressId)
+              fd.set('approval_id', approvalId)
+              fd.set('status', 'in_review')
+              run(fd)
+            }}
+          />
+        )}
+      </div>
+      {err ? <span className="text-[10px] text-red-700">{err}</span> : null}
+    </div>
+  )
+}
+
+export function LiveOpsStatusActions({
+  congressId,
+  incidentId,
+  status,
+}: {
+  congressId: string
+  incidentId: string
+  status: string
+}) {
+  const { err, pending, run } = useInlineStatusAction({ action: updateLiveOpsStatus })
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex flex-wrap justify-end gap-1">
+        {status !== 'resolved' && (
+          <InlineActionBtn
+            label={pending ? '…' : 'Resolve'}
+            tone="green"
+            onClick={() => {
+              const fd = new FormData()
+              fd.set('congress_id', congressId)
+              fd.set('incident_id', incidentId)
+              fd.set('status', 'resolved')
+              run(fd)
+            }}
+          />
+        )}
+        {status !== 'monitoring' && status !== 'resolved' && (
+          <InlineActionBtn
+            label={pending ? '…' : 'Monitoring'}
+            tone="orange"
+            onClick={() => {
+              const fd = new FormData()
+              fd.set('congress_id', congressId)
+              fd.set('incident_id', incidentId)
+              fd.set('status', 'monitoring')
+              run(fd)
+            }}
+          />
+        )}
+        {status !== 'open' && status !== 'resolved' && (
+          <InlineActionBtn
+            label={pending ? '…' : 'Re-open'}
+            onClick={() => {
+              const fd = new FormData()
+              fd.set('congress_id', congressId)
+              fd.set('incident_id', incidentId)
+              fd.set('status', 'open')
+              run(fd)
+            }}
+          />
+        )}
+      </div>
+      {err ? <span className="text-[10px] text-red-700">{err}</span> : null}
+    </div>
   )
 }

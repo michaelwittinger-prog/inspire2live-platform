@@ -7,17 +7,16 @@
  */
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 import { rowToCongressAssignment } from '@/lib/congress-assignments'
-import type { CongressEvent } from '@/lib/congress'
 import type { CongressAssignmentRow } from '@/lib/congress-assignments'
 import { EVENT_STATUS_META, normalizeEventStatus } from '@/lib/congress'
 import { SetCongressRoles } from '@/components/roles/set-congress-roles'
 import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
 import { ContextPanel } from '@/components/congress/workspace/context-panel'
 import { HealthChip } from '@/components/ui/health-chip'
-import { ActivityItem } from '@/components/ui/activity-item'
 import { responsibilitySummary } from '@/lib/congress-policy'
+import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
+import { WorkspaceDiagnostics } from '@/components/congress/workspace/workspace-diagnostics'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -53,9 +52,16 @@ type DbApproval = {
   status: string
 }
 
+type DbActivity = {
+  id: string
+  action: string
+  entity_title: string | null
+  created_at: string
+}
+
 // ─── Local UI helpers ────────────────────────────────────────────────────────
 
-function CyclePhaseBar({ status }: { status: CongressEvent['status'] }) {
+function CyclePhaseBar({ status }: { status: unknown }) {
   const phases = [
     { key: 'planning',        label: 'Planning' },
     { key: 'open_for_topics', label: 'Topics Open' },
@@ -94,7 +100,7 @@ function CyclePhaseBar({ status }: { status: CongressEvent['status'] }) {
   )
 }
 
-function PhaseBadge({ status }: { status: CongressEvent['status'] }) {
+function PhaseBadge({ status }: { status: unknown }) {
   const m = EVENT_STATUS_META[normalizeEventStatus(status)]
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${m.badge}`}>
@@ -107,12 +113,10 @@ function AuthorityStrip({
   platformRole,
   congressRoles,
   tone,
-  message,
 }: {
   platformRole: string
   congressRoles: string[]
   tone: string
-  message: string
 }) {
   const hasCongressRole = congressRoles.length > 0
   const isAdmin = platformRole === 'PlatformAdmin'
@@ -166,22 +170,14 @@ export default async function CongressWorkspaceOverviewPage() {
   const isAdmin = platformRole === 'PlatformAdmin'
 
   // ── Event ──
-  const { data: dbEvents } = await supabase
-    .from('congress_events')
-    .select('*')
-    .order('year', { ascending: false })
-    .limit(1)
-
-  const currentEvent: CongressEvent = dbEvents?.[0]
-    ? (dbEvents[0] as unknown as CongressEvent)
-    : DEMO_CONGRESS_EVENTS[0]
-  const usingDemoEvent = !dbEvents?.[0]
+  const { event: currentEvent, issues: eventIssues } = await fetchLatestWorkspaceEvent(supabase)
+  const usingDemoEvent = !currentEvent
 
   // ── Assignments for current user ──
-  const { data: dbAssignments } = await supabase
+  const { data: dbAssignments, error: assignmentsError } = await supabase
     .from('congress_assignments')
     .select('*')
-    .eq('congress_id', currentEvent.id)
+    .eq('congress_id', currentEvent?.id ?? '__none__')
     .eq('user_id', user.id)
 
   const assignmentRows: CongressAssignmentRow[] = (dbAssignments ?? []) as unknown as CongressAssignmentRow[]
@@ -196,39 +192,57 @@ export default async function CongressWorkspaceOverviewPage() {
   const sb = supabase as any
 
   const [
-    { data: rawTasks },
-    { data: rawWorkstreams },
-    { data: rawRaid },
-    { data: rawApprovals },
+    { data: rawTasks, error: tasksError },
+    { data: rawWorkstreams, error: workstreamsError },
+    { data: rawRaid, error: raidError },
+    { data: rawApprovals, error: approvalsError },
+    { data: rawActivity, error: activityError },
   ] = await Promise.all([
-    sb
-      .from('congress_tasks')
-      .select('id, title, status, priority, lane, due_date, owner_name')
-      .eq('congress_id', currentEvent.id)
-      .neq('status', 'done')
-      .order('priority'),
-    sb
-      .from('congress_workstreams')
-      .select('id, title, health, progress_pct, next_milestone, owner_role')
-      .eq('congress_id', currentEvent.id)
-      .order('sort_order'),
-    sb
-      .from('congress_raid_items')
-      .select('id, title, type, status, priority')
-      .eq('congress_id', currentEvent.id)
-      .in('status', ['open', 'mitigating'])
-      .order('priority'),
-    sb
-      .from('congress_approval_requests')
-      .select('id, status')
-      .eq('congress_id', currentEvent.id)
-      .in('status', ['submitted', 'in_review']),
+    currentEvent
+      ? sb
+          .from('congress_tasks')
+          .select('id, title, status, priority, lane, due_date, owner_name')
+          .eq('congress_id', currentEvent.id)
+          .neq('status', 'done')
+          .order('priority')
+      : { data: [], error: null },
+    currentEvent
+      ? sb
+          .from('congress_workstreams')
+          .select('id, title, health, progress_pct, next_milestone, owner_role')
+          .eq('congress_id', currentEvent.id)
+          .order('sort_order')
+      : { data: [], error: null },
+    currentEvent
+      ? sb
+          .from('congress_raid_items')
+          .select('id, title, type, status, priority')
+          .eq('congress_id', currentEvent.id)
+          .in('status', ['open', 'mitigating'])
+          .order('priority')
+      : { data: [], error: null },
+    currentEvent
+      ? sb
+          .from('congress_approval_requests')
+          .select('id, status')
+          .eq('congress_id', currentEvent.id)
+          .in('status', ['submitted', 'in_review'])
+      : { data: [], error: null },
+    currentEvent
+      ? sb
+          .from('congress_activity_log')
+          .select('id, action, entity_title, created_at')
+          .eq('congress_id', currentEvent.id)
+          .order('created_at', { ascending: false })
+          .limit(6)
+      : { data: [], error: null },
   ])
 
   const tasks: DbTask[]        = (rawTasks       ?? []) as DbTask[]
   const workstreams: DbWorkstream[] = (rawWorkstreams ?? []) as DbWorkstream[]
   const raidItems: DbRaidItem[] = (rawRaid        ?? []) as DbRaidItem[]
   const approvals: DbApproval[] = (rawApprovals   ?? []) as DbApproval[]
+  const activity: DbActivity[]   = (rawActivity    ?? []) as DbActivity[]
 
   // ── Derived data from DB records ──
   const nowTasks   = tasks.filter(t => t.lane === 'now')
@@ -248,15 +262,25 @@ export default async function CongressWorkspaceOverviewPage() {
     status: ws.health === 'on_track' ? 'good' as const : ws.health === 'blocked' ? 'bad' as const : 'warn' as const,
   }))
 
+  const allIssues = [...eventIssues]
+  if (assignmentsError) allIssues.push({ scope: 'congress_assignments.select', message: assignmentsError.message, code: assignmentsError.code, hint: (assignmentsError as unknown as { hint?: string }).hint })
+  if (tasksError) allIssues.push({ scope: 'congress_tasks.select', message: tasksError.message, code: tasksError.code, hint: (tasksError as unknown as { hint?: string }).hint })
+  if (workstreamsError) allIssues.push({ scope: 'congress_workstreams.select', message: workstreamsError.message, code: workstreamsError.code, hint: (workstreamsError as unknown as { hint?: string }).hint })
+  if (raidError) allIssues.push({ scope: 'congress_raid_items.select', message: raidError.message, code: raidError.code, hint: (raidError as unknown as { hint?: string }).hint })
+  if (approvalsError) allIssues.push({ scope: 'congress_approval_requests.select', message: approvalsError.message, code: approvalsError.code, hint: (approvalsError as unknown as { hint?: string }).hint })
+  if (activityError) allIssues.push({ scope: 'congress_activity_log.select', message: activityError.message, code: activityError.code, hint: (activityError as unknown as { hint?: string }).hint })
+
   return (
     <div className="mx-auto max-w-6xl">
+      <WorkspaceDiagnostics issues={allIssues} />
+
       <SetCongressRoles roles={congressRoles} />
 
       {/* ── HEADER ROW ─────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-bold text-neutral-900">
-            {currentEvent.title ?? 'Congress'} — Workspace
+            {currentEvent?.title ?? 'Congress'} — Workspace
           </h1>
           <p className="text-xs text-neutral-500">Execution view · triage your work for today</p>
         </div>
@@ -283,7 +307,6 @@ export default async function CongressWorkspaceOverviewPage() {
           platformRole={platformRole}
           congressRoles={congressRoles}
           tone={resp.tone}
-          message={resp.message}
         />
       </div>
 
@@ -400,8 +423,26 @@ export default async function CongressWorkspaceOverviewPage() {
           <section>
             <h2 className="text-sm font-semibold text-neutral-700">Recent changes</h2>
             <div className="mt-2 space-y-1.5">
-              {/* Activity log table not yet implemented. Show empty state. */}
-              <p className="text-xs text-neutral-400 italic">No recent activity recorded yet.</p>
+              {activity.length === 0 && (
+                <p className="text-xs text-neutral-400 italic">No recent activity recorded yet.</p>
+              )}
+              {activity.length > 0 && (
+                <ol className="space-y-1">
+                  {activity.map(a => (
+                    <li key={a.id} className="flex items-start justify-between gap-4 rounded-lg border border-neutral-200 bg-white/70 px-2.5 py-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-neutral-800">
+                          {a.action.replaceAll('_', ' ')}
+                          {a.entity_title ? <span className="text-neutral-500"> · {a.entity_title}</span> : null}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[10px] text-neutral-400">
+                        {new Date(a.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
             </div>
           </section>
         </div>

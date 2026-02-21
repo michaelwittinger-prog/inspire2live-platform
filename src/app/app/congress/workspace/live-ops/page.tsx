@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { WorkspaceNav } from '@/components/congress/workspace/workspace-nav'
 import { StatusBadge } from '@/components/ui/status-badge'
 import type { StatusTone } from '@/components/ui/status-badge'
+import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
+import { WorkspaceDiagnostics } from '@/components/congress/workspace/workspace-diagnostics'
+import { LiveOpsCreateForm, LiveOpsStatusActions } from '@/components/congress/workspace/create-forms'
 
 type LiveOpsUpdate = {
   id: string
@@ -25,15 +28,15 @@ export default async function CongressWorkspaceLiveOpsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: events } = await supabase
-    .from('congress_events')
-    .select('id, title')
-    .order('year', { ascending: false })
-    .limit(1)
-  const event = events?.[0]
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).maybeSingle()
+  const platformRole: string = (profile as { role?: string } | null)?.role ?? 'PatientAdvocate'
+  const canCreate = ['PlatformAdmin', 'HubCoordinator'].includes(platformRole)
+
+  const { event, issues } = await fetchLatestWorkspaceEvent(supabase)
 
   /* eslint-disable @typescript-eslint/no-explicit-any */
-  const { data: rows } = event
+  const { data: rows, error: liveOpsError } = event
     ? await (supabase as any)
         .from('congress_live_ops_updates')
         .select('id, title, description, status, severity, created_at, updated_at')
@@ -46,18 +49,26 @@ export default async function CongressWorkspaceLiveOpsPage() {
   const items: LiveOpsUpdate[] = (rows ?? []) as unknown as LiveOpsUpdate[]
   const openCount = items.filter(i => i.status !== 'resolved').length
 
+  const allIssues = [...issues]
+  if (liveOpsError) allIssues.push({ scope: 'congress_live_ops_updates.select', message: liveOpsError.message, code: liveOpsError.code, hint: (liveOpsError as unknown as { hint?: string }).hint })
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-neutral-900">Live Ops</h1>
-        <p className="mt-1 text-sm text-neutral-600">
-          Incident log and live status updates — {items.length} item{items.length !== 1 ? 's' : ''}
-          {openCount > 0 && (
-            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-              {openCount} open
-            </span>
-          )}
-        </p>
+      <WorkspaceDiagnostics issues={allIssues} />
+
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900">Live Ops</h1>
+          <p className="mt-1 text-sm text-neutral-600">
+            Incident log and live status updates — {items.length} item{items.length !== 1 ? 's' : ''}
+            {openCount > 0 && (
+              <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                {openCount} open
+              </span>
+            )}
+          </p>
+        </div>
+        {canCreate && event && <LiveOpsCreateForm congressId={event.id} />}
       </div>
 
       <WorkspaceNav active="live-ops" />
@@ -91,7 +102,12 @@ export default async function CongressWorkspaceLiveOpsPage() {
                     Last update: {new Date(item.updated_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
-                <StatusBadge label={item.status} tone={statusTone} />
+                <div className="flex flex-col items-end gap-2">
+                  <StatusBadge label={item.status} tone={statusTone} />
+                  {canCreate && event && (
+                    <LiveOpsStatusActions congressId={event.id} incidentId={item.id} status={item.status} />
+                  )}
+                </div>
               </div>
             </div>
           )

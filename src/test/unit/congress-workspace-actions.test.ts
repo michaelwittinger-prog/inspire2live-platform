@@ -8,15 +8,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ─── Shared mock ─────────────────────────────────────────────────────────────
 
-const mockInsert = vi.fn().mockResolvedValue({ error: null })
-const mockFrom   = vi.fn(() => ({
-  insert: mockInsert,
-  select: vi.fn(() => ({
-    eq:        vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'PlatformAdmin' }, error: null }) })),
-    order:     vi.fn(() => ({ limit: vi.fn().mockResolvedValue({ data: [] }) })),
-    in:        vi.fn().mockResolvedValue({ data: [] }),
-  })),
-}))
+const mockInsertMaybeSingle = vi.fn().mockResolvedValue({ data: { id: 'row-1' }, error: null })
+const mockInsertSelect      = vi.fn(() => ({ maybeSingle: mockInsertMaybeSingle }))
+const mockInsert            = vi.fn(() => ({ select: mockInsertSelect }))
+
+const mockEq     = vi.fn().mockResolvedValue({ error: null })
+const mockUpdate = vi.fn(() => ({ eq: mockEq }))
+
+const mockFrom = vi.fn()
 
 const mockSupabase = {
   auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } } }) },
@@ -31,9 +30,32 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
-vi.mock('@/lib/demo-data', () => ({
-  DEMO_CONGRESS_EVENTS: [{ id: 'evt-2026', year: 2026, title: 'Demo Congress 2026', description: '', location: '', start_date: '2026-11-13', end_date: '2026-11-14', theme_headline: '', status: 'planning' }],
-}))
+function buildTableClient(table: string) {
+  // Special case: activity log insert is best-effort and does not use select().
+  if (table === 'congress_activity_log') {
+    return {
+      insert: vi.fn().mockResolvedValue({ error: null }),
+    }
+  }
+
+  // Profiles query used by requireCoordinator():
+  // from('profiles').select('role').eq('id', ...).maybeSingle()
+  if (table === 'profiles') {
+    return {
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'PlatformAdmin' }, error: null }),
+        })),
+      })),
+    }
+  }
+
+  // Everything else (workspace operational tables)
+  return {
+    insert: mockInsert,
+    update: mockUpdate,
+  }
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -48,7 +70,10 @@ function fd(data: Record<string, string>) {
 describe('Congress workspace server actions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockInsert.mockResolvedValue({ error: null })
+    mockFrom.mockImplementation((table: string) => buildTableClient(table))
+
+    mockInsertMaybeSingle.mockResolvedValue({ data: { id: 'row-1' }, error: null })
+    mockEq.mockResolvedValue({ error: null })
   })
 
   // ── createWorkstream ───────────────────────────────────────────────────────
@@ -196,6 +221,140 @@ describe('Congress workspace server actions', () => {
         status:      'open',
         priority:    'high',
       }))
+    })
+  })
+
+  // ── createLiveOpsUpdate ───────────────────────────────────────────────────
+
+  describe('createLiveOpsUpdate', () => {
+    it('inserts into congress_live_ops_updates with correct fields', async () => {
+      const { createLiveOpsUpdate } = await import('@/app/app/congress/workspace/actions')
+      await createLiveOpsUpdate(fd({
+        congress_id: 'evt-1',
+        title: 'Registration outage',
+        description: 'Some users see 500s',
+        status: 'open',
+        severity: 'sev1',
+      }))
+
+      expect(mockFrom).toHaveBeenCalledWith('congress_live_ops_updates')
+      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+        congress_id: 'evt-1',
+        title: 'Registration outage',
+        status: 'open',
+        severity: 'sev1',
+      }))
+    })
+  })
+
+  // ── createFollowUpAction ──────────────────────────────────────────────────
+
+  describe('createFollowUpAction', () => {
+    it('inserts into congress_follow_up_actions with correct fields', async () => {
+      const { createFollowUpAction } = await import('@/app/app/congress/workspace/actions')
+      await createFollowUpAction(fd({
+        congress_id: 'evt-1',
+        title: 'Publish decisions report',
+        description: 'Summary to website',
+        status: 'todo',
+        priority: 'high',
+        owner_name: 'Sophie',
+        due_date: '2026-12-01',
+      }))
+
+      expect(mockFrom).toHaveBeenCalledWith('congress_follow_up_actions')
+      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+        congress_id: 'evt-1',
+        title: 'Publish decisions report',
+        status: 'todo',
+        priority: 'high',
+        owner_name: 'Sophie',
+        due_date: '2026-12-01',
+      }))
+    })
+  })
+
+  // ── createApprovalRequest ─────────────────────────────────────────────────
+
+  describe('createApprovalRequest', () => {
+    it('inserts into congress_approval_requests with correct fields', async () => {
+      const { createApprovalRequest } = await import('@/app/app/congress/workspace/actions')
+      await createApprovalRequest(fd({
+        congress_id: 'evt-1',
+        title: 'Approve agenda v1',
+        description: 'Ready to publish',
+        requested_by_name: 'Peter',
+      }))
+
+      expect(mockFrom).toHaveBeenCalledWith('congress_approval_requests')
+      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+        congress_id: 'evt-1',
+        title: 'Approve agenda v1',
+        requested_by_name: 'Peter',
+        status: 'submitted',
+      }))
+    })
+  })
+
+  // ── Status updates ────────────────────────────────────────────────────────
+
+  describe('updateTaskStatus', () => {
+    it('updates congress_tasks status by id', async () => {
+      const { updateTaskStatus } = await import('@/app/app/congress/workspace/actions')
+      await updateTaskStatus(fd({
+        congress_id: 'evt-1',
+        task_id: 'task-1',
+        status: 'done',
+      }))
+
+      expect(mockFrom).toHaveBeenCalledWith('congress_tasks')
+      expect(mockUpdate).toHaveBeenCalledWith({ status: 'done' })
+      expect(mockEq).toHaveBeenCalledWith('id', 'task-1')
+    })
+  })
+
+  describe('updateRaidItemStatus', () => {
+    it('updates congress_raid_items status by id', async () => {
+      const { updateRaidItemStatus } = await import('@/app/app/congress/workspace/actions')
+      await updateRaidItemStatus(fd({
+        congress_id: 'evt-1',
+        raid_id: 'raid-1',
+        status: 'resolved',
+      }))
+
+      expect(mockFrom).toHaveBeenCalledWith('congress_raid_items')
+      expect(mockUpdate).toHaveBeenCalledWith({ status: 'resolved' })
+      expect(mockEq).toHaveBeenCalledWith('id', 'raid-1')
+    })
+  })
+
+  describe('updateApprovalStatus', () => {
+    it('updates congress_approval_requests status by id', async () => {
+      const { updateApprovalStatus } = await import('@/app/app/congress/workspace/actions')
+      await updateApprovalStatus(fd({
+        congress_id: 'evt-1',
+        approval_id: 'appr-1',
+        status: 'approved',
+      }))
+
+      expect(mockFrom).toHaveBeenCalledWith('congress_approval_requests')
+      expect(mockUpdate).toHaveBeenCalledWith({ status: 'approved' })
+      expect(mockEq).toHaveBeenCalledWith('id', 'appr-1')
+    })
+  })
+
+  describe('updateLiveOpsStatus', () => {
+    it('updates congress_live_ops_updates status by id', async () => {
+      const { updateLiveOpsStatus } = await import('@/app/app/congress/workspace/actions')
+      await updateLiveOpsStatus(fd({
+        congress_id: 'evt-1',
+        incident_id: 'inc-1',
+        status: 'resolved',
+      }))
+
+      expect(mockFrom).toHaveBeenCalledWith('congress_live_ops_updates')
+      expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: 'resolved' }))
+      expect(mockEq).toHaveBeenCalledWith('id', 'inc-1')
     })
   })
 })

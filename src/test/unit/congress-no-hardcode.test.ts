@@ -33,6 +33,7 @@ const GUARDS: Array<{
     file: pageFile('overview'),
     label: 'overview',
     banned: [
+      /DEMO_CONGRESS_EVENTS/,
       /DEMO_TASKS_WORKSPACE/,
       /DEMO_WORKSTREAMS/,
       /DEMO_RAID/,
@@ -47,6 +48,7 @@ const GUARDS: Array<{
     file: pageFile('communications'),
     label: 'communications',
     banned: [
+      /DEMO_CONGRESS_EVENTS/,
       /DEMO_EMAIL_THREADS/,
       /DEMO_TEAM_CHAT/,
       /DEMO_ACTIVITY/,
@@ -57,8 +59,41 @@ const GUARDS: Array<{
     file: pageFile('team'),
     label: 'team',
     banned: [
+      /DEMO_CONGRESS_EVENTS/,
       /DEMO_CONGRESS_ASSIGNMENTS/,
       /DEMO_PROFILES/,
+    ],
+  },
+  {
+    file: pageFile('workstreams'),
+    label: 'workstreams',
+    banned: [
+      /DEMO_CONGRESS_EVENTS/,
+      /congress-workspace-demo/,
+    ],
+  },
+  {
+    file: pageFile('tasks'),
+    label: 'tasks',
+    banned: [
+      /DEMO_CONGRESS_EVENTS/,
+      /congress-workspace-demo/,
+    ],
+  },
+  {
+    file: pageFile('raid'),
+    label: 'raid',
+    banned: [
+      /DEMO_CONGRESS_EVENTS/,
+      /congress-workspace-demo/,
+    ],
+  },
+  {
+    file: pageFile('timeline'),
+    label: 'timeline',
+    banned: [
+      /DEMO_CONGRESS_EVENTS/,
+      /congress-workspace-demo/,
     ],
   },
 ]
