@@ -52,6 +52,13 @@ const ProfileIcon = () => (
   </svg>
 )
 
+const StoriesIcon = () => (
+  <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 4.5h9A2.25 2.25 0 0118.75 6.75v10.5A2.25 2.25 0 0116.5 19.5h-9A2.25 2.25 0 015.25 17.25V6.75A2.25 2.25 0 017.5 4.5z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 8h7M8.5 11h7M8.5 14h4" />
+  </svg>
+)
+
 const AdminIcon = () => (
   <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
@@ -82,6 +89,8 @@ function iconForKey(key: NavKey) {
       return <BureauIcon />
     case 'congress':
       return <CongressIcon />
+    case 'stories':
+      return <StoriesIcon />
     case 'resources':
       return <ResourceIcon />
     case 'partners':

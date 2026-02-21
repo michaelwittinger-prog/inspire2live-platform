@@ -33,6 +33,10 @@ describe('canAccessAppPath', () => {
     expect(canAccessAppPath('IndustryPartner', '/app/tasks')).toBe(false)
     expect(canAccessAppPath('IndustryPartner', '/app/partners')).toBe(true)
   })
+
+  it('allows PatientAdvocate to access stories', () => {
+    expect(canAccessAppPath('PatientAdvocate', '/app/stories')).toBe(true)
+  })
 })
 
 describe('getSideNavItems', () => {
@@ -44,5 +48,10 @@ describe('getSideNavItems', () => {
   it('returns bureau entry for PlatformAdmin', () => {
     const adminItems = getSideNavItems('PlatformAdmin')
     expect(adminItems.some((item) => item.key === 'bureau')).toBe(true)
+  })
+
+  it('includes stories entry for PatientAdvocate', () => {
+    const items = getSideNavItems('PatientAdvocate')
+    expect(items.some((item) => item.key === 'stories')).toBe(true)
   })
 })
