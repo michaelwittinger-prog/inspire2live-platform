@@ -79,15 +79,27 @@ const GUIDE: Record<StageGuideSection, Record<CongressEventStatus, Guide>> = {
   workstreams: {
     planning: {
       headline: 'Define workstreams and assign accountable owners.',
-      bullets: ['Create the workstreams you will run (Programme, Ops, Comms, Compliance…).', 'Set health + progress and the next milestone per workstream.'],
+      bullets: [
+        'Create the core workstreams (Programme & Agenda, Operations & Logistics, Comms & Community, Compliance & Neutrality).',
+        'Assign an owner role and a first “next milestone” for each workstream (e.g. “Agenda draft v0.1”, “Venue runbook outline”).',
+        'Use health + progress to surface where attention is needed early.',
+      ],
     },
     open_for_topics: {
       headline: 'Organize topic intake and review workstreams.',
-      bullets: ['Ensure Programme & Comms are staffed and reporting health.', 'Set next milestones for the topic call campaign and review cadence.'],
+      bullets: [
+        'Ensure Programme & Comms workstreams are staffed (reviewers, campaign owner) and reporting health.',
+        'Set next milestones such as “Topic call campaign launch” and “Reviewer triage complete”.',
+        'Keep Operations/Compliance visible: intake volume impacts logistics and review policy.',
+      ],
     },
     agenda_set: {
       headline: 'Shift focus to agenda finalization and logistics readiness.',
-      bullets: ['Track agenda drafts, speaker confirmations, venue runbook readiness.', 'Escalate blocked workstreams early.'],
+      bullets: [
+        'Track agenda drafts, speaker confirmations, sponsor neutrality review, and venue runbook readiness.',
+        'Escalate blocked workstreams early and convert them into tasks + RAID items.',
+        'Use “next milestone” to show the current checkpoint (e.g. “Final agenda published”).',
+      ],
     },
     live: {
       headline: 'Use workstreams as the “command structure” during the event.',
@@ -133,15 +145,27 @@ const GUIDE: Record<StageGuideSection, Record<CongressEventStatus, Guide>> = {
   tasks: {
     planning: {
       headline: 'Build the execution backlog.',
-      bullets: ['Capture all known work as tasks and assign owners.', 'Use Now/Next/Later lanes to structure priorities.'],
+      bullets: [
+        'Capture the first real tasks (e.g. “Confirm venue contract addendum”, “Draft agenda v0.1”, “Set reviewer pool”).',
+        'Assign owners and due dates for every critical-path item.',
+        'Use Now/Next/Later lanes to structure what is actionable this week.',
+      ],
     },
     open_for_topics: {
       headline: 'Run intake + review tasks.',
-      bullets: ['Track reviewer assignments and response SLAs.', 'Use “Action Required” communications for missing inputs.'],
+      bullets: [
+        'Track reviewer assignments, triage deadlines, and response SLAs.',
+        'Create tasks for communications cadence (weekly updates, reminders, closing date push).',
+        'Use “Action Required” communications when inputs are missing or reviewers are blocked.',
+      ],
     },
     agenda_set: {
       headline: 'Convert agenda and logistics into executable tasks.',
-      bullets: ['Keep “Now” lane focused on critical path.', 'Blockers should map to RAID items and approvals if needed.'],
+      bullets: [
+        'Keep “Now” lane focused on the critical path (agenda lock, speakers, runbook sign-off).',
+        'Turn every open RAID item into a mitigation task with an owner.',
+        'Use approvals for publish/go-live gates (agenda versions, sponsor pack, compliance sign-off).',
+      ],
     },
     live: {
       headline: 'Triage the “Now” lane during the event.',
