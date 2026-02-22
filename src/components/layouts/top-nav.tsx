@@ -47,9 +47,10 @@ function MobileNavIcon({ navKey }: { navKey: NavKey }) {
 
 const ALL_PERSPECTIVE_ROLES = [
   { value: 'PlatformAdmin', label: 'Admin (default)' },
-  { value: 'PatientAdvocate', label: 'Patient Advocate' },
+  { value: 'PatientAdvocate', label: 'Patient' },
   { value: 'Clinician', label: 'Clinician' },
   { value: 'Researcher', label: 'Researcher' },
+  { value: 'Moderator', label: 'Moderator' },
   { value: 'HubCoordinator', label: 'Hub Coordinator' },
   { value: 'IndustryPartner', label: 'Industry Partner' },
   { value: 'BoardMember', label: 'Board Member' },
@@ -103,9 +104,10 @@ export function TopNav({ userName, userRole, userInitials, unreadCount = 0, isAd
   }
 
   const roleLabel: Record<string, string> = {
-    PatientAdvocate: 'Patient Advocate',
+    PatientAdvocate: 'Patient',
     Clinician: 'Clinician',
     Researcher: 'Researcher',
+    Moderator: 'Moderator',
     HubCoordinator: 'Hub Coordinator',
     IndustryPartner: 'Partner',
     BoardMember: 'Board Member',

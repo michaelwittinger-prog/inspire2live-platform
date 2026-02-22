@@ -107,10 +107,15 @@ export function EditRoleButton({ userName, userId, currentRole }: { userName: st
   const [saved, setSaved] = useState(false)
   const router = useRouter()
 
-  const roles = [
-    'PatientAdvocate', 'Clinician', 'Researcher',
-    'Moderator',
-    'HubCoordinator', 'IndustryPartner', 'BoardMember', 'PlatformAdmin',
+  const roles: Array<{ value: string; label: string }> = [
+    { value: 'PatientAdvocate', label: 'Patient' },
+    { value: 'Clinician', label: 'Clinician' },
+    { value: 'Researcher', label: 'Researcher' },
+    { value: 'Moderator', label: 'Moderator' },
+    { value: 'HubCoordinator', label: 'Hub Coordinator' },
+    { value: 'IndustryPartner', label: 'Industry Partner' },
+    { value: 'BoardMember', label: 'Board Member' },
+    { value: 'PlatformAdmin', label: 'Platform Admin' },
   ]
 
   const handleSave = async () => {
@@ -149,7 +154,7 @@ export function EditRoleButton({ userName, userId, currentRole }: { userName: st
               className="mt-3 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
             >
               {roles.map((r) => (
-                <option key={r} value={r}>{r}</option>
+                <option key={r.value} value={r.value}>{r.label}</option>
               ))}
             </select>
             <div className="mt-4 flex gap-2 justify-end">
@@ -175,7 +180,7 @@ export function InviteUserButton() {
   const router = useRouter()
 
   const roles = [
-    { value: 'PatientAdvocate', label: 'Patient Advocate' },
+    { value: 'PatientAdvocate', label: 'Patient' },
     { value: 'Clinician', label: 'Clinician' },
     { value: 'Researcher', label: 'Researcher' },
     { value: 'Moderator', label: 'Moderator' },

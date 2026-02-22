@@ -7,6 +7,7 @@ const VALID_ROLES: PlatformRole[] = [
   'PatientAdvocate',
   'Clinician',
   'Researcher',
+  'Moderator',
   'HubCoordinator',
   'IndustryPartner',
   'BoardMember',
