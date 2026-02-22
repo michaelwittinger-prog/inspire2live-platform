@@ -60,6 +60,8 @@ create index if not exists idx_patient_stories_author on public.patient_stories(
 create index if not exists idx_patient_stories_status on public.patient_stories(status);
 create index if not exists idx_patient_stories_published_at on public.patient_stories(published_at desc);
 
+-- Make trigger idempotent (project may already have been partially provisioned)
+drop trigger if exists set_updated_at on public.patient_stories;
 create trigger set_updated_at before update on public.patient_stories
   for each row execute function public.set_updated_at();
 
