@@ -109,6 +109,7 @@ export function EditRoleButton({ userName, userId, currentRole }: { userName: st
 
   const roles = [
     'PatientAdvocate', 'Clinician', 'Researcher',
+    'Moderator',
     'HubCoordinator', 'IndustryPartner', 'BoardMember', 'PlatformAdmin',
   ]
 
@@ -177,9 +178,11 @@ export function InviteUserButton() {
     { value: 'PatientAdvocate', label: 'Patient Advocate' },
     { value: 'Clinician', label: 'Clinician' },
     { value: 'Researcher', label: 'Researcher' },
+    { value: 'Moderator', label: 'Moderator' },
     { value: 'HubCoordinator', label: 'Hub Coordinator' },
     { value: 'IndustryPartner', label: 'Industry Partner' },
     { value: 'BoardMember', label: 'Board Member' },
+    { value: 'PlatformAdmin', label: 'Platform Admin' },
   ]
 
   const handleInvite = async () => {
