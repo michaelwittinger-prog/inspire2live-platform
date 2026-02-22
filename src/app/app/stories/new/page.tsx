@@ -14,10 +14,8 @@ export default async function NewStoryPage() {
     .eq('id', user.id)
     .maybeSingle()
 
-  const role = profile?.role ?? 'PatientAdvocate'
-  if (role !== 'PatientAdvocate') {
-    redirect('/app/stories')
-  }
+  // Keep UI open for any authenticated user; database RLS enforces who can actually insert.
+  // This avoids "blank page" for bootstrap admins / coordinators.
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

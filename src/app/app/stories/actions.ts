@@ -1,5 +1,6 @@
 'use server'
 
+import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { slugifyStoryTitle, type PatientStoryStatus } from '@/lib/patient-stories'
@@ -106,6 +107,7 @@ export async function createStory(formData: FormData) {
   }
 
   revalidatePath('/app/stories')
+  redirect('/app/stories')
 }
 
 export async function updateStory(formData: FormData) {
