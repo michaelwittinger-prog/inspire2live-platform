@@ -42,7 +42,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let actualRole = profile?.role || 'PatientAdvocate'
 
   // Auto-promote bootstrap admin emails to PlatformAdmin
-  const ADMIN_EMAILS = ['michael.wittinger@gmail.com']
+  const ADMIN_EMAILS = ['michael.wittinger@gmail.com', 'michael.wittinger@multivision.ai']
   if (user.email && ADMIN_EMAILS.includes(user.email) && actualRole !== 'PlatformAdmin') {
     await supabase
       .from('profiles')

@@ -2,6 +2,7 @@ export type PlatformRole =
   | 'PatientAdvocate'
   | 'Clinician'
   | 'Researcher'
+  | 'Moderator'
   | 'HubCoordinator'
   | 'IndustryPartner'
   | 'BoardMember'
@@ -34,6 +35,7 @@ const ACCESS_BY_ROLE: Record<PlatformRole, string[]> = {
   PatientAdvocate:  ['dashboard', 'initiatives', 'tasks', 'congress', 'stories', 'resources', 'network', 'notifications', 'profile'],
   Clinician:        ['dashboard', 'initiatives', 'tasks', 'congress', 'stories', 'resources', 'network', 'notifications', 'profile'],
   Researcher:       ['dashboard', 'initiatives', 'tasks', 'congress', 'stories', 'resources', 'network', 'notifications', 'profile'],
+  Moderator:        ['dashboard', 'stories', 'congress', 'resources', 'network', 'notifications', 'profile'],
   IndustryPartner:  ['dashboard', 'partners', 'congress', 'resources', 'network', 'notifications', 'profile'],
   BoardMember:      ['dashboard', 'initiatives', 'congress', 'stories', 'resources', 'network', 'board', 'notifications', 'profile'],
   HubCoordinator:   ['dashboard', 'bureau', 'initiatives', 'tasks', 'congress', 'stories', 'partners', 'resources', 'network', 'notifications', 'profile'],
@@ -70,6 +72,14 @@ const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
     { key: 'stories',       label: 'Stories',        href: '/app/stories' },
     { key: 'resources',     label: 'Resources',      href: '/app/resources' },
     { key: 'profile',       label: 'Profile',        href: '/app/profile' },
+  ],
+  Moderator: [
+    { key: 'dashboard',     label: 'Dashboard',       href: '/app/dashboard' },
+    { key: 'stories',       label: 'Stories',         href: '/app/stories' },
+    { key: 'network',       label: 'My Network',      href: '/app/network' },
+    { key: 'congress',      label: 'Congress',        href: '/app/congress/workspace' },
+    { key: 'resources',     label: 'Resources',       href: '/app/resources' },
+    { key: 'profile',       label: 'Profile',         href: '/app/profile' },
   ],
   IndustryPartner: [
     { key: 'dashboard',     label: 'Dashboard',      href: '/app/dashboard' },
