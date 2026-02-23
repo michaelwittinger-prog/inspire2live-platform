@@ -1,27 +1,65 @@
 name: Deploy to Vercel (Production)
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Triggers:
+#   • Every push to main that passes CI (via workflow_run)
+#   • Manual trigger from the GitHub Actions UI (workflow_dispatch)
+#
+# Required GitHub Secrets  (Settings → Secrets → Actions):
+#   VERCEL_TOKEN        – https://vercel.com/account/tokens
+#   VERCEL_ORG_ID       – vercel.com → project → Settings → General
+#   VERCEL_PROJECT_ID   – same page
+# ──────────────────────────────────────────────────────────────────────────────
+
 on:
+  # Auto-deploy whenever CI passes on main
   workflow_run:
     workflows: ["CI"]
     types: [completed]
+    branches: [main]
+
+  # Manual deploy from the Actions tab (no code change required)
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for manual deploy"
+        required: false
+        default: "Manual trigger"
 
 jobs:
   deploy-production:
-    name: Deploy Production
-    # Only deploy when CI succeeded for pushes to main
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'main'
+    name: Deploy to Vercel Production
     runs-on: ubuntu-latest
+
+    # workflow_run: only deploy when CI succeeded on main
+    # workflow_dispatch: always run
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Validate required Vercel secrets
+        shell: bash
+        run: |
+          missing=""
+          [ -z "${{ secrets.VERCEL_TOKEN }}" ]      && missing="$missing VERCEL_TOKEN"
+          [ -z "${{ secrets.VERCEL_ORG_ID }}" ]     && missing="$missing VERCEL_ORG_ID"
+          [ -z "${{ secrets.VERCEL_PROJECT_ID }}" ] && missing="$missing VERCEL_PROJECT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required secrets:$missing"
+            echo "Add them at: https://github.com/${{ github.repository }}/settings/secrets/actions"
+            exit 1
+          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -35,22 +73,28 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Validate required Vercel secrets
-        shell: bash
-        run: |
-          if [ -z "${{ secrets.VERCEL_TOKEN }}" ] || [ -z "${{ secrets.VERCEL_ORG_ID }}" ] || [ -z "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
-            echo "Missing one or more required secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID"
-            exit 1
-          fi
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Pull Vercel Environment Information
+      - name: Pull Vercel environment
         run: pnpm dlx vercel@latest pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Build project artifacts
+      - name: Build
         run: pnpm dlx vercel@latest build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Deploy to Vercel Production
-        run: pnpm dlx vercel@latest deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy
+        id: deploy
+        run: |
+          DEPLOY_URL=$(pnpm dlx vercel@latest deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          echo "::notice title=Deployed to Vercel::$DEPLOY_URL"
+
+      - name: Job summary
+        run: |
+          echo "## ✅ Deployed to Vercel Production" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **URL** | ${{ steps.deploy.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ github.event.workflow_run.head_sha || github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Trigger** | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
