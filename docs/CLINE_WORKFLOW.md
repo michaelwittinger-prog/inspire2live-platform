@@ -121,3 +121,72 @@ git add -A && git commit -m "..." && git push origin main
 # ❌ Chaining commit+push with requires_approval: true on the whole chain
 git add ... && git push ... (requires_approval: true)
 ```
+
+---
+
+## Third root cause (2026-02-23): Supabase queries without error handling crash Server Components
+
+### What happened
+
+The `/app/admin/permissions` page used `(supabase as any).from('user_space_permissions')` and
+only destructured `{ data }` — ignoring the `error` property. When the query failed at runtime
+(e.g., RLS policy evaluation error, schema cache out of sync), the unhandled exception crashed
+the entire Server Component, showing Next.js's generic white "Application error" page with only
+a digest hash. No actionable information was visible.
+
+### Rules: defensive Supabase queries
+
+| # | Rule | Rationale |
+|---|------|-----------|
+| 1 | **Always destructure `{ data, error }` from every Supabase query** | Ignoring `error` silently hides failures that crash the page |
+| 2 | **Check `error` before using `data`** | `data` can be null even on success; `error` is the source of truth |
+| 3 | **Log with `console.error('[context] reason:', error)`** | Shows in Vercel function logs with searchable prefix |
+| 4 | **Never use `(supabase as any)` for new tables** | Add the table to `src/types/database.ts` first, then query safely |
+| 5 | **Wrap entire Server Component body in `try { ... } catch (err) { ... }`** | Catches unexpected JS errors and renders a graceful error UI instead of crashing |
+| 6 | **Add `error.tsx` next to any page that queries the DB** | Next.js App Router's error boundary catches anything `try/catch` misses |
+| 7 | **DB role values must match RLS policy strings EXACTLY** | `normalizeRole()` maps 'admin'→'PlatformAdmin' in TS, but PostgreSQL RLS sees the raw DB value |
+
+### Approved query pattern (Server Component)
+
+```typescript
+// ✅ Always destructure error + check it
+const { data: profiles, error: profilesError } = await supabase
+  .from('profiles')
+  .select('id, name, role')
+
+if (profilesError) {
+  console.error('[my-page] profiles fetch failed:', profilesError.message)
+  // Return graceful fallback, not throw
+  return <ErrorState message={profilesError.message} />
+}
+```
+
+### Anti-patterns (NEVER do these)
+
+```typescript
+// ❌ Ignoring error
+const { data: profiles } = await supabase.from('profiles').select('*')
+
+// ❌ as any cast hiding missing types
+const { data } = await (supabase as any).from('new_table').select('*')
+
+// ❌ No try/catch in async Server Component
+export default async function Page() {
+  const data = await riskyQuery()  // if this throws → white screen
+  return <UI data={data} />
+}
+
+// ❌ Assuming data is not null without checking
+const { data } = await supabase.from('profiles').select('*').single()
+return <p>{data.name}</p>  // crashes if single() finds 0 rows
+```
+
+### DB migration deployment checklist
+
+Every new Supabase migration MUST be accompanied by:
+
+1. **Apply to production** — run SQL in Supabase Dashboard > SQL Editor
+2. **Reload PostgREST** — run `NOTIFY pgrst, 'reload schema';` after DDL changes
+3. **Regenerate TypeScript types** — run `pnpm supabase gen types typescript --project-id <id> > src/types/database.ts`
+4. **Add `error.tsx`** — place next to any page that uses the new table
+5. **Verify RLS role strings** — ensure raw DB `role` values match what RLS policies check

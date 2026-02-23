@@ -15,63 +15,129 @@ type UserRow = {
   overrides: Record<PlatformSpace, AccessLevel | null>
 }
 
+type OverrideRow = { user_id: string; space: string; access_level: string }
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export const metadata = { title: 'Permission Management · Admin' }
 
 export default async function AdminPermissionsPage() {
-  const supabase = await createClient()
+  let pageError: string | null = null
+  let users: UserRow[] = []
+  let overrideCount = 0
 
-  // Auth + role guard
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  try {
+    const supabase = await createClient()
 
-  const { data: me } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+    // ── Auth guard ─────────────────────────────────────────────────────────
+    const { data: authData, error: authError } = await supabase.auth.getUser()
+    if (authError || !authData.user) {
+      redirect('/login')
+    }
+    const userId = authData.user.id
 
-  if (normalizeRole(me?.role) !== 'PlatformAdmin') redirect('/app/dashboard')
+    const { data: me, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single()
 
-  // Fetch all profiles
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, name, role')
-    .order('name')
-
-  // Fetch all global permission overrides in one query
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: allOverrides } = await (supabase as any)
-    .from('user_space_permissions')
-    .select('user_id, space, access_level')
-    .eq('scope_type', 'global') as {
-      data: { user_id: string; space: string; access_level: string }[] | null
+    if (profileError) {
+      console.error('[permissions page] profile fetch error:', profileError)
+      pageError = `Could not load your profile: ${profileError.message}`
     }
 
-  // Build override map: userId → space → AccessLevel
-  const overrideMap = new Map<string, Map<string, AccessLevel>>()
-  for (const o of allOverrides ?? []) {
-    if (!overrideMap.has(o.user_id)) overrideMap.set(o.user_id, new Map())
-    overrideMap.get(o.user_id)!.set(o.space, o.access_level as AccessLevel)
+    if (!pageError && normalizeRole(me?.role) !== 'PlatformAdmin') {
+      redirect('/app/dashboard')
+    }
+
+    if (!pageError) {
+      // ── Fetch all profiles ───────────────────────────────────────────────
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, name, role')
+        .order('name')
+
+      if (profilesError) {
+        console.error('[permissions page] profiles fetch error:', profilesError)
+        pageError = `Could not load user profiles: ${profilesError.message}`
+      }
+
+      // ── Fetch all global permission overrides ────────────────────────────
+      let allOverrides: OverrideRow[] = []
+      const { data: overrideData, error: overrideError } = await supabase
+        .from('user_space_permissions' as never)
+        .select('user_id, space, access_level')
+        .eq('scope_type', 'global') as unknown as {
+          data: OverrideRow[] | null
+          error: { message: string; code: string } | null
+        }
+
+      if (overrideError) {
+        // Non-fatal: log and continue — permissions page still renders with role defaults
+        console.error('[permissions page] override fetch error:', overrideError.message, '| code:', overrideError.code)
+        pageError = `Permission overrides unavailable: ${overrideError.message} (code: ${overrideError.code})`
+      } else {
+        allOverrides = overrideData ?? []
+      }
+
+      // ── Build override map: userId → space → AccessLevel ─────────────────
+      const overrideMap = new Map<string, Map<string, AccessLevel>>()
+      for (const o of allOverrides) {
+        if (!overrideMap.has(o.user_id)) overrideMap.set(o.user_id, new Map())
+        overrideMap.get(o.user_id)!.set(o.space, o.access_level as AccessLevel)
+      }
+
+      // ── Assemble user rows ───────────────────────────────────────────────
+      users = (profiles ?? []).map((p) => {
+        const userOverrides = overrideMap.get(p.id)
+        const overrides = Object.fromEntries(
+          PLATFORM_SPACES.map((space) => [space, userOverrides?.get(space) ?? null])
+        ) as Record<PlatformSpace, AccessLevel | null>
+        return { id: p.id, name: p.name ?? null, email: null, role: p.role ?? null, overrides }
+      })
+
+      overrideCount = users.reduce(
+        (sum, u) => sum + Object.values(u.overrides).filter(Boolean).length,
+        0
+      )
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[permissions page] unhandled error:', message)
+    pageError = `Unexpected error: ${message}`
   }
 
-  // Assemble user rows
-  const users: UserRow[] = (profiles ?? []).map((p) => {
-    const userOverrides = overrideMap.get(p.id)
-    const overrides = Object.fromEntries(
-      PLATFORM_SPACES.map((space) => [space, userOverrides?.get(space) ?? null])
-    ) as Record<PlatformSpace, AccessLevel | null>
-    return { id: p.id, name: p.name, email: null, role: p.role, overrides }
-  })
-
-  const overrideCount = users.reduce(
-    (sum, u) => sum + Object.values(u.overrides).filter(Boolean).length,
-    0
-  )
+  // ── Error state ─────────────────────────────────────────────────────────────
+  if (pageError && users.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900">Permission Management</h1>
+        </div>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+          <p className="text-sm font-semibold text-red-700">⚠️ Page failed to load</p>
+          <p className="mt-1 font-mono text-xs text-red-600">{pageError}</p>
+          <p className="mt-3 text-xs text-red-500">
+            Check Vercel function logs for the full stack trace.
+            Common causes: RLS policy mismatch (your DB role must be exactly &ldquo;PlatformAdmin&rdquo;),
+            or a missing/unapplied database migration.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
+      {/* Non-fatal warning banner */}
+      {pageError && (
+        <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-xs text-orange-700">
+          <span className="font-semibold">⚠️ Partial load:</span> {pageError}
+          <span className="ml-2 text-orange-500">Showing role defaults only.</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -108,7 +174,6 @@ export default async function AdminPermissionsPage() {
       {/* User cards */}
       <div className="space-y-4">
         {users.map((u) => {
-          const normalizedRole = normalizeRole(u.role)
           const hasAnyOverride = Object.values(u.overrides).some(Boolean)
 
           return (
@@ -162,7 +227,7 @@ export default async function AdminPermissionsPage() {
         })}
       </div>
 
-      {users.length === 0 && (
+      {users.length === 0 && !pageError && (
         <div className="rounded-xl border border-neutral-200 bg-white px-6 py-12 text-center text-sm text-neutral-500">
           No users found.
         </div>
@@ -190,7 +255,7 @@ export default async function AdminPermissionsPage() {
                 <tr key={space} className="border-b border-neutral-100 hover:bg-neutral-50">
                   <td className="py-1.5 pr-3 font-mono text-neutral-700">{space}</td>
                   {Object.keys(ROLE_SPACE_DEFAULTS).map((role) => {
-                    const lvl = ROLE_SPACE_DEFAULTS[role as keyof typeof ROLE_SPACE_DEFAULTS][space]
+                    const lvl = ROLE_SPACE_DEFAULTS[role as keyof typeof ROLE_SPACE_DEFAULTS]?.[space] ?? 'invisible'
                     return (
                       <td key={role} className="py-1.5 px-2 text-center">
                         <span className={`rounded px-1.5 py-0.5 text-xs font-mono ${ACCESS_BADGE[lvl]}`}>
