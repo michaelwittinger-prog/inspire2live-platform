@@ -19,8 +19,8 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { PlatformRole } from './role-access'
-import { normalizeRole } from './role-access'
+import type { PlatformRole } from './platform-roles'
+import { normalizeRole } from './platform-roles'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

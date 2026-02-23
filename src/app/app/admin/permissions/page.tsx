@@ -3,79 +3,59 @@ import { createClient } from '@/lib/supabase/server'
 import { normalizeRole, getRoleLabel, getRoleBadgeColor } from '@/lib/role-access'
 import { ROLE_SPACE_DEFAULTS, PLATFORM_SPACES, resolveAccessFromRole } from '@/lib/permissions'
 import type { AccessLevel, PlatformSpace } from '@/lib/permissions'
+import { loadAdminPermissionsData } from '@/lib/admin-permissions-data'
 import { PermissionOverridePanel } from '@/components/admin/permission-override-panel'
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type UserRow = {
-  id: string
-  name: string | null
-  email: string | null
-  role: string | null
-  overrides: Record<PlatformSpace, AccessLevel | null>
-}
-
-type OverrideRow = { user_id: string; space: string; access_level: string }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export const metadata = { title: 'Permission Management · Admin' }
 
 export default async function AdminPermissionsPage() {
-  // Step 1: create client
-  let diagLog = 'step1:createClient '
   const supabase = await createClient()
-  diagLog += 'OK | step2:getUser '
 
-  // Step 2: auth
   const { data: authData, error: authError } = await supabase.auth.getUser()
-  if (authError || !authData.user) { diagLog += 'FAIL:' + (authError?.message ?? 'no user'); redirect('/login') }
+  if (authError || !authData.user) {
+    console.error('[permissions page] auth failed', { message: authError?.message ?? 'no user' })
+    redirect('/login')
+  }
   const userId = authData.user.id
-  diagLog += 'OK | step3:profileRole '
 
-  // Step 3: own profile role
   const { data: me, error: meError } = await supabase.from('profiles').select('role').eq('id', userId).single()
-  if (meError) diagLog += 'WARN:' + meError.message + ' | '
-  else diagLog += 'OK(role=' + (me?.role ?? 'null') + ') | '
+
+  if (meError) {
+    console.error('[permissions page] failed to load current profile', {
+      userId,
+      message: meError.message,
+      code: (meError as { code?: string }).code,
+    })
+
+    return (
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900">Permission Management</h1>
+        </div>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+          <p className="text-sm font-semibold text-red-700">⚠️ Unable to validate admin access</p>
+          <p className="mt-1 font-mono text-xs text-red-600">current profile: {meError.message}</p>
+          <p className="mt-3 text-xs text-red-500">
+            This is usually caused by a profile RLS issue, missing profile row, or an auth/session mismatch.
+            Check Vercel function logs for <code className="font-mono">[permissions page]</code> entries.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   // redirect() OUTSIDE try/catch — Next.js requirement
   if (normalizeRole(me?.role) !== 'PlatformAdmin') redirect('/app/dashboard')
 
-  // Step 4: all profiles
-  diagLog += 'step4:profiles '
-  const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, name, role').order('name')
-  if (profilesError) diagLog += 'FAIL:' + profilesError.message
-  else diagLog += 'OK(count=' + (profiles?.length ?? 0) + ')'
+  const { users, overrideCount, pageError } = await loadAdminPermissionsData(
+    supabase as unknown as Parameters<typeof loadAdminPermissionsData>[0]
+  )
 
-  // Step 5: overrides
-  diagLog += ' | step5:overrides '
-  const { data: overrideData, error: overrideError } = await supabase
-    .from('user_space_permissions' as never)
-    .select('user_id, space, access_level')
-    .eq('scope_type', 'global') as unknown as { data: OverrideRow[] | null; error: { message: string; code: string } | null }
-  if (overrideError) diagLog += 'FAIL:' + overrideError.message + ' code=' + overrideError.code
-  else diagLog += 'OK(count=' + (overrideData?.length ?? 0) + ')'
-
-  // Step 6: build users
-  diagLog += ' | step6:buildUsers '
-  const allOverrides: OverrideRow[] = overrideData ?? []
-  const overrideMap = new Map<string, Map<string, AccessLevel>>()
-  for (const o of allOverrides) {
-    if (!overrideMap.has(o.user_id)) overrideMap.set(o.user_id, new Map())
-    overrideMap.get(o.user_id)!.set(o.space, o.access_level as AccessLevel)
+  if (pageError) {
+    console.error('[permissions page] data load issue', { message: pageError })
   }
-  const users: UserRow[] = (profiles ?? []).map((p) => {
-    const userOverrides = overrideMap.get(p.id)
-    const overrides = Object.fromEntries(PLATFORM_SPACES.map((space) => [space, userOverrides?.get(space) ?? null])) as Record<PlatformSpace, AccessLevel | null>
-    return { id: p.id, name: p.name ?? null, email: null, role: p.role ?? null, overrides }
-  })
-  diagLog += 'OK(count=' + users.length + ')'
-
-  const overrideCount = users.reduce((sum, u) => sum + Object.values(u.overrides).filter(Boolean).length, 0)
-  const pageError: string | null = profilesError ? `profiles: ${profilesError.message}` : overrideError ? `overrides: ${overrideError.message}` : null
-
-  // Diagnostic: log trace to Vercel function logs
-  console.log('[permissions page] diagLog:', diagLog)
 
   // ── Error state ─────────────────────────────────────────────────────────────
   if (pageError && users.length === 0) {

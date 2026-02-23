@@ -1,12 +1,9 @@
-export type PlatformRole =
-  | 'PatientAdvocate'
-  | 'Clinician'
-  | 'Researcher'
-  | 'Moderator'
-  | 'HubCoordinator'
-  | 'IndustryPartner'
-  | 'BoardMember'
-  | 'PlatformAdmin'
+import type { PlatformSpace } from './permissions'
+import { resolveAccessFromRole } from './permissions'
+import { normalizeRole } from './platform-roles'
+import type { PlatformRole } from './platform-roles'
+export { normalizeRole } from './platform-roles'
+export type { PlatformRole } from './platform-roles'
 
 /**
  * Human-readable labels for every platform role.
@@ -37,22 +34,6 @@ export const ROLE_BADGE_COLORS: Record<PlatformRole, string> = {
   Clinician:       'bg-teal-100 text-teal-700',
   Moderator:       'bg-pink-100 text-pink-700',
   IndustryPartner: 'bg-amber-100 text-amber-700',
-}
-
-/**
- * Legacy / alternate DB values that may appear in older records.
- * Maps them to the canonical PlatformRole value.
- */
-const LEGACY_ROLE_MAP: Record<string, PlatformRole> = {
-  patient:          'PatientAdvocate',
-  advocate:         'PatientAdvocate',
-  patient_advocate: 'PatientAdvocate',
-  patientuser:      'PatientAdvocate',
-  'patient user':   'PatientAdvocate',
-  admin:            'PlatformAdmin',
-  hub_coordinator:  'HubCoordinator',
-  board_member:     'BoardMember',
-  industry_partner: 'IndustryPartner',
 }
 
 /**
@@ -93,8 +74,6 @@ export type NavItemConfig = {
   label: string
   href: string
 }
-
-const DEFAULT_ROLE: PlatformRole = 'PatientAdvocate'
 
 const ACCESS_BY_ROLE: Record<PlatformRole, string[]> = {
   PatientAdvocate:  ['dashboard', 'initiatives', 'tasks', 'congress', 'stories', 'resources', 'network', 'notifications', 'profile'],
@@ -190,15 +169,6 @@ const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
   ],
 }
 
-export function normalizeRole(role?: string | null): PlatformRole {
-  if (!role) return DEFAULT_ROLE
-  if (role in ACCESS_BY_ROLE) return role as PlatformRole
-  // Handle legacy values
-  const lower = role.toLowerCase().trim()
-  if (lower in LEGACY_ROLE_MAP) return LEGACY_ROLE_MAP[lower]
-  return DEFAULT_ROLE
-}
-
 function getAppSection(pathname: string): string | null {
   if (!pathname.startsWith('/app')) return null
   if (pathname === '/app' || pathname === '/app/') return 'dashboard'
@@ -215,11 +185,7 @@ export function canAccessAppPath(role: string | null | undefined, pathname: stri
   const section = getAppSection(pathname)
   if (!section) return true
 
-  // Lazy import to avoid circular deps — permissions.ts imports from role-access.ts
-  // but only types and normalizeRole, so the require() here is safe at runtime.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { resolveAccessFromRole } = require('./permissions') as typeof import('./permissions')
-  const level = resolveAccessFromRole(role, section as import('./permissions').PlatformSpace)
+  const level = resolveAccessFromRole(role, section as PlatformSpace)
   return level !== 'invisible'
 }
 
@@ -228,12 +194,9 @@ export function canAccessAppPath(role: string | null | undefined, pathname: stri
  * Uses the permissions resolver as the gate — single source of truth.
  */
 export function getSideNavItems(role: string | null | undefined): NavItemConfig[] {
-  // Lazy import same pattern as canAccessAppPath
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { resolveAccessFromRole } = require('./permissions') as typeof import('./permissions')
   const all = NAV_BY_ROLE[normalizeRole(role)]
   return all.filter((item) => {
-    const level = resolveAccessFromRole(role, item.key as import('./permissions').PlatformSpace)
+    const level = resolveAccessFromRole(role, item.key as PlatformSpace)
     return level !== 'invisible'
   })
 }
