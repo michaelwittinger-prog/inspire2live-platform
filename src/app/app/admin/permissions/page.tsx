@@ -22,36 +22,34 @@ type OverrideRow = { user_id: string; space: string; access_level: string }
 export const metadata = { title: 'Permission Management · Admin' }
 
 export default async function AdminPermissionsPage() {
+  // ── Auth guard (MUST be outside try/catch — redirect() throws NEXT_REDIRECT
+  //    internally and must not be caught) ────────────────────────────────────
+  const supabase = await createClient()
+
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+  if (authError || !authData.user) redirect('/login')
+  const userId = authData.user.id
+
+  const { data: me, error: meError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single()
+
+  if (meError) {
+    console.error('[permissions page] own profile error:', meError.message)
+  }
+
+  // redirect() outside try/catch — required by Next.js
+  if (normalizeRole(me?.role) !== 'PlatformAdmin') redirect('/app/dashboard')
+
+  // ── Data fetching (safe to wrap in try/catch) ─────────────────────────────
   let pageError: string | null = null
   let users: UserRow[] = []
   let overrideCount = 0
 
   try {
-    const supabase = await createClient()
-
-    // ── Auth guard ─────────────────────────────────────────────────────────
-    const { data: authData, error: authError } = await supabase.auth.getUser()
-    if (authError || !authData.user) {
-      redirect('/login')
-    }
-    const userId = authData.user.id
-
-    const { data: me, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single()
-
-    if (profileError) {
-      console.error('[permissions page] profile fetch error:', profileError)
-      pageError = `Could not load your profile: ${profileError.message}`
-    }
-
-    if (!pageError && normalizeRole(me?.role) !== 'PlatformAdmin') {
-      redirect('/app/dashboard')
-    }
-
-    if (!pageError) {
+    {
       // ── Fetch all profiles ───────────────────────────────────────────────
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
