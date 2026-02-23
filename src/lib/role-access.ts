@@ -206,13 +206,34 @@ function getAppSection(pathname: string): string | null {
   return section || 'dashboard'
 }
 
+/**
+ * Synchronous route-access check — safe for use in middleware.
+ * Delegates to resolveAccessFromRole() from permissions.ts.
+ * A user can access a path if their effective access level is 'view' or above (not 'invisible').
+ */
 export function canAccessAppPath(role: string | null | undefined, pathname: string): boolean {
   const section = getAppSection(pathname)
   if (!section) return true
-  const normalized = normalizeRole(role)
-  return ACCESS_BY_ROLE[normalized].includes(section)
+
+  // Lazy import to avoid circular deps — permissions.ts imports from role-access.ts
+  // but only types and normalizeRole, so the require() here is safe at runtime.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { resolveAccessFromRole } = require('./permissions') as typeof import('./permissions')
+  const level = resolveAccessFromRole(role, section as import('./permissions').PlatformSpace)
+  return level !== 'invisible'
 }
 
+/**
+ * Returns filtered nav items for a role, excluding any space with access level 'invisible'.
+ * Uses the permissions resolver as the gate — single source of truth.
+ */
 export function getSideNavItems(role: string | null | undefined): NavItemConfig[] {
-  return NAV_BY_ROLE[normalizeRole(role)]
+  // Lazy import same pattern as canAccessAppPath
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { resolveAccessFromRole } = require('./permissions') as typeof import('./permissions')
+  const all = NAV_BY_ROLE[normalizeRole(role)]
+  return all.filter((item) => {
+    const level = resolveAccessFromRole(role, item.key as import('./permissions').PlatformSpace)
+    return level !== 'invisible'
+  })
 }
