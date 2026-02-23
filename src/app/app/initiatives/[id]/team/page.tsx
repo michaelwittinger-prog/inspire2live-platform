@@ -1,8 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useActionState } from 'react'
 import { DEMO_TEAM_MEMBERS_RICH } from '@/lib/demo-data'
 import { ActionModal } from '@/components/ui/action-modal'
+import { InviteCombobox } from '@/components/ui/invite-combobox'
+import type { ProfileSuggestion } from '@/components/ui/invite-combobox'
+import { sendInitiativeInvite, revokeInitiativeInvite } from './actions'
+import type { InviteFormState } from './actions'
 
 // Auth check is handled by the parent layout.tsx server component.
 
@@ -22,7 +26,14 @@ const PLATFORM_ROLE_LABEL: Record<string, string> = {
   PlatformAdmin:   'Platform Admin',
 }
 
-function activityDot(lastActiveAt: string | undefined): { color: string; label: string } {
+const STATUS_META: Record<string, { label: string; color: string; dot: string }> = {
+  invited:  { label: 'Invited',  color: 'bg-amber-100 text-amber-800',   dot: 'bg-amber-400' },
+  accepted: { label: 'Accepted', color: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-500' },
+  declined: { label: 'Declined', color: 'bg-red-100 text-red-700',       dot: 'bg-red-400' },
+  revoked:  { label: 'Revoked',  color: 'bg-neutral-100 text-neutral-500', dot: 'bg-neutral-300' },
+}
+
+function activityDot(lastActiveAt: string | undefined) {
   if (!lastActiveAt) return { color: 'bg-neutral-300', label: 'Unknown' }
   const days = Math.floor((Date.now() - new Date(lastActiveAt).getTime()) / 86400000)
   if (days <= 1)  return { color: 'bg-emerald-500', label: 'Active today' }
@@ -34,6 +45,129 @@ function activityDot(lastActiveAt: string | undefined): { color: string; label: 
 function initials(name: string) {
   return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 }
+
+const INIT_STATE: InviteFormState = { ok: false }
+
+// ─── Invite Modal ─────────────────────────────────────────────────────────────
+
+function InviteModal({
+  open,
+  onClose,
+  initiativeId,
+  initiativeTitle,
+}: {
+  open: boolean
+  onClose: () => void
+  initiativeId: string
+  initiativeTitle: string
+}) {
+  const [selectedUser, setSelectedUser] = useState<ProfileSuggestion | null>(null)
+  const [rawEmail, setRawEmail] = useState('')
+  const [role, setRole] = useState('contributor')
+  const [message, setMessage] = useState('')
+  const [state, formAction, pending] = useActionState(sendInitiativeInvite, INIT_STATE)
+
+  const handleSelect = (s: ProfileSuggestion | null, email: string) => {
+    setSelectedUser(s)
+    setRawEmail(email)
+  }
+
+  const canSubmit = !pending && (selectedUser !== null || rawEmail.includes('@'))
+
+  return (
+    <ActionModal title="Invite to Initiative" open={open} onClose={onClose}>
+      {state.ok ? (
+        <div className="space-y-4 py-2">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+            <p className="text-sm font-semibold text-emerald-800">✓ Invitation sent!</p>
+            {state.emailSent && (
+              <p className="mt-1 text-xs text-emerald-700">An invitation email has been sent.</p>
+            )}
+            {!state.emailSent && (
+              <p className="mt-1 text-xs text-emerald-700">In-app notification delivered. (Email not configured)</p>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <button onClick={onClose} className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700">
+              Done
+            </button>
+          </div>
+        </div>
+      ) : (
+        <form action={formAction} className="space-y-4">
+          <input type="hidden" name="initiativeId" value={initiativeId} />
+          <input type="hidden" name="initiativeTitle" value={initiativeTitle} />
+          <input type="hidden" name="inviteeUserId" value={selectedUser?.id ?? ''} />
+          <input type="hidden" name="inviteeEmail" value={rawEmail} />
+          <input type="hidden" name="inviteeName" value={selectedUser?.name ?? ''} />
+
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 mb-1">
+              Search by name or email
+            </label>
+            <InviteCombobox onSelect={handleSelect} disabled={pending} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 mb-1">Role in Initiative</label>
+            <select
+              name="inviteeRole"
+              value={role}
+              onChange={e => setRole(e.target.value)}
+              disabled={pending}
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            >
+              <option value="contributor">Contributor</option>
+              <option value="reviewer">Reviewer</option>
+              <option value="observer">Observer</option>
+              <option value="lead">Lead</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 mb-1">Personal message (optional)</label>
+            <textarea
+              name="message"
+              rows={3}
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              disabled={pending}
+              placeholder="Hi, I'd like to invite you to join this initiative…"
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
+          </div>
+
+          {state.error && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {state.error}
+            </p>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={pending}
+              className="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold text-white
+                ${canSubmit ? 'bg-orange-600 hover:bg-orange-700' : 'bg-neutral-300 cursor-not-allowed'}`}
+            >
+              {pending ? 'Sending…' : 'Send Invitation'}
+            </button>
+          </div>
+        </form>
+      )}
+    </ActionModal>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 type TeamMember = {
   user_id: string
@@ -50,10 +184,16 @@ type TeamMember = {
   organization?: string | null
 }
 
+// TODO: once DB is seeded, replace DEMO with real members from initiative_members
+const DEMO_MEMBERS: TeamMember[] = DEMO_TEAM_MEMBERS_RICH
+
 export default function TeamPage() {
   const [inviteOpen, setInviteOpen] = useState(false)
+  // TODO: read initiativeId from params via server component; placeholder for now
+  const initiativeId = 'demo'
+  const initiativeTitle = 'Demo Initiative'
 
-  const members: TeamMember[] = DEMO_TEAM_MEMBERS_RICH
+  const members: TeamMember[] = DEMO_MEMBERS
   const sorted = [...members].sort((a, b) => {
     const order = (r: string) => r === 'lead' ? 0 : r === 'reviewer' ? 1 : 2
     return order(a.role) - order(b.role)
@@ -80,43 +220,15 @@ export default function TeamPage() {
       </div>
 
       {/* ── Invite Modal ── */}
-      <ActionModal title="Invite to Initiative" open={inviteOpen} onClose={() => setInviteOpen(false)}>
-        <div className="space-y-4">
-          <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            📬 Email invitations are coming in the next release. This is a preview of the invite flow.
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1">Email Address</label>
-            <input type="email" placeholder="colleague@organization.org"
-              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1">Role in Initiative</label>
-            <select className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-              <option value="contributor">Contributor</option>
-              <option value="reviewer">Reviewer</option>
-              <option value="observer">Observer</option>
-              <option value="lead">Lead</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1">Personal Message (optional)</label>
-            <textarea rows={3} placeholder="Hi, I'd like to invite you to join this initiative..."
-              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          </div>
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button onClick={() => setInviteOpen(false)} className="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50">
-              Cancel
-            </button>
-            <button disabled className="rounded-lg bg-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-600 cursor-not-allowed">
-              Send Invitation (coming soon)
-            </button>
-          </div>
-        </div>
-      </ActionModal>
+      <InviteModal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        initiativeId={initiativeId}
+        initiativeTitle={initiativeTitle}
+      />
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-700">
-        📋 Showing representative example team profiles for this initiative
+        📋 Showing example team. Real membership data loads once DB is seeded.
       </div>
 
       {/* ── Lead spotlight ── */}
@@ -149,14 +261,6 @@ export default function TeamPage() {
                     </svg>
                     {lead.email}
                   </a>
-                )}
-                {lead.phone && (
-                  <span className="inline-flex items-center gap-1.5 text-neutral-600">
-                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
-                    </svg>
-                    {lead.phone}
-                  </span>
                 )}
               </div>
             </div>
@@ -203,24 +307,14 @@ export default function TeamPage() {
                       </ul>
                     </div>
                   )}
-                  {(m.email || m.phone) && (
-                    <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
-                      {m.email && (
-                        <a href={`mailto:${m.email}`} className="inline-flex items-center gap-1.5 text-blue-600 hover:underline">
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                          </svg>
-                          {m.email}
-                        </a>
-                      )}
-                      {m.phone && (
-                        <span className="inline-flex items-center gap-1.5 text-neutral-500">
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
-                          </svg>
-                          {m.phone}
-                        </span>
-                      )}
+                  {m.email && (
+                    <div className="mt-3">
+                      <a href={`mailto:${m.email}`} className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                        </svg>
+                        {m.email}
+                      </a>
                     </div>
                   )}
                   <p className="mt-2 text-xs text-neutral-400">
@@ -231,6 +325,18 @@ export default function TeamPage() {
             </div>
           )
         })}
+      </div>
+
+      {/* ── Invite status legend ── */}
+      <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+        <p className="text-xs font-semibold text-neutral-700 mb-2">Invitation status codes</p>
+        <div className="flex flex-wrap gap-3">
+          {Object.entries(STATUS_META).map(([key, meta]) => (
+            <span key={key} className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${meta.color}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />{meta.label}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   )
