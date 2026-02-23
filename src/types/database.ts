@@ -2056,6 +2056,73 @@ export type Database = {
           },
         ]
       }
+      // ─── Added by migration 00022 (permission system) ──────────────────────
+      user_space_permissions: {
+        Row: {
+          id: string
+          user_id: string
+          space: string
+          access_level: string
+          scope_type: string
+          scope_id: string | null
+          granted_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          space: string
+          access_level: string
+          scope_type?: string
+          scope_id?: string | null
+          granted_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          space?: string
+          access_level?: string
+          scope_type?: string
+          scope_id?: string | null
+          granted_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      permission_audit_log: {
+        Row: {
+          id: string
+          target_user_id: string
+          changed_by: string
+          change_type: string
+          previous_value: Record<string, unknown> | null
+          new_value: Record<string, unknown> | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          target_user_id: string
+          changed_by: string
+          change_type: string
+          previous_value?: Record<string, unknown> | null
+          new_value?: Record<string, unknown> | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          target_user_id?: string
+          changed_by?: string
+          change_type?: string
+          previous_value?: Record<string, unknown> | null
+          new_value?: Record<string, unknown> | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       decision_pipeline: {

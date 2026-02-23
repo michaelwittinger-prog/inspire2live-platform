@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { TopNav } from '@/components/layouts/top-nav'
 import { SideNav } from '@/components/layouts/side-nav'
 import { canAccessAppPath } from '@/lib/role-access'
+import { resolveAllSpaces } from '@/lib/permissions'
 import { getViewAsRole } from '@/lib/view-as'
 import { switchPerspective } from './admin/view-as-action'
 import { RoleLayersProvider } from '@/components/roles/role-layers-context'
@@ -62,6 +63,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect('/app/profile')
   }
 
+  // Resolve effective access levels for all spaces (one DB query).
+  // Uses effectiveRole (view-as aware) so preview mode reflects the target role's defaults,
+  // but DB overrides are looked up by the actual user's id.
+  const effectiveSpaces = await resolveAllSpaces(user.id, effectiveRole, supabase)
+
   return (
     <RoleLayersProvider platformRole={effectiveRole}>
       <div className="flex h-screen flex-col overflow-hidden bg-neutral-50">
@@ -90,7 +96,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           viewAsRole={viewAsRole}
         />
         <div className="flex min-h-0 flex-1">
-          <SideNav role={effectiveRole} actualRole={actualRole} />
+          <SideNav effectiveSpaces={effectiveSpaces} isAdmin={isAdmin} />
           <main
             className="flex-1 overflow-y-auto px-3 py-4 md:p-6"
             role="main"
