@@ -2123,6 +2123,33 @@ export type Database = {
         }
         Relationships: []
       }
+      role_space_default_overrides: {
+        Row: {
+          role: string
+          space: string
+          access_level: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          role: string
+          space: string
+          access_level: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          role?: string
+          space?: string
+          access_level?: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       decision_pipeline: {

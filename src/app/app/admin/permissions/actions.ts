@@ -1,18 +1,11 @@
 'use server'
 
-/**
- * Permission management server actions — Phase 3.
- *
- * NOTE: user_space_permissions and permission_audit_log are added by migration 00022.
- * Until `pnpm supabase gen types` is re-run against the live DB, we cast those
- * table names with `as any` to satisfy the TS overloads that only know about
- * the types currently in src/types/database.ts.
- */
-
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { normalizeRole } from '@/lib/role-access'
+import { PLATFORM_SPACES } from '@/lib/permissions'
 import type { AccessLevel, PlatformSpace, ScopeType } from '@/lib/permissions'
+import type { PlatformRole } from '@/lib/platform-roles'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,6 +15,48 @@ export type PermissionOverrideInput = {
   accessLevel: AccessLevel
   scopeType?: ScopeType
   scopeId?: string
+}
+
+export type SetRoleDefaultInput = {
+  role: PlatformRole
+  space: PlatformSpace
+  accessLevel: AccessLevel
+}
+
+const VALID_LEVELS = new Set<AccessLevel>(['invisible', 'view', 'edit', 'manage'])
+const VALID_SPACES = new Set<PlatformSpace>(PLATFORM_SPACES)
+const VALID_SCOPES = new Set<ScopeType>(['global', 'congress', 'initiative'])
+
+const VALID_ROLES = new Set<PlatformRole>([
+  'PatientAdvocate',
+  'Clinician',
+  'Researcher',
+  'Moderator',
+  'HubCoordinator',
+  'IndustryPartner',
+  'BoardMember',
+  'PlatformAdmin',
+])
+
+function validateScope(scopeType: ScopeType, scopeId?: string) {
+  if (!VALID_SCOPES.has(scopeType)) return 'Invalid scope type value'
+
+  if (scopeType === 'global' && scopeId) {
+    return 'scopeId must be empty when scopeType is global'
+  }
+
+  if (scopeType !== 'global' && !scopeId) {
+    return 'scopeId is required for scoped permissions'
+  }
+
+  return null
+}
+
+function withScopeIdFilter<TQuery extends { eq: (column: 'scope_id', value: string) => TQuery; is: (column: 'scope_id', value: null) => TQuery }>(
+  query: TQuery,
+  scopeId?: string
+) {
+  return scopeId ? query.eq('scope_id', scopeId) : query.is('scope_id', null)
 }
 
 // ─── Guard: caller must be PlatformAdmin ─────────────────────────────────────
@@ -59,20 +94,25 @@ export async function setPermissionOverride(
 
   const { targetUserId, space, accessLevel, scopeType = 'global', scopeId } = input
 
+  if (!targetUserId) return { error: 'Invalid target user id' }
+  if (!VALID_SPACES.has(space)) return { error: 'Invalid space value' }
+  if (!VALID_LEVELS.has(accessLevel)) return { error: 'Invalid access level value' }
+
+  const scopeError = validateScope(scopeType, scopeId)
+  if (scopeError) return { error: scopeError }
+
   // Read current value for audit log
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: existing } = await (supabase as any)
+  const existingQuery = supabase
     .from('user_space_permissions')
     .select('access_level')
     .eq('user_id', targetUserId)
     .eq('space', space)
     .eq('scope_type', scopeType)
-    .is('scope_id', scopeId ?? null)
-    .maybeSingle() as { data: { access_level: string } | null }
+
+  const { data: existing } = await withScopeIdFilter(existingQuery, scopeId).maybeSingle()
 
   // Upsert the override
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: upsertError } = await (supabase as any)
+  const { error: upsertError } = await supabase
     .from('user_space_permissions')
     .upsert(
       {
@@ -84,13 +124,12 @@ export async function setPermissionOverride(
         granted_by: adminId,
       },
       { onConflict: 'user_id,space,scope_type,scope_id', ignoreDuplicates: false }
-    ) as { error: { message: string } | null }
+    )
 
   if (upsertError) return { error: upsertError.message }
 
   // Append audit log
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
+  await supabase
     .from('permission_audit_log')
     .insert({
       target_user_id: targetUserId,
@@ -120,31 +159,35 @@ export async function removePermissionOverride(
   const { error: authError, adminId } = await requireAdmin(supabase)
   if (authError || !adminId) return { error: authError ?? 'Unauthorized' }
 
+  if (!targetUserId) return { error: 'Invalid target user id' }
+  if (!VALID_SPACES.has(space)) return { error: 'Invalid space value' }
+
+  const scopeError = validateScope(scopeType, scopeId)
+  if (scopeError) return { error: scopeError }
+
   // Read current value for audit log
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: existing } = await (supabase as any)
+  const existingQuery = supabase
     .from('user_space_permissions')
     .select('access_level')
     .eq('user_id', targetUserId)
     .eq('space', space)
     .eq('scope_type', scopeType)
-    .is('scope_id', scopeId ?? null)
-    .maybeSingle() as { data: { access_level: string } | null }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: deleteError } = await (supabase as any)
+  const { data: existing } = await withScopeIdFilter(existingQuery, scopeId).maybeSingle()
+
+  const deleteQuery = supabase
     .from('user_space_permissions')
     .delete()
     .eq('user_id', targetUserId)
     .eq('space', space)
     .eq('scope_type', scopeType)
-    .is('scope_id', scopeId ?? null) as { error: { message: string } | null }
+
+  const { error: deleteError } = await withScopeIdFilter(deleteQuery, scopeId)
 
   if (deleteError) return { error: deleteError.message }
 
   // Append audit log
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
+  await supabase
     .from('permission_audit_log')
     .insert({
       target_user_id: targetUserId,
@@ -153,6 +196,43 @@ export async function removePermissionOverride(
       previous_value: existing ? { space, access_level: existing.access_level } : null,
       new_value: { space, access_level: 'default (removed override)', scope_type: scopeType },
     })
+
+  revalidatePath('/app/admin/permissions')
+  return { error: null }
+}
+
+// ─── setRoleDefaultOverride (Phase 2) ─────────────────────────────────────────
+
+/**
+ * Upserts a role default override entry for platform scope.
+ * This does not remove static defaults — it stores override rows only.
+ */
+export async function setRoleDefaultOverride(
+  input: SetRoleDefaultInput
+): Promise<{ error: string | null }> {
+  const supabase = await createClient()
+  const { error: authError, adminId } = await requireAdmin(supabase)
+  if (authError || !adminId) return { error: authError ?? 'Unauthorized' }
+
+  const { role, space, accessLevel } = input
+
+  if (!VALID_ROLES.has(role)) return { error: 'Invalid role value' }
+  if (!VALID_SPACES.has(space)) return { error: 'Invalid space value' }
+  if (!VALID_LEVELS.has(accessLevel)) return { error: 'Invalid access level value' }
+
+  const { error: upsertError } = await supabase
+    .from('role_space_default_overrides')
+    .upsert(
+      { role, space, access_level: accessLevel, updated_by: adminId },
+      { onConflict: 'role,space', ignoreDuplicates: false }
+    )
+
+  if (upsertError) {
+    if ((upsertError as { code?: string }).code === '42P01') {
+      return { error: 'role defaults table missing (migration 00023 required)' }
+    }
+    return { error: upsertError.message }
+  }
 
   revalidatePath('/app/admin/permissions')
   return { error: null }

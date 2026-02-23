@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import type { AccessLevel, PlatformSpace } from '@/lib/permissions'
+import type { AccessLevel, PlatformSpace, ScopeType } from '@/lib/permissions'
 import { setPermissionOverride, removePermissionOverride } from '@/app/app/admin/permissions/actions'
 
 const ACCESS_LEVELS: AccessLevel[] = ['invisible', 'view', 'edit', 'manage']
@@ -20,6 +20,12 @@ const ACCESS_BUTTON: Record<AccessLevel, string> = {
   manage:    'border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700',
 }
 
+const SCOPE_OPTIONS: { value: ScopeType; label: string }[] = [
+  { value: 'global', label: 'Global' },
+  { value: 'initiative', label: 'Initiative' },
+  { value: 'congress', label: 'Congress' },
+]
+
 type Props = {
   userId: string
   userName: string
@@ -28,6 +34,8 @@ type Props = {
   defaultLevel: AccessLevel
   effectiveLevel: AccessLevel
   isOverridden: boolean
+  scopedOverrideCount?: number
+  onActionComplete?: (payload: { message: string; scopeLabel: string }) => void
 }
 
 export function PermissionOverridePanel({
@@ -38,23 +46,40 @@ export function PermissionOverridePanel({
   defaultLevel,
   effectiveLevel,
   isOverridden,
+  scopedOverrideCount = 0,
+  onActionComplete,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [scopeType, setScopeType] = useState<ScopeType>('global')
+  const [scopeId, setScopeId] = useState('')
 
   function handleSet(level: AccessLevel) {
     setError(null)
+
+    const trimmedScopeId = scopeId.trim()
+    if (scopeType !== 'global' && !trimmedScopeId) {
+      setError('Please provide a scope id for scoped overrides.')
+      return
+    }
+
+    const scopeIdForRequest = scopeType === 'global' ? undefined : trimmedScopeId
+    const scopeLabel = scopeType === 'global' ? 'global' : `${scopeType}:${scopeIdForRequest}`
+
     startTransition(async () => {
       const result = await setPermissionOverride({
         targetUserId: userId,
         space,
         accessLevel: level,
+        scopeType,
+        scopeId: scopeIdForRequest,
       })
       if (result.error) {
         setError(result.error)
       } else {
+        onActionComplete?.({ message: `${space} → ${level} (${scopeLabel})`, scopeLabel })
         setSaved(true)
         setTimeout(() => { setSaved(false); setOpen(false) }, 800)
       }
@@ -63,11 +88,27 @@ export function PermissionOverridePanel({
 
   function handleRemove() {
     setError(null)
+
+    const trimmedScopeId = scopeId.trim()
+    if (scopeType !== 'global' && !trimmedScopeId) {
+      setError('Please provide a scope id for scoped resets.')
+      return
+    }
+
+    const scopeIdForRequest = scopeType === 'global' ? undefined : trimmedScopeId
+    const scopeLabel = scopeType === 'global' ? 'global' : `${scopeType}:${scopeIdForRequest}`
+
     startTransition(async () => {
-      const result = await removePermissionOverride(userId, space)
+      const result = await removePermissionOverride(
+        userId,
+        space,
+        scopeType,
+        scopeIdForRequest
+      )
       if (result.error) {
         setError(result.error)
       } else {
+        onActionComplete?.({ message: `${space} reset to default (${scopeLabel})`, scopeLabel })
         setSaved(true)
         setTimeout(() => { setSaved(false); setOpen(false) }, 800)
       }
@@ -78,7 +119,13 @@ export function PermissionOverridePanel({
     <>
       {/* Cell button */}
       <button
-        onClick={() => { setOpen(true); setError(null); setSaved(false) }}
+        onClick={() => {
+          setOpen(true)
+          setError(null)
+          setSaved(false)
+          setScopeType('global')
+          setScopeId('')
+        }}
         className={`flex flex-col items-start gap-0.5 bg-white px-3 py-2 text-left transition-colors hover:bg-neutral-50 ${isOverridden ? 'ring-1 ring-inset ring-orange-300' : ''}`}
       >
         <span className="font-mono text-xs font-medium text-neutral-600">{space}</span>
@@ -87,6 +134,9 @@ export function PermissionOverridePanel({
         </span>
         {isOverridden && (
           <span className="text-[10px] text-orange-500">overridden</span>
+        )}
+        {scopedOverrideCount > 0 && (
+          <span className="text-[10px] text-indigo-500">scoped {scopedOverrideCount}</span>
         )}
       </button>
 
@@ -120,6 +170,53 @@ export function PermissionOverridePanel({
               </p>
             </div>
 
+            {/* Scope controls */}
+            <div className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">Override scope</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {SCOPE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      setScopeType(option.value)
+                      setError(null)
+                    }}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+                      scopeType === option.value
+                        ? 'border-neutral-900 bg-neutral-900 text-white'
+                        : 'border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-100'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+
+              {scopeType !== 'global' && (
+                <div className="mt-2 space-y-1">
+                  <label className="block text-[11px] font-medium text-neutral-600">
+                    {scopeType === 'initiative' ? 'Initiative ID' : 'Congress ID'}
+                  </label>
+                  <input
+                    value={scopeId}
+                    onChange={(e) => setScopeId(e.target.value)}
+                    placeholder={scopeType === 'initiative' ? 'e.g. initiative UUID' : 'e.g. congress UUID'}
+                    className="w-full rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 font-mono text-[11px] text-neutral-700"
+                  />
+                </div>
+              )}
+
+              <p className="mt-2 text-[10px] text-neutral-500">
+                Use <span className="font-medium">Global</span> for platform-wide overrides. Use scoped overrides for one initiative or congress context.
+              </p>
+              <div className="mt-2">
+                <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-700">
+                  Active scope: {scopeType === 'global' ? 'global' : `${scopeType}${scopeId.trim() ? `:${scopeId.trim()}` : ''}`}
+                </span>
+              </div>
+            </div>
+
             {/* Level picker */}
             <div className="grid grid-cols-2 gap-2">
               {ACCESS_LEVELS.map((level) => (
@@ -133,7 +230,7 @@ export function PermissionOverridePanel({
                       : ACCESS_BUTTON[level]
                   }`}
                 >
-                  {saved && level === (override ?? effectiveLevel) ? '✓ Saved' : level}
+                  {saved && level === (override ?? effectiveLevel) ? '✓ Saved' : `Set ${level}`}
                 </button>
               ))}
             </div>
