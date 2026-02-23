@@ -51,7 +51,7 @@ export async function loadAdminPermissionsData(
       const overrides = Object.fromEntries(
         PLATFORM_SPACES.map((space) => [space, userOverrides?.get(space) ?? null])
       ) as Record<PlatformSpace, AccessLevel | null>
-      return { id: p.id, name: p.name ?? null, email: null, role: p.role ?? null, overrides }
+      return { id: p.id, name: p.name || null, email: null, role: p.role || null, overrides }
     })
 
     const overrideCount = users.reduce((sum, u) => sum + Object.values(u.overrides).filter(Boolean).length, 0)

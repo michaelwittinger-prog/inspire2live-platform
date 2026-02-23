@@ -184,7 +184,7 @@ function renderPage({ users, overrideCount, pageError }: PageData) {
               {/* User header */}
               <div className="flex items-center gap-3 border-b border-neutral-100 px-4 py-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-sm font-medium text-neutral-600">
-                  {(u.name ?? 'U')[0].toUpperCase()}
+                  {(u.name || 'U')[0].toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="truncate text-sm font-semibold text-neutral-900">{u.name ?? '—'}</p>
