@@ -61,3 +61,63 @@ Only commit if both pass.
 - [ ] `pnpm build` succeeds (routes visible in output)
 - [ ] Stage + commit in one call (`requires_approval: false`)
 - [ ] Push in a separate call (`requires_approval: true`)
+
+---
+
+## Second root cause (2026-02-23): multi-line commit messages in chained PowerShell commands
+
+### What happened
+
+A session stalled when Cline chained `git add && git commit -m "...multi-line..." && git push`
+in a single `execute_command` call.  PowerShell hangs waiting for stdin to close when a
+multi-line string literal is spread across lines inside a shell argument, or the
+terminal output buffer is never flushed because the process blocks.
+
+### Rules (in addition to the above)
+
+| # | Rule | Rationale |
+|---|------|-----------|
+| 1 | **Commit messages must be single-line.** | Multi-line `-m "..."` in PowerShell causes the shell to keep reading input. |
+| 2 | **Never chain more than 2 git commands with `&&` in one `execute_command` call.** | Three-command chains (`add && commit && push`) are the most common hang pattern. |
+| 3 | **Use `scripts/git-push.ps1` for the final push.** | It runs each step in its own `pwsh` statement, detects empty-tree gracefully, and exits with a clear error code on failure. |
+| 4 | **Always verify with `git log --oneline -1` after a push.** | Confirms the push actually landed; takes <100 ms and cannot hang. |
+
+### Approved git patterns
+
+**Pattern A — Two separate execute_command calls (minimum):**
+```powershell
+# Call 1  (requires_approval: false)
+git -C "..." add -A
+git -C "..." commit -m "type(scope): single line message"
+
+# Call 2  (requires_approval: false — auto-approve is active)
+git -C "..." push origin main
+```
+
+**Pattern B — Use the helper script (recommended for complex messages):**
+```powershell
+# Single call  (requires_approval: false)
+pwsh "c:/Users/micha/Inspire2Live Platform New/inspire2live-platform/scripts/git-push.ps1" `
+  -Message "type(scope): single line message"
+```
+
+**Pattern C — Verify push landed (always do this after Pattern A or B):**
+```powershell
+git -C "..." log --oneline -1
+# requires_approval: false
+```
+
+### Anti-patterns (NEVER do these)
+
+```powershell
+# ❌ Multi-line -m string
+git commit -m "line 1
+line 2
+line 3"
+
+# ❌ Three-op chain
+git add -A && git commit -m "..." && git push origin main
+
+# ❌ Chaining commit+push with requires_approval: true on the whole chain
+git add ... && git push ... (requires_approval: true)
+```
