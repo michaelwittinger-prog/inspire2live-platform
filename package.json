@@ -16,7 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "deploy": "vercel deploy --prod --yes --no-clipboard"
   },
   "packageManager": "pnpm@10.30.0",
   "dependencies": {
@@ -28,7 +29,9 @@
     "react-dom": "19.2.3"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
@@ -48,6 +51,7 @@
     "supabase": "^2.76.10",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vercel": "^50.22.1",
     "vitest": "^4.0.18"
   }
 }
