@@ -22,89 +22,60 @@ type OverrideRow = { user_id: string; space: string; access_level: string }
 export const metadata = { title: 'Permission Management · Admin' }
 
 export default async function AdminPermissionsPage() {
-  // ── Auth guard (MUST be outside try/catch — redirect() throws NEXT_REDIRECT
-  //    internally and must not be caught) ────────────────────────────────────
+  // Step 1: create client
+  let diagLog = 'step1:createClient '
   const supabase = await createClient()
+  diagLog += 'OK | step2:getUser '
 
+  // Step 2: auth
   const { data: authData, error: authError } = await supabase.auth.getUser()
-  if (authError || !authData.user) redirect('/login')
+  if (authError || !authData.user) { diagLog += 'FAIL:' + (authError?.message ?? 'no user'); redirect('/login') }
   const userId = authData.user.id
+  diagLog += 'OK | step3:profileRole '
 
-  const { data: me, error: meError } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .single()
+  // Step 3: own profile role
+  const { data: me, error: meError } = await supabase.from('profiles').select('role').eq('id', userId).single()
+  if (meError) diagLog += 'WARN:' + meError.message + ' | '
+  else diagLog += 'OK(role=' + (me?.role ?? 'null') + ') | '
 
-  if (meError) {
-    console.error('[permissions page] own profile error:', meError.message)
-  }
-
-  // redirect() outside try/catch — required by Next.js
+  // redirect() OUTSIDE try/catch — Next.js requirement
   if (normalizeRole(me?.role) !== 'PlatformAdmin') redirect('/app/dashboard')
 
-  // ── Data fetching (safe to wrap in try/catch) ─────────────────────────────
-  let pageError: string | null = null
-  let users: UserRow[] = []
-  let overrideCount = 0
+  // Step 4: all profiles
+  diagLog += 'step4:profiles '
+  const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, name, role').order('name')
+  if (profilesError) diagLog += 'FAIL:' + profilesError.message
+  else diagLog += 'OK(count=' + (profiles?.length ?? 0) + ')'
 
-  try {
-    {
-      // ── Fetch all profiles ───────────────────────────────────────────────
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, name, role')
-        .order('name')
+  // Step 5: overrides
+  diagLog += ' | step5:overrides '
+  const { data: overrideData, error: overrideError } = await supabase
+    .from('user_space_permissions' as never)
+    .select('user_id, space, access_level')
+    .eq('scope_type', 'global') as unknown as { data: OverrideRow[] | null; error: { message: string; code: string } | null }
+  if (overrideError) diagLog += 'FAIL:' + overrideError.message + ' code=' + overrideError.code
+  else diagLog += 'OK(count=' + (overrideData?.length ?? 0) + ')'
 
-      if (profilesError) {
-        console.error('[permissions page] profiles fetch error:', profilesError)
-        pageError = `Could not load user profiles: ${profilesError.message}`
-      }
-
-      // ── Fetch all global permission overrides ────────────────────────────
-      let allOverrides: OverrideRow[] = []
-      const { data: overrideData, error: overrideError } = await supabase
-        .from('user_space_permissions' as never)
-        .select('user_id, space, access_level')
-        .eq('scope_type', 'global') as unknown as {
-          data: OverrideRow[] | null
-          error: { message: string; code: string } | null
-        }
-
-      if (overrideError) {
-        // Non-fatal: log and continue — permissions page still renders with role defaults
-        console.error('[permissions page] override fetch error:', overrideError.message, '| code:', overrideError.code)
-        pageError = `Permission overrides unavailable: ${overrideError.message} (code: ${overrideError.code})`
-      } else {
-        allOverrides = overrideData ?? []
-      }
-
-      // ── Build override map: userId → space → AccessLevel ─────────────────
-      const overrideMap = new Map<string, Map<string, AccessLevel>>()
-      for (const o of allOverrides) {
-        if (!overrideMap.has(o.user_id)) overrideMap.set(o.user_id, new Map())
-        overrideMap.get(o.user_id)!.set(o.space, o.access_level as AccessLevel)
-      }
-
-      // ── Assemble user rows ───────────────────────────────────────────────
-      users = (profiles ?? []).map((p) => {
-        const userOverrides = overrideMap.get(p.id)
-        const overrides = Object.fromEntries(
-          PLATFORM_SPACES.map((space) => [space, userOverrides?.get(space) ?? null])
-        ) as Record<PlatformSpace, AccessLevel | null>
-        return { id: p.id, name: p.name ?? null, email: null, role: p.role ?? null, overrides }
-      })
-
-      overrideCount = users.reduce(
-        (sum, u) => sum + Object.values(u.overrides).filter(Boolean).length,
-        0
-      )
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    console.error('[permissions page] unhandled error:', message)
-    pageError = `Unexpected error: ${message}`
+  // Step 6: build users
+  diagLog += ' | step6:buildUsers '
+  const allOverrides: OverrideRow[] = overrideData ?? []
+  const overrideMap = new Map<string, Map<string, AccessLevel>>()
+  for (const o of allOverrides) {
+    if (!overrideMap.has(o.user_id)) overrideMap.set(o.user_id, new Map())
+    overrideMap.get(o.user_id)!.set(o.space, o.access_level as AccessLevel)
   }
+  const users: UserRow[] = (profiles ?? []).map((p) => {
+    const userOverrides = overrideMap.get(p.id)
+    const overrides = Object.fromEntries(PLATFORM_SPACES.map((space) => [space, userOverrides?.get(space) ?? null])) as Record<PlatformSpace, AccessLevel | null>
+    return { id: p.id, name: p.name ?? null, email: null, role: p.role ?? null, overrides }
+  })
+  diagLog += 'OK(count=' + users.length + ')'
+
+  const overrideCount = users.reduce((sum, u) => sum + Object.values(u.overrides).filter(Boolean).length, 0)
+  const pageError: string | null = profilesError ? `profiles: ${profilesError.message}` : overrideError ? `overrides: ${overrideError.message}` : null
+
+  // Diagnostic: log trace to Vercel function logs
+  console.log('[permissions page] diagLog:', diagLog)
 
   // ── Error state ─────────────────────────────────────────────────────────────
   if (pageError && users.length === 0) {
