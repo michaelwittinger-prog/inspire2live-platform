@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { SESSION_TYPE_META, normalizeSessionType, type CongressSession } from '@/lib/congress'
-import { DEMO_CONGRESS_SESSIONS } from '@/lib/demo-data'
 
 function formatTime(ts: string | null): string {
   if (!ts) return 'TBC'
@@ -60,9 +59,7 @@ export default async function CongressAgendaPage() {
     .select('*')
     .order('agenda_order', { ascending: true })
 
-  const sessions: CongressSession[] = (dbSessions && dbSessions.length > 0)
-    ? dbSessions as unknown as CongressSession[]
-    : DEMO_CONGRESS_SESSIONS
+  const sessions: CongressSession[] = (dbSessions ?? []) as unknown as CongressSession[]
 
   // Group by day
   const byDay = sessions.reduce<Record<string, CongressSession[]>>((acc, s) => {
@@ -97,7 +94,7 @@ export default async function CongressAgendaPage() {
       {/* Sessions by day */}
       {days.length === 0 ? (
         <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-8 text-center">
-          <p className="text-sm text-neutral-500">Agenda is being finalised. Check back once topics are approved.</p>
+          <p className="text-sm text-neutral-500">No visible agenda sessions for your invited congresses yet.</p>
         </div>
       ) : (
         days.map(day => (

@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { TOPIC_STATUS_META, normalizeTopicStatus, type CongressTopic } from '@/lib/congress'
-import { DEMO_CONGRESS_TOPICS } from '@/lib/demo-data'
 import { PlaceholderButton, PlusIcon, VoteButton } from '@/components/ui/client-buttons'
 
 // ── Sub-components declared at module level (avoids react-hooks/rules-of-hooks) ──
@@ -67,7 +66,7 @@ export default async function CongressTopicsPage() {
           submitter_name: (t.profiles as { full_name?: string } | null)?.full_name ?? 'Community Member',
         }
       })
-    : DEMO_CONGRESS_TOPICS
+    : []
 
   const byStatus = {
     approved:   topics.filter(t => normalizeTopicStatus(t.status) === 'approved'),
@@ -127,7 +126,7 @@ export default async function CongressTopicsPage() {
 
       {topics.length === 0 && (
         <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-8 text-center">
-          <p className="text-sm text-neutral-500">No topics yet. Be the first to propose a topic for Congress 2026.</p>
+          <p className="text-sm text-neutral-500">No visible topics yet for your invited congresses.</p>
         </div>
       )}
     </div>

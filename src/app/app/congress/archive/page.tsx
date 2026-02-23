@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { EVENT_STATUS_META, formatEventDates, normalizeEventStatus, type CongressEvent } from '@/lib/congress'
-import { DEMO_CONGRESS_EVENTS } from '@/lib/demo-data'
 
 export default async function CongressArchivePage() {
   const supabase = await createClient()
@@ -14,9 +13,7 @@ export default async function CongressArchivePage() {
     .select('*')
     .order('year', { ascending: false })
 
-  const events: CongressEvent[] = (dbEvents && dbEvents.length > 0)
-    ? dbEvents as unknown as CongressEvent[]
-    : DEMO_CONGRESS_EVENTS
+  const events: CongressEvent[] = (dbEvents ?? []) as unknown as CongressEvent[]
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -82,6 +79,12 @@ export default async function CongressArchivePage() {
             </div>
           )
         })}
+
+        {events.length === 0 && (
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-8 text-center">
+            <p className="text-sm text-neutral-500">No visible congress archive entries for your invited congresses.</p>
+          </div>
+        )}
       </div>
 
       {/* Cross-year continuity note */}

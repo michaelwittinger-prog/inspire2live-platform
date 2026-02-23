@@ -11,7 +11,6 @@ import {
   type CongressEvent,
   type CongressDecision,
 } from '@/lib/congress'
-import { DEMO_CONGRESS_EVENTS, DEMO_CONGRESS_DECISIONS, DEMO_CONGRESS_THEMES } from '@/lib/demo-data'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -80,16 +79,14 @@ export default async function CongressPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Try live DB; fall back to demo data
+  // Live DB only (invitation-scoped by RLS)
   const { data: dbEvents } = await supabase
     .from('congress_events')
     .select('*')
     .order('year', { ascending: false })
     .limit(10)
 
-  const events: CongressEvent[] = (dbEvents && dbEvents.length > 0)
-    ? dbEvents as unknown as CongressEvent[]
-    : DEMO_CONGRESS_EVENTS
+  const events: CongressEvent[] = (dbEvents ?? []) as unknown as CongressEvent[]
 
   const currentEvent = events.find(e => normalizeEventStatus(e.status) !== 'archived') ?? events[0]
   const pastEvents   = events.filter(e => normalizeEventStatus(e.status) === 'archived')
@@ -101,16 +98,20 @@ export default async function CongressPage() {
     .order('captured_at', { ascending: false })
 
   const decisions = enrichDecisions(
-    (dbDecisions && dbDecisions.length > 0
-      ? dbDecisions as unknown as CongressDecision[]
-      : DEMO_CONGRESS_DECISIONS
-    ).filter(d => !currentEvent || d.congress_year === currentEvent.year || d.event_id === currentEvent.id)
+    ((dbDecisions ?? []) as unknown as CongressDecision[])
+      .filter(d => !currentEvent || d.congress_year === currentEvent.year || d.event_id === currentEvent.id)
   )
+
+  const { data: dbThemes } = await supabase
+    .from('congress_themes')
+    .select('id, title, description, color, first_year')
+    .order('first_year', { ascending: true })
+    .order('title', { ascending: true })
 
   const stats = computeDecisionStats(decisions)
   const overdueDecisions = decisions.filter(d => d.conversion_status === 'pending' && (d.sla_hours_remaining ?? 0) < 0)
   const daysToEvent = currentEvent?.start_date ? daysUntil(currentEvent.start_date) : null
-  const themes = DEMO_CONGRESS_THEMES
+  const themes = dbThemes ?? []
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -174,6 +175,13 @@ export default async function CongressPage() {
             <p className="text-xs text-neutral-500 mb-2 font-medium uppercase tracking-wide">Program phase</p>
             <CyclePhaseBar status={currentEvent.status} />
           </div>
+        </div>
+      )}
+
+      {!currentEvent && (
+        <div className="rounded-xl border border-dashed border-neutral-300 bg-white px-6 py-12 text-center">
+          <p className="text-sm font-medium text-neutral-900">No visible congress events</p>
+          <p className="mt-1 text-sm text-neutral-500">You can only see congresses you are invited to. Ask a coordinator/admin to add you.</p>
         </div>
       )}
 

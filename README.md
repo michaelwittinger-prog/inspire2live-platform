@@ -80,6 +80,39 @@ The repository root contains a `vercel.json` that sets:
 
 These are applied automatically when you connect the repo to Vercel.
 
+### Automated Production Deployment (GitHub Actions → Vercel)
+
+This repository includes a dedicated workflow:
+
+- `.github/workflows/deploy-vercel.yml`
+
+How it works:
+
+1. CI workflow (`CI`) runs on push.
+2. When CI succeeds for `main`, the deploy workflow triggers automatically.
+3. The deploy workflow uses Vercel CLI to:
+   - pull production environment/project settings,
+   - build artifacts,
+   - deploy to **production** with `--prebuilt --prod`.
+
+Required GitHub repository secrets:
+
+| Secret | Purpose |
+|---|---|
+| `VERCEL_TOKEN` | Auth token for Vercel CLI |
+| `VERCEL_ORG_ID` | Your Vercel team/user org ID |
+| `VERCEL_PROJECT_ID` | Target Vercel project ID |
+
+> You can get `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` from Vercel project settings or by running `vercel link` locally and checking `.vercel/project.json`.
+
+Verification checklist:
+
+1. Push a commit to `main`.
+2. Confirm GitHub Actions shows:
+   - `CI` ✅
+   - `Deploy to Vercel (Production)` ✅
+3. Confirm Vercel production deployment points to the same commit SHA.
+
 ---
 
 ## 🧪 Testing

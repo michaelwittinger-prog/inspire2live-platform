@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_INITIATIVES, withFallback } from '@/lib/demo-data'
 import { CreateInitiativeButton } from '@/components/ui/client-buttons'
 
 export default async function InitiativesIndexPage() {
@@ -35,9 +34,7 @@ export default async function InitiativesIndexPage() {
     dbRows = dbRows.filter((r) => r.id && memberIds.has(r.id))
   }
 
-  // Fallback to demo data if DB is empty
-  const rows = withFallback(dbRows, DEMO_INITIATIVES)
-  const usingDemo = dbRows.length === 0
+  const rows = dbRows
 
   const phaseColor: Record<string, string> = {
     planning: 'bg-blue-100 text-blue-700',
@@ -57,12 +54,6 @@ export default async function InitiativesIndexPage() {
         </div>
         <CreateInitiativeButton />
       </div>
-
-      {usingDemo && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-700">
-          📋 Showing demo data — create your first real initiative using the button above, or seed the database.
-        </div>
-      )}
 
       {/* Stats bar */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -98,16 +89,6 @@ export default async function InitiativesIndexPage() {
                 {row.phase}
               </span>
             </div>
-            {'pillar' in row && (
-              <p className="mt-1 text-xs text-neutral-500">{(row as typeof DEMO_INITIATIVES[0]).pillar}</p>
-            )}
-            {'countries' in row && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {((row as typeof DEMO_INITIATIVES[0]).countries ?? []).map(c => (
-                  <span key={c} className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{c}</span>
-                ))}
-              </div>
-            )}
             <div className="mt-3 flex items-center gap-4 text-xs text-neutral-500">
               <span>{row.member_count ?? 0} members</span>
               <span>{row.open_tasks ?? 0} tasks</span>
@@ -126,8 +107,8 @@ export default async function InitiativesIndexPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
             </svg>
           </div>
-          <p className="text-sm font-medium text-neutral-900">No initiatives yet</p>
-          <p className="mt-1 text-sm text-neutral-500">Create your first initiative to get started.</p>
+          <p className="text-sm font-medium text-neutral-900">No visible initiatives</p>
+          <p className="mt-1 text-sm text-neutral-500">You can only see initiatives you are invited to. Ask a coordinator/admin to add you.</p>
         </div>
       )}
     </div>
