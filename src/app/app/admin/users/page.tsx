@@ -3,16 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { DEMO_USERS } from '@/lib/demo-data'
 import { EditRoleButton, InviteUserButton, AssignCongressRolesButton } from '@/components/ui/client-buttons'
 import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
-
-const roleColor: Record<string, string> = {
-  PlatformAdmin: 'bg-red-100 text-red-700',
-  BoardMember: 'bg-purple-100 text-purple-700',
-  HubCoordinator: 'bg-orange-100 text-orange-700',
-  PatientAdvocate: 'bg-blue-100 text-blue-700',
-  Researcher: 'bg-emerald-100 text-emerald-700',
-  Clinician: 'bg-teal-100 text-teal-700',
-  PolicyMaker: 'bg-amber-100 text-amber-700',
-}
+import { getRoleLabel, getRoleBadgeColor } from '@/lib/role-access'
 
 export default async function AdminUsersPage() {
   const supabase = await createClient()
@@ -76,7 +67,9 @@ export default async function AdminUsersPage() {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${roleColor[u.role] ?? 'bg-neutral-100 text-neutral-600'}`}>{u.role}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getRoleBadgeColor(u.role)}`}>
+                    {getRoleLabel(u.role)}
+                  </span>
                 </td>
                 <td className="px-4 py-3 text-neutral-600">{u.country}</td>
                 <td className="px-4 py-3">

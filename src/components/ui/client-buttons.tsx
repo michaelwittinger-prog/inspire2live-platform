@@ -3,17 +3,12 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { ROLE_LABELS } from '@/lib/role-access'
 
-const PLATFORM_ROLE_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: 'PatientAdvocate', label: 'Patient Advocate' },
-  { value: 'Clinician', label: 'Clinician' },
-  { value: 'Researcher', label: 'Researcher' },
-  { value: 'Moderator', label: 'Moderator' },
-  { value: 'HubCoordinator', label: 'Hub Coordinator' },
-  { value: 'IndustryPartner', label: 'Industry Partner' },
-  { value: 'BoardMember', label: 'Board Member' },
-  { value: 'PlatformAdmin', label: 'Platform Admin' },
-]
+/** Derived from the canonical ROLE_LABELS so labels never diverge from the source of truth. */
+const PLATFORM_ROLE_OPTIONS = (Object.entries(ROLE_LABELS) as [string, string][]).map(
+  ([value, label]) => ({ value, label })
+)
 
 const CONGRESS_ROLE_OPTIONS = [
   'Congress Lead',

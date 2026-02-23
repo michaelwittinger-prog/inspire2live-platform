@@ -8,6 +8,71 @@ export type PlatformRole =
   | 'BoardMember'
   | 'PlatformAdmin'
 
+/**
+ * Human-readable labels for every platform role.
+ * Always use this map when displaying role names in the UI.
+ * Never render raw DB values directly.
+ */
+export const ROLE_LABELS: Record<PlatformRole, string> = {
+  PatientAdvocate: 'Patient Advocate',
+  Clinician:       'Clinician',
+  Researcher:      'Researcher',
+  Moderator:       'Moderator',
+  HubCoordinator:  'Hub Coordinator',
+  IndustryPartner: 'Industry Partner',
+  BoardMember:     'Board Member',
+  PlatformAdmin:   'Platform Admin',
+}
+
+/**
+ * Tailwind colour classes for role badges.
+ * Always use this instead of inline maps in pages/components.
+ */
+export const ROLE_BADGE_COLORS: Record<PlatformRole, string> = {
+  PlatformAdmin:   'bg-red-100 text-red-700',
+  BoardMember:     'bg-purple-100 text-purple-700',
+  HubCoordinator:  'bg-orange-100 text-orange-700',
+  PatientAdvocate: 'bg-blue-100 text-blue-700',
+  Researcher:      'bg-emerald-100 text-emerald-700',
+  Clinician:       'bg-teal-100 text-teal-700',
+  Moderator:       'bg-pink-100 text-pink-700',
+  IndustryPartner: 'bg-amber-100 text-amber-700',
+}
+
+/**
+ * Legacy / alternate DB values that may appear in older records.
+ * Maps them to the canonical PlatformRole value.
+ */
+const LEGACY_ROLE_MAP: Record<string, PlatformRole> = {
+  patient:          'PatientAdvocate',
+  advocate:         'PatientAdvocate',
+  patient_advocate: 'PatientAdvocate',
+  patientuser:      'PatientAdvocate',
+  'patient user':   'PatientAdvocate',
+  admin:            'PlatformAdmin',
+  hub_coordinator:  'HubCoordinator',
+  board_member:     'BoardMember',
+  industry_partner: 'IndustryPartner',
+}
+
+/**
+ * Returns the human-readable label for any role string,
+ * including legacy values. Safe to call with untrusted DB data.
+ */
+export function getRoleLabel(role?: string | null): string {
+  if (!role) return ROLE_LABELS.PatientAdvocate
+  const normalized = normalizeRole(role)
+  return ROLE_LABELS[normalized]
+}
+
+/**
+ * Returns the badge colour classes for any role string.
+ */
+export function getRoleBadgeColor(role?: string | null): string {
+  const normalized = normalizeRole(role)
+  return ROLE_BADGE_COLORS[normalized] ?? 'bg-neutral-100 text-neutral-600'
+}
+
 export type NavKey =
   | 'dashboard'
   | 'initiatives'
@@ -128,6 +193,9 @@ const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
 export function normalizeRole(role?: string | null): PlatformRole {
   if (!role) return DEFAULT_ROLE
   if (role in ACCESS_BY_ROLE) return role as PlatformRole
+  // Handle legacy values
+  const lower = role.toLowerCase().trim()
+  if (lower in LEGACY_ROLE_MAP) return LEGACY_ROLE_MAP[lower]
   return DEFAULT_ROLE
 }
 

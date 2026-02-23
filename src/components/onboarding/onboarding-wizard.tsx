@@ -3,7 +3,9 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { ROLE_LABELS } from '@/lib/role-access'
 
+/** Roles available for self-selection during onboarding (excludes admin/moderator) */
 type RoleOption =
   | 'PatientAdvocate'
   | 'Clinician'
@@ -29,35 +31,29 @@ type InitiativeOption = {
   phase: string
 }
 
-const ROLE_OPTIONS: { value: RoleOption; label: string; hint: string }[] = [
+const ROLE_OPTIONS: { value: RoleOption; hint: string }[] = [
   {
     value: 'PatientAdvocate',
-    label: 'Patient Advocate',
     hint: 'Lived-experience leadership and patient-centered advocacy',
   },
   {
     value: 'Clinician',
-    label: 'Clinician',
     hint: 'Clinical pathway design, care quality, implementation insights',
   },
   {
     value: 'Researcher',
-    label: 'Researcher',
     hint: 'Evidence generation, analysis, and knowledge translation',
   },
   {
     value: 'HubCoordinator',
-    label: 'Hub Coordinator',
     hint: 'Regional orchestration, convening, and execution governance',
   },
   {
     value: 'IndustryPartner',
-    label: 'Industry Partner',
     hint: 'Scoped contribution under transparency and neutrality rules',
   },
   {
     value: 'BoardMember',
-    label: 'Board Member',
     hint: 'Strategic oversight and milestone governance',
   },
 ]
@@ -179,7 +175,7 @@ export function OnboardingWizard({
                       : 'border-neutral-200 hover:border-neutral-300'
                   }`}
                 >
-                  <p className="font-medium text-neutral-900">{option.label}</p>
+                  <p className="font-medium text-neutral-900">{ROLE_LABELS[option.value]}</p>
                   <p className="mt-1 text-xs text-neutral-600">{option.hint}</p>
                 </button>
               ))}
