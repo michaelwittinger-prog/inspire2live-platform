@@ -10,18 +10,6 @@ export type UserRow = {
 }
 
 type OverrideRow = { user_id: string; space: string; access_level: string }
-type ProfileRow = { id: string; name: string | null; role: string | null }
-
-type QueryResult<T> = Promise<{ data: T | null; error: { message: string; code?: string } | null }>
-
-type AdminPermissionsSupabase = {
-  from: (table: 'profiles' | 'user_space_permissions') => {
-    select: (columns: string) => {
-      order: (column: string) => QueryResult<ProfileRow[]>
-      eq: (column: string, value: string) => QueryResult<OverrideRow[]>
-    }
-  }
-}
 
 export type AdminPermissionsData = {
   users: UserRow[]
@@ -29,8 +17,16 @@ export type AdminPermissionsData = {
   pageError: string | null
 }
 
+/**
+ * Loads all profiles + permission overrides for the admin permissions page.
+ *
+ * Accepts `any` for the supabase client to avoid deep type-instantiation issues
+ * with the generated Database types. The function is only called from the
+ * admin permissions Server Component which already validates the client.
+ */
 export async function loadAdminPermissionsData(
-  supabase: AdminPermissionsSupabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any
 ): Promise<AdminPermissionsData> {
   try {
     const { data: profiles, error: profilesError } = await supabase
@@ -50,7 +46,7 @@ export async function loadAdminPermissionsData(
       overrideMap.get(o.user_id)!.set(o.space, o.access_level as AccessLevel)
     }
 
-    const users: UserRow[] = (profiles ?? []).map((p) => {
+    const users: UserRow[] = (profiles ?? []).map((p: { id: string; name: string | null; role: string | null }) => {
       const userOverrides = overrideMap.get(p.id)
       const overrides = Object.fromEntries(
         PLATFORM_SPACES.map((space) => [space, userOverrides?.get(space) ?? null])

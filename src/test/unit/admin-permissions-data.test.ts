@@ -46,9 +46,7 @@ describe('loadAdminPermissionsData', () => {
       },
     })
 
-    const result = await loadAdminPermissionsData(
-      supabase as unknown as Parameters<typeof loadAdminPermissionsData>[0]
-    )
+    const result = await loadAdminPermissionsData(supabase)
 
     expect(result.pageError).toBeNull()
     expect(result.users).toHaveLength(1)
@@ -66,9 +64,7 @@ describe('loadAdminPermissionsData', () => {
       },
     })
 
-    const result = await loadAdminPermissionsData(
-      supabase as unknown as Parameters<typeof loadAdminPermissionsData>[0]
-    )
+    const result = await loadAdminPermissionsData(supabase)
 
     expect(result.pageError).toContain('migration 00022 likely not applied')
     expect(result.users).toHaveLength(1)
@@ -79,9 +75,7 @@ describe('loadAdminPermissionsData', () => {
       profiles: { data: null, error: { message: 'permission denied for table profiles' } },
     })
 
-    const result = await loadAdminPermissionsData(
-      supabase as unknown as Parameters<typeof loadAdminPermissionsData>[0]
-    )
+    const result = await loadAdminPermissionsData(supabase)
 
     expect(result.pageError).toBe('profiles: permission denied for table profiles')
     expect(result.users).toHaveLength(0)
@@ -90,9 +84,7 @@ describe('loadAdminPermissionsData', () => {
   it('catches unexpected thrown exceptions and returns a safe error', async () => {
     const supabase = makeSupabaseMock({ throwOnOverrides: true })
 
-    const result = await loadAdminPermissionsData(
-      supabase as unknown as Parameters<typeof loadAdminPermissionsData>[0]
-    )
+    const result = await loadAdminPermissionsData(supabase)
 
     expect(result.pageError).toContain('unexpected: simulated override query crash')
     expect(result.users).toEqual([])

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { canAccessAppPath, getSideNavItems, type NavKey } from '@/lib/role-access'
+import { canAccessAppPath, getSideNavItems, getRoleLabel, ROLE_LABELS, type NavKey } from '@/lib/role-access'
 import { RoleChips } from '@/components/roles/role-chips'
 
 /* ── icon helper (same set as side-nav, inlined for mobile menu) ────────── */
@@ -45,16 +45,10 @@ function MobileNavIcon({ navKey }: { navKey: NavKey }) {
   }
 }
 
-const ALL_PERSPECTIVE_ROLES = [
-  { value: 'PlatformAdmin', label: 'Admin (default)' },
-  { value: 'PatientAdvocate', label: 'Patient' },
-  { value: 'Clinician', label: 'Clinician' },
-  { value: 'Researcher', label: 'Researcher' },
-  { value: 'Moderator', label: 'Moderator' },
-  { value: 'HubCoordinator', label: 'Hub Coordinator' },
-  { value: 'IndustryPartner', label: 'Industry Partner' },
-  { value: 'BoardMember', label: 'Board Member' },
-]
+const ALL_PERSPECTIVE_ROLES = Object.entries(ROLE_LABELS).map(([value, label]) => ({
+  value,
+  label: value === 'PlatformAdmin' ? `${label} (default)` : label,
+}))
 
 interface TopNavProps {
   userName: string
@@ -103,16 +97,6 @@ export function TopNav({ userName, userRole, userInitials, unreadCount = 0, isAd
     router.refresh()
   }
 
-  const roleLabel: Record<string, string> = {
-    PatientAdvocate: 'Patient',
-    Clinician: 'Clinician',
-    Researcher: 'Researcher',
-    Moderator: 'Moderator',
-    HubCoordinator: 'Hub Coordinator',
-    IndustryPartner: 'Partner',
-    BoardMember: 'Board Member',
-    PlatformAdmin: 'Platform Admin',
-  }
 
   const notificationsAccessible = canAccessAppPath(userRole, '/app/notifications')
   const navItems = getSideNavItems(userRole)
@@ -224,7 +208,7 @@ export function TopNav({ userName, userRole, userInitials, unreadCount = 0, isAd
               <div className="absolute right-0 mt-1 w-52 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg" role="menu">
                 <div className="border-b border-neutral-100 px-3 py-2">
                   <p className="text-xs font-medium text-neutral-900 truncate">{userName}</p>
-                  <p className="text-xs text-neutral-500">{roleLabel[userRole] ?? userRole}</p>
+                  <p className="text-xs text-neutral-500">{getRoleLabel(userRole)}</p>
                 </div>
 
                 <Link
@@ -326,7 +310,7 @@ export function TopNav({ userName, userRole, userInitials, unreadCount = 0, isAd
             {/* Drawer footer: user info */}
             <div className="absolute bottom-0 left-0 right-0 border-t border-neutral-200 p-4">
               <p className="truncate text-sm font-medium text-neutral-900">{userName}</p>
-              <p className="text-xs text-neutral-500">{roleLabel[userRole] ?? userRole}</p>
+              <p className="text-xs text-neutral-500">{getRoleLabel(userRole)}</p>
             </div>
           </nav>
         </div>

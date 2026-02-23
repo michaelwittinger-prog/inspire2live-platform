@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { TopNav } from '@/components/layouts/top-nav'
 import { SideNav } from '@/components/layouts/side-nav'
-import { canAccessAppPath } from '@/lib/role-access'
+import { canAccessAppPath, normalizeRole } from '@/lib/role-access'
 import { resolveAllSpaces } from '@/lib/permissions'
 import { getViewAsRole } from '@/lib/view-as'
 import { switchPerspective } from './admin/view-as-action'
@@ -40,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .eq('is_read', false)
 
   const name = profile?.name || user.email || 'Unknown'
-  let actualRole = profile?.role || 'PatientAdvocate'
+  let actualRole = normalizeRole(profile?.role)
 
   // Auto-promote bootstrap admin emails to PlatformAdmin
   const ADMIN_EMAILS = ['michael.wittinger@gmail.com', 'michael.wittinger@multivision.ai']
