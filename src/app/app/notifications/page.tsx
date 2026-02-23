@@ -149,7 +149,7 @@ export default async function NotificationsPage() {
               </p>
               <p className="mt-0.5 text-xs text-neutral-500">{String(n.body ?? '')}</p>
               <p className="mt-1 text-xs text-neutral-400">{timeAgo(n.created_at)}</p>
-              {'link' in n && n.link && (
+              {'link' in n && typeof n.link === 'string' && n.link && (
                 <a href={n.link} className="mt-1 block text-xs text-orange-600 hover:underline">
                   View →
                 </a>
