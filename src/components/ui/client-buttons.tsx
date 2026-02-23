@@ -4,6 +4,29 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+const PLATFORM_ROLE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'PatientAdvocate', label: 'Patient Advocate' },
+  { value: 'Clinician', label: 'Clinician' },
+  { value: 'Researcher', label: 'Researcher' },
+  { value: 'Moderator', label: 'Moderator' },
+  { value: 'HubCoordinator', label: 'Hub Coordinator' },
+  { value: 'IndustryPartner', label: 'Industry Partner' },
+  { value: 'BoardMember', label: 'Board Member' },
+  { value: 'PlatformAdmin', label: 'Platform Admin' },
+]
+
+const CONGRESS_ROLE_OPTIONS = [
+  'Congress Lead',
+  'Scientific Lead',
+  'Ops Lead',
+  'Sponsor Lead',
+  'Comms Lead',
+  'Finance',
+  'Compliance Reviewer',
+  'Contributor',
+  'Observer',
+] as const
+
 /* ─── Generic placeholder button (replaces alert-only buttons) ─────────── */
 export function PlaceholderButton({
   label,
@@ -107,17 +130,6 @@ export function EditRoleButton({ userName, userId, currentRole }: { userName: st
   const [saved, setSaved] = useState(false)
   const router = useRouter()
 
-  const roles: Array<{ value: string; label: string }> = [
-    { value: 'PatientAdvocate', label: 'Patient' },
-    { value: 'Clinician', label: 'Clinician' },
-    { value: 'Researcher', label: 'Researcher' },
-    { value: 'Moderator', label: 'Moderator' },
-    { value: 'HubCoordinator', label: 'Hub Coordinator' },
-    { value: 'IndustryPartner', label: 'Industry Partner' },
-    { value: 'BoardMember', label: 'Board Member' },
-    { value: 'PlatformAdmin', label: 'Platform Admin' },
-  ]
-
   const handleSave = async () => {
     setSaving(true)
     const supabase = createClient()
@@ -153,7 +165,7 @@ export function EditRoleButton({ userName, userId, currentRole }: { userName: st
               onChange={(e) => setRole(e.target.value)}
               className="mt-3 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
             >
-              {roles.map((r) => (
+              {PLATFORM_ROLE_OPTIONS.map((r) => (
                 <option key={r.value} value={r.value}>{r.label}</option>
               ))}
             </select>
@@ -178,17 +190,6 @@ export function InviteUserButton() {
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const router = useRouter()
-
-  const roles = [
-    { value: 'PatientAdvocate', label: 'Patient' },
-    { value: 'Clinician', label: 'Clinician' },
-    { value: 'Researcher', label: 'Researcher' },
-    { value: 'Moderator', label: 'Moderator' },
-    { value: 'HubCoordinator', label: 'Hub Coordinator' },
-    { value: 'IndustryPartner', label: 'Industry Partner' },
-    { value: 'BoardMember', label: 'Board Member' },
-    { value: 'PlatformAdmin', label: 'Platform Admin' },
-  ]
 
   const handleInvite = async () => {
     if (!email.trim()) return
@@ -246,7 +247,7 @@ export function InviteUserButton() {
                   onChange={(e) => setRole(e.target.value)}
                   className="w-full rounded-lg border border-neutral-300 px-3 py-2"
                 >
-                  {roles.map((r) => (
+                  {PLATFORM_ROLE_OPTIONS.map((r) => (
                     <option key={r.value} value={r.value}>{r.label}</option>
                   ))}
                 </select>
@@ -265,6 +266,174 @@ export function InviteUserButton() {
                 className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50"
               >
                 {sent ? '✓ Sent!' : sending ? 'Sending...' : 'Send Invite'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+export function AssignCongressRolesButton({
+  userName,
+  userId,
+  congressId,
+  congressTitle,
+}: {
+  userName: string
+  userId: string
+  congressId: string | null
+  congressTitle?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([])
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+  const router = useRouter()
+
+  const toggleRole = (role: string) => {
+    setSelectedRoles((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]
+    )
+  }
+
+  const loadAssignments = async () => {
+    if (!congressId) {
+      setError('No congress event found. Please create/select an event first.')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    const supabase = createClient()
+    const { data, error: fetchError } = await supabase
+      .from('congress_assignments')
+      .select('project_role')
+      .eq('user_id', userId)
+      .eq('congress_id', congressId)
+
+    setLoading(false)
+    if (fetchError) {
+      setError(fetchError.message)
+      return
+    }
+    setSelectedRoles((data ?? []).map((r) => r.project_role))
+  }
+
+  const handleOpen = async () => {
+    setOpen(true)
+    setSaved(false)
+    await loadAssignments()
+  }
+
+  const handleSave = async () => {
+    if (!congressId) {
+      setError('No congress event selected.')
+      return
+    }
+
+    setSaving(true)
+    setError(null)
+    const supabase = createClient()
+
+    const { error: deleteError } = await supabase
+      .from('congress_assignments')
+      .delete()
+      .eq('user_id', userId)
+      .eq('congress_id', congressId)
+
+    if (deleteError) {
+      setSaving(false)
+      setError(deleteError.message)
+      return
+    }
+
+    if (selectedRoles.length > 0) {
+      const today = new Date().toISOString().slice(0, 10)
+      const rows = selectedRoles.map((project_role) => ({
+        user_id: userId,
+        congress_id: congressId,
+        project_role,
+        scope_all: true,
+        workstream_ids: [] as string[],
+        effective_from: today,
+      }))
+
+      const { error: insertError } = await supabase
+        .from('congress_assignments')
+        .insert(rows)
+
+      if (insertError) {
+        setSaving(false)
+        setError(insertError.message)
+        return
+      }
+    }
+
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => {
+      setOpen(false)
+      setSaved(false)
+      router.refresh()
+    }, 900)
+  }
+
+  return (
+    <>
+      <button
+        onClick={handleOpen}
+        disabled={!congressId}
+        className="rounded border border-neutral-300 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Congress Roles
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setOpen(false)}>
+          <div className="mx-4 w-full max-w-lg rounded-xl border border-neutral-200 bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-neutral-900">Assign congress roles for {userName}</h3>
+            <p className="mt-1 text-xs text-neutral-500">
+              Event: <span className="font-medium text-neutral-700">{congressTitle ?? 'Current Congress'}</span>
+            </p>
+
+            {loading ? (
+              <div className="mt-4 text-sm text-neutral-500">Loading current assignments…</div>
+            ) : (
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {CONGRESS_ROLE_OPTIONS.map((role) => {
+                  const checked = selectedRoles.includes(role)
+                  return (
+                    <label key={role} className="flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-200 px-2 py-1.5 text-sm hover:bg-neutral-50">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleRole(role)}
+                        className="h-4 w-4 rounded border-neutral-300"
+                      />
+                      <span>{role}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+
+            {error && (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {error}
+              </div>
+            )}
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setOpen(false)} className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50">Cancel</button>
+              <button
+                onClick={handleSave}
+                disabled={saving || loading || saved}
+                className="rounded-lg bg-orange-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50"
+              >
+                {saved ? '✓ Saved' : saving ? 'Saving…' : 'Save Roles'}
               </button>
             </div>
           </div>
