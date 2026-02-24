@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useActionState } from 'react'
+import { useParams } from 'next/navigation'
 import { DEMO_TEAM_MEMBERS_RICH } from '@/lib/demo-data'
 import { ActionModal } from '@/components/ui/action-modal'
 import { InviteCombobox } from '@/components/ui/invite-combobox'
@@ -189,9 +190,10 @@ const DEMO_MEMBERS: TeamMember[] = DEMO_TEAM_MEMBERS_RICH
 
 export default function TeamPage() {
   const [inviteOpen, setInviteOpen] = useState(false)
-  // TODO: read initiativeId from params via server component; placeholder for now
-  const initiativeId = 'demo'
-  const initiativeTitle = 'Demo Initiative'
+  const params = useParams<{ id?: string | string[] }>()
+  const rawId = params?.id
+  const initiativeId = Array.isArray(rawId) ? rawId[0] : (rawId ?? '')
+  const initiativeTitle = 'Initiative'
 
   const members: TeamMember[] = DEMO_MEMBERS
   const sorted = [...members].sort((a, b) => {
@@ -210,6 +212,7 @@ export default function TeamPage() {
         </div>
         <button
           onClick={() => setInviteOpen(true)}
+          disabled={!initiativeId}
           className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-700"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

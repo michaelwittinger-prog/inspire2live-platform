@@ -15,6 +15,10 @@ export interface InviteFormState {
   emailSent?: boolean
 }
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
 /**
  * Send an invitation to join an initiative.
  * Expects a FormData with:
@@ -34,6 +38,9 @@ export async function sendInitiativeInvite(
   const message         = (formData.get('message') as string | null) || undefined
 
   if (!initiativeId) return { ok: false, error: 'Missing initiative ID.' }
+  if (!isUuid(initiativeId)) {
+    return { ok: false, error: 'Invalid initiative ID. Open a real initiative workspace before sending invites.' }
+  }
 
   const supabase = await createClient()
 

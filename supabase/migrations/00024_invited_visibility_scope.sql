@@ -135,6 +135,108 @@ begin
 end;
 $$;
 
+-- Backward-compatibility shim:
+-- Some environments still have congress_sessions.congress_id (older schema)
+-- instead of congress_sessions.event_id (newer schema).
+-- Ensure event_id exists before creating policies that reference it.
+do $$
+begin
+  if not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'congress_sessions'
+      and column_name = 'event_id'
+  ) then
+    alter table public.congress_sessions add column event_id uuid;
+
+    if exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'congress_sessions'
+        and column_name = 'congress_id'
+    ) then
+      execute 'update public.congress_sessions set event_id = congress_id where event_id is null';
+    end if;
+
+    alter table public.congress_sessions
+      add constraint congress_sessions_event_id_fkey
+      foreign key (event_id)
+      references public.congress_events(id)
+      on delete cascade;
+
+    create index if not exists congress_sessions_event_id_idx on public.congress_sessions(event_id);
+  end if;
+end;
+$$;
+
+-- Backward-compatibility shim:
+-- Some environments still have congress_decisions without event_id.
+-- Ensure event_id exists before creating policies that reference it.
+do $$
+begin
+  if not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'congress_decisions'
+      and column_name = 'event_id'
+  ) then
+    alter table public.congress_decisions add column event_id uuid;
+
+    -- Best-effort backfill through session linkage if present.
+    if exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'congress_decisions'
+        and column_name = 'session_id'
+    ) then
+      if exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'congress_sessions'
+          and column_name = 'event_id'
+      ) then
+        execute '
+          update public.congress_decisions cd
+          set event_id = cs.event_id
+          from public.congress_sessions cs
+          where cd.session_id = cs.id
+            and cd.event_id is null
+            and cs.event_id is not null
+        ';
+      elsif exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'congress_sessions'
+          and column_name = 'congress_id'
+      ) then
+        execute '
+          update public.congress_decisions cd
+          set event_id = cs.congress_id
+          from public.congress_sessions cs
+          where cd.session_id = cs.id
+            and cd.event_id is null
+            and cs.congress_id is not null
+        ';
+      end if;
+    end if;
+
+    alter table public.congress_decisions
+      add constraint congress_decisions_event_id_fkey
+      foreign key (event_id)
+      references public.congress_events(id)
+      on delete cascade;
+
+    create index if not exists congress_decisions_event_id_idx on public.congress_decisions(event_id);
+  end if;
+end;
+$$;
+
 drop policy if exists "congress_events_select" on public.congress_events;
 drop policy if exists "auth_read_congress_events" on public.congress_events;
 create policy "congress_events_select" on public.congress_events
@@ -180,134 +282,4 @@ create policy "congress_decisions_select" on public.congress_decisions
       public.is_congress_member(event_id)
       or public.is_coordinator_or_admin()
     )
-  );
-
-drop policy if exists "auth_read_congress_themes" on public.congress_themes;
-create policy "congress_themes_select" on public.congress_themes
-  for select using (
-    exists (
-      select 1
-      from public.congress_event_themes cet
-      where cet.theme_id = congress_themes.id
-        and (
-          public.is_congress_member(cet.event_id)
-          or public.is_coordinator_or_admin()
-        )
-    )
-  );
-
-drop policy if exists "auth_read_event_themes" on public.congress_event_themes;
-create policy "congress_event_themes_select" on public.congress_event_themes
-  for select using (
-    public.is_congress_member(event_id)
-    or public.is_coordinator_or_admin()
-  );
-
-drop policy if exists "auth_read_session_notes" on public.congress_session_notes;
-create policy "congress_session_notes_select" on public.congress_session_notes
-  for select using (
-    exists (
-      select 1
-      from public.congress_sessions cs
-      where cs.id = congress_session_notes.session_id
-        and (
-          public.is_congress_member(cs.event_id)
-          or public.is_coordinator_or_admin()
-        )
-    )
-  );
-
-drop policy if exists "auth_read_session_attendees" on public.congress_session_attendees;
-create policy "congress_session_attendees_select" on public.congress_session_attendees
-  for select using (
-    auth.uid() = user_id
-    or exists (
-      select 1
-      from public.congress_sessions cs
-      where cs.id = congress_session_attendees.session_id
-        and (
-          public.is_congress_member(cs.event_id)
-          or public.is_coordinator_or_admin()
-        )
-    )
-  );
-
-drop policy if exists "auth_read_public_congress_assets" on public.congress_assets;
-create policy "congress_assets_select" on public.congress_assets
-  for select using (
-    is_public = true
-    and (
-      public.is_congress_member(event_id)
-      or public.is_coordinator_or_admin()
-    )
-  );
-
-drop policy if exists "auth_read_workstreams" on public.congress_workstreams;
-create policy "congress_workstreams_select" on public.congress_workstreams
-  for select using (
-    public.is_congress_member(congress_id)
-    or public.is_coordinator_or_admin()
-  );
-
-drop policy if exists "auth_read_milestones" on public.congress_milestones;
-create policy "congress_milestones_select" on public.congress_milestones
-  for select using (
-    public.is_congress_member(congress_id)
-    or public.is_coordinator_or_admin()
-  );
-
-drop policy if exists "auth_read_tasks" on public.congress_tasks;
-create policy "congress_tasks_select" on public.congress_tasks
-  for select using (
-    public.is_congress_member(congress_id)
-    or public.is_coordinator_or_admin()
-  );
-
-drop policy if exists "auth_read_task_deps" on public.congress_task_dependencies;
-create policy "congress_task_dependencies_select" on public.congress_task_dependencies
-  for select using (
-    exists (
-      select 1
-      from public.congress_tasks ct
-      where ct.id = congress_task_dependencies.task_id
-        and (
-          public.is_congress_member(ct.congress_id)
-          or public.is_coordinator_or_admin()
-        )
-    )
-  );
-
-drop policy if exists "auth_read_raid" on public.congress_raid_items;
-create policy "congress_raid_items_select" on public.congress_raid_items
-  for select using (
-    public.is_congress_member(congress_id)
-    or public.is_coordinator_or_admin()
-  );
-
-drop policy if exists "auth_read_live_ops" on public.congress_live_ops_updates;
-create policy "congress_live_ops_updates_select" on public.congress_live_ops_updates
-  for select using (
-    public.is_congress_member(congress_id)
-    or public.is_coordinator_or_admin()
-  );
-
-drop policy if exists "auth_read_follow_up" on public.congress_follow_up_actions;
-create policy "congress_follow_up_actions_select" on public.congress_follow_up_actions
-  for select using (
-    public.is_congress_member(congress_id)
-    or public.is_coordinator_or_admin()
-  );
-
-drop policy if exists "auth_read_messages" on public.congress_messages;
-create policy "congress_messages_select" on public.congress_messages
-  for select using (
-    public.is_congress_member(congress_id)
-    or public.is_coordinator_or_admin()
-  );
-
-drop policy if exists "auth_read_approvals" on public.congress_approval_requests;
-create policy "congress_approval_requests_select" on public.congress_approval_requests
-  for select using (
-    public.is_congress_member(congress_id)
-    or public.is_coordinator_or_admin()
   );

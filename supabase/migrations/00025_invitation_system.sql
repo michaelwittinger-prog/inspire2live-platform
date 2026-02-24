@@ -125,6 +125,74 @@ create table if not exists public.initiative_members (
 create index if not exists initiative_members_initiative_idx on public.initiative_members(initiative_id);
 create index if not exists initiative_members_user_idx       on public.initiative_members(user_id);
 
+-- Backward-compatibility shim:
+-- initiative_members may already exist from older schema versions.
+-- Ensure required invitation-era columns are present.
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'initiative_members' and column_name = 'member_role'
+  ) then
+    alter table public.initiative_members add column member_role text;
+    update public.initiative_members set member_role = coalesce(member_role, 'contributor');
+    alter table public.initiative_members alter column member_role set default 'contributor';
+    alter table public.initiative_members alter column member_role set not null;
+    alter table public.initiative_members
+      add constraint initiative_members_member_role_check
+      check (member_role in ('lead', 'contributor', 'reviewer', 'observer'));
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'initiative_members' and column_name = 'invite_status'
+  ) then
+    alter table public.initiative_members add column invite_status text;
+    update public.initiative_members set invite_status = coalesce(invite_status, 'accepted');
+    alter table public.initiative_members alter column invite_status set default 'accepted';
+    alter table public.initiative_members alter column invite_status set not null;
+    alter table public.initiative_members
+      add constraint initiative_members_invite_status_check
+      check (invite_status in ('invited', 'accepted', 'declined', 'revoked'));
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'initiative_members' and column_name = 'invited_by'
+  ) then
+    alter table public.initiative_members add column invited_by uuid references public.profiles(id) on delete set null;
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'initiative_members' and column_name = 'invited_at'
+  ) then
+    alter table public.initiative_members add column invited_at timestamptz not null default now();
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'initiative_members' and column_name = 'accepted_at'
+  ) then
+    alter table public.initiative_members add column accepted_at timestamptz;
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'initiative_members' and column_name = 'created_at'
+  ) then
+    alter table public.initiative_members add column created_at timestamptz not null default now();
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'initiative_members' and column_name = 'updated_at'
+  ) then
+    alter table public.initiative_members add column updated_at timestamptz not null default now();
+  end if;
+end;
+$$;
+
 alter table public.initiative_members enable row level security;
 
 drop policy if exists "initiative_members_select" on public.initiative_members;
@@ -194,13 +262,13 @@ create policy "email_log_update" on public.email_log
 -- 4) Helper: is_initiative_member (used in RLS)
 -- ─────────────────────────────────────────────────────────────
 
-create or replace function public.is_initiative_member(p_initiative_id uuid)
+create or replace function public.is_initiative_member(init_id uuid)
 returns boolean as $$
   select (
     exists (
       select 1
       from public.initiative_members im
-      where im.initiative_id = p_initiative_id
+      where im.initiative_id = init_id
         and im.user_id = auth.uid()
         and im.invite_status = 'accepted'
     )
