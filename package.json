@@ -8,7 +8,13 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:clean": "node scripts/dev-clean.mjs",
+    "dev:safe": "pnpm run dev:clean && next dev",
     "check:vercel-json": "node scripts/validate-vercel-json.mjs",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset",
+    "db:status": "supabase migration list",
+    "db:push:win": "pwsh -File scripts/db-push.ps1",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

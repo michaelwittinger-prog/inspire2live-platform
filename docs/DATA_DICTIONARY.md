@@ -1,0 +1,291 @@
+# Data Dictionary — Inspire2Live Platform
+
+> **Purpose:** Human-readable database schema reference. Table descriptions, key columns, relationships.  
+> **Source of truth:** `supabase/migrations/` (00001–00026) and `src/types/database.ts`  
+> **Audience:** Developers writing queries, new team members understanding the data model.  
+> **Last reviewed:** 2026-02-24
+
+---
+
+## 1 · Schema Overview
+
+```
+┌─────────────┐     ┌──────────────────┐     ┌─────────────┐
+│  profiles    │────<│ initiative_members│>────│ initiatives │
+└─────────────┘     └──────────────────┘     └─────────────┘
+       │                                            │
+       │            ┌──────────────────┐     ┌──────┴──────┐
+       │────────────│  invitations     │     │   tasks     │
+       │            └──────────────────┘     ├─────────────┤
+       │                                     │ milestones  │
+       │            ┌──────────────────┐     ├─────────────┤
+       │────────────│ congress_members │     │  evidence   │
+       │            └────────┬─────────┘     └─────────────┘
+       │                     │
+       │            ┌────────┴─────────┐
+       │            │   congresses     │
+       │            └────────┬─────────┘
+       │                     │
+       │            ┌────────┴─────────────────────┐
+       │            │ congress_workspace_* tables   │
+       │            └──────────────────────────────┘
+       │
+       │            ┌──────────────────┐
+       │────────────│ patient_stories  │
+       │            └──────────────────┘
+       │
+       │            ┌──────────────────┐
+       └────────────│  notifications   │
+                    └──────────────────┘
+```
+
+---
+
+## 2 · Core Tables
+
+### `profiles`
+User accounts — one row per authenticated user. Extends Supabase `auth.users`.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Matches `auth.users.id` |
+| `email` | text | User email (unique) |
+| `name` | text | Display name |
+| `role` | text | Platform role (see Role Permission Model) |
+| `avatar_url` | text | URL to avatar in Supabase Storage |
+| `bio` | text | Short biography |
+| `organization` | text | Affiliated organization |
+| `country` | text | Country of residence |
+| `onboarding_complete` | boolean | Whether onboarding wizard was completed |
+| `created_at` | timestamptz | Account creation time |
+| `updated_at` | timestamptz | Last profile update |
+
+**RLS:** Owner can read/write own row. Admins can read all.
+
+---
+
+### `initiatives`
+Research initiatives — the core organizational unit.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `title` | text | Initiative name |
+| `description` | text | Full description |
+| `status` | text | `active`, `completed`, `archived` |
+| `health` | text | RAG status: `green`, `amber`, `red` |
+| `lead_id` | uuid (FK → profiles) | Initiative lead |
+| `created_at` | timestamptz | Creation time |
+| `updated_at` | timestamptz | Last update |
+
+**RLS:** Authenticated users with space access can read. Members can edit.
+
+---
+
+### `initiative_members`
+Many-to-many: users ↔ initiatives.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `initiative_id` | uuid (FK → initiatives) | The initiative |
+| `user_id` | uuid (FK → profiles) | The member |
+| `role` | text | `lead`, `contributor`, `observer` |
+| `joined_at` | timestamptz | When user joined |
+
+---
+
+### `tasks`
+Work items within an initiative.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `initiative_id` | uuid (FK → initiatives) | Parent initiative |
+| `title` | text | Task name |
+| `description` | text | Task details |
+| `status` | text | `todo`, `in_progress`, `done`, `blocked` |
+| `priority` | text | `low`, `medium`, `high`, `urgent` |
+| `assignee_id` | uuid (FK → profiles) | Assigned user |
+| `due_date` | date | Deadline |
+| `created_at` | timestamptz | Creation time |
+
+---
+
+### `milestones`
+Key deliverables within an initiative.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `initiative_id` | uuid (FK → initiatives) | Parent initiative |
+| `title` | text | Milestone name |
+| `due_date` | date | Target date |
+| `completed_at` | timestamptz | Actual completion (null if pending) |
+| `status` | text | `pending`, `completed`, `overdue` |
+
+---
+
+### `evidence`
+Supporting documents / files for initiatives.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `initiative_id` | uuid (FK → initiatives) | Parent initiative |
+| `title` | text | Document title |
+| `file_url` | text | Supabase Storage URL |
+| `uploaded_by` | uuid (FK → profiles) | Uploader |
+| `created_at` | timestamptz | Upload time |
+
+---
+
+## 3 · Congress Tables
+
+### `congresses`
+Congress events with lifecycle states.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `title` | text | Congress name |
+| `year` | integer | Congress year |
+| `status` | text | `planning`, `active`, `post_event`, `archived` |
+| `start_date` | date | Event start |
+| `end_date` | date | Event end |
+| `location` | text | Venue / virtual |
+| `created_at` | timestamptz | Creation time |
+
+### `congress_members`
+Congress participation roles.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `congress_id` | uuid (FK → congresses) | The congress |
+| `user_id` | uuid (FK → profiles) | The participant |
+| `role` | text | `organizer`, `speaker`, `moderator`, `attendee`, `volunteer` |
+
+### Congress Workspace Tables
+
+Created in migration 00014:
+
+| Table | Purpose |
+|-------|---------|
+| `congress_workstreams` | Workstream tracks within a congress |
+| `congress_workspace_tasks` | Tasks for congress preparation |
+| `congress_raid_items` | Risk, Assumption, Issue, Dependency log |
+| `congress_approvals` | Approval workflows |
+| `congress_messages` | Communication threads |
+| `congress_activity_log` | Audit trail of workspace actions |
+
+---
+
+## 4 · Patient Stories
+
+### `patient_stories`
+Patient-authored narratives with review workflow.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `author_id` | uuid (FK → profiles) | Story author |
+| `title` | text | Story title |
+| `content` | text | Full narrative |
+| `slug` | text | URL-friendly identifier |
+| `status` | text | `draft`, `in_review`, `published`, `withdrawn` |
+| `reviewer_id` | uuid (FK → profiles) | Assigned reviewer |
+| `published_at` | timestamptz | Publication date |
+| `created_at` | timestamptz | Creation time |
+
+**RLS:** Drafts visible only to author + assigned reviewer. Published stories are public.
+
+---
+
+## 5 · Invitations & Notifications
+
+### `invitations`
+Invitation records for initiative/congress membership.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `scope` | text | `initiative`, `congress`, `platform` |
+| `initiative_id` | uuid (FK, nullable) | Target initiative |
+| `congress_id` | uuid (FK, nullable) | Target congress |
+| `inviter_id` | uuid (FK → profiles) | Who sent the invitation |
+| `invitee_email` | text | Invitee email |
+| `invitee_user_id` | uuid (FK, nullable) | Invitee if already registered |
+| `invitee_role` | text | Proposed role |
+| `status` | text | `pending`, `accepted`, `declined`, `revoked` |
+| `message` | text | Personal message |
+| `created_at` | timestamptz | Sent time |
+| `responded_at` | timestamptz | Response time |
+
+### `notifications`
+In-app notification feed.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `user_id` | uuid (FK → profiles) | Recipient |
+| `type` | text | Notification category (constrained by check) |
+| `title` | text | Notification title |
+| `body` | text | Notification content |
+| `read` | boolean | Read status |
+| `link` | text | Deep link URL |
+| `created_at` | timestamptz | Creation time |
+
+**Allowed types (notifications_type_check):** `task_assigned`, `milestone_due`, `invitation_received`, `invitation_accepted`, `story_review`, `congress_update`, `initiative_invite`, `congress_invite`, `system`
+
+---
+
+## 6 · Permission System
+
+### `user_space_permissions`
+Per-user access level overrides.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `user_id` | uuid (FK → profiles) | Target user |
+| `space` | text | Space name or `*` for global |
+| `access_level` | text | `invisible`, `view`, `edit`, `manage` |
+| `is_global` | boolean | Whether this is a global override |
+| `granted_by` | uuid (FK → profiles) | Admin who set the override |
+| `created_at` | timestamptz | When override was set |
+
+### `role_default_overrides`
+Admin-configurable defaults per role (replaces hardcoded defaults).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `role` | text | Platform role |
+| `space` | text | Space name |
+| `access_level` | text | Override level |
+| `set_by` | uuid (FK → profiles) | Admin who configured |
+
+---
+
+## 7 · Storage Buckets
+
+| Bucket | Purpose | Access |
+|--------|---------|--------|
+| `avatars` | User profile photos | Public read, owner write |
+| `evidence` | Initiative evidence documents | RLS: initiative members |
+
+---
+
+## 8 · Key Constraints & Indexes
+
+| Constraint | Table | Description |
+|-----------|-------|-------------|
+| `notifications_type_check` | notifications | CHECK constraint on `type` column |
+| `initiative_members_unique` | initiative_members | Unique on `(initiative_id, user_id)` |
+| `congress_members_unique` | congress_members | Unique on `(congress_id, user_id)` |
+| `invitations_unique_pending` | invitations | Prevents duplicate pending invitations |
+
+---
+
+*Last updated: 2026-02-24 · Maintainer: Michael Wittinger*

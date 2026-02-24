@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ROLE_LABELS } from '@/lib/role-access'
+import { getAuthCallbackUrl } from '@/lib/auth-redirect-url'
 
 /** Derived from the canonical ROLE_LABELS so labels never diverge from the source of truth. */
 const PLATFORM_ROLE_OPTIONS = (Object.entries(ROLE_LABELS) as [string, string][]).map(
@@ -185,6 +186,7 @@ export function InviteUserButton() {
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const router = useRouter()
+  const authCallbackUrl = getAuthCallbackUrl()
 
   const handleInvite = async () => {
     if (!email.trim()) return
@@ -195,7 +197,7 @@ export function InviteUserButton() {
       email: email.trim(),
       options: {
         data: { role, name: '' },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: authCallbackUrl,
       },
     })
     setSending(false)

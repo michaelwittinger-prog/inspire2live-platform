@@ -1,0 +1,77 @@
+# Inspire2Live Platform — Documentation Index
+
+> **Navigation hub for all project documentation.**  
+> Documents are organized by category for quick access. All paths are relative to `docs/`.
+
+---
+
+## 📐 Architecture & Design
+
+| Document | Purpose |
+|----------|---------|
+| [ADR/](ADR/) | Architecture Decision Records (numbered, immutable) |
+| [ROLE_PERMISSION_MODEL.md](ROLE_PERMISSION_MODEL.md) | Full role × space permission matrix, override logic |
+| [DATA_DICTIONARY.md](DATA_DICTIONARY.md) | Database schema reference, table descriptions, key relationships |
+| [DESIGN_CHANGELOG.md](DESIGN_CHANGELOG.md) | History of UI/UX design decisions and deviations |
+
+## 🛠️ Engineering
+
+| Document | Purpose |
+|----------|---------|
+| [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) | Day-to-day coding guide, conventions, Definition of Done |
+| [SDLC.md](SDLC.md) | Full software development lifecycle (CI/CD, branching, commit conventions) |
+| [TEST_STRATEGY.md](TEST_STRATEGY.md) | Test philosophy, coverage goals, risk-based test map |
+| [RELEASE_PROCESS.md](RELEASE_PROCESS.md) | Versioning, staging → production, hotfix, rollback |
+| [CLINE_WORKFLOW.md](CLINE_WORKFLOW.md) | AI assistant (Cline) git protocol and anti-hang rules |
+| [TRACEABILITY.md](TRACEABILITY.md) | Requirement → ADR → code → test mapping |
+
+## 📦 Product & Planning
+
+| Document | Purpose |
+|----------|---------|
+| [MVP_SCOPE_AND_ROADMAP.md](MVP_SCOPE_AND_ROADMAP.md) | Work Package definitions, delivery milestones, phase gates |
+| [WP_STATUS.md](WP_STATUS.md) | Current Work Package delivery status |
+| [CONGRESS_PRODUCTION_READINESS.md](CONGRESS_PRODUCTION_READINESS.md) | Congress feature production checklist |
+| [PLATFORM_AUDIT_REPORT.md](PLATFORM_AUDIT_REPORT.md) | Full platform audit against design document |
+
+## ⚙️ Operations & Runbooks
+
+| Document | Purpose |
+|----------|---------|
+| [VERCEL_SETUP.md](VERCEL_SETUP.md) | Vercel hosting configuration and deployment |
+| [SUPABASE_SMTP_SETUP.md](SUPABASE_SMTP_SETUP.md) | Supabase email/SMTP configuration |
+| [ENVIRONMENT_REFERENCE.md](ENVIRONMENT_REFERENCE.md) | Every env variable explained with impact analysis |
+| [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) | Severity levels, escalation, rollback procedures |
+| [MONITORING.md](MONITORING.md) | Observability, alerting, log access, health checks |
+
+## 🔒 Security & Compliance
+
+| Document | Purpose |
+|----------|---------|
+| [SECURITY_AND_PRIVACY.md](SECURITY_AND_PRIVACY.md) | GDPR compliance, data handling, PII policy, security controls |
+
+---
+
+## ADR Index
+
+| ADR | Title | Status | Date |
+|-----|-------|--------|------|
+| [0001](ADR/0001-template.md) | ADR Template | — | — |
+| [0002](ADR/0002-supabase-baas.md) | Supabase as Backend-as-a-Service | accepted | 2025-10-15 |
+| [0003](ADR/0003-nextjs-app-router.md) | Next.js App Router with RSC | accepted | 2025-10-15 |
+| [0004](ADR/0004-role-model-design.md) | Multi-Tier Role & Permission Model | accepted | 2025-11-20 |
+| [0005](ADR/0005-trunk-based-development.md) | Trunk-Based Development with AI Assist | accepted | 2025-10-20 |
+
+---
+
+## Root-Level Files
+
+| File | Purpose |
+|------|---------|
+| [../CHANGELOG.md](../CHANGELOG.md) | Release history (semver) |
+| [../README.md](../README.md) | Project overview and quick start |
+| [../.env.example](../.env.example) | Environment variable template |
+
+---
+
+*Last updated: 2026-02-24 · Maintainer: Michael Wittinger*

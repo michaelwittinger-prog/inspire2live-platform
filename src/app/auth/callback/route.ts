@@ -7,9 +7,14 @@ export async function GET(request: Request) {
   const code = url.searchParams.get('code')
   const requestedNext = url.searchParams.get('next') ?? '/app/dashboard'
   const next = requestedNext.startsWith('/') ? requestedNext : '/app/dashboard'
+  const isResetFlow = next === '/reset-password'
 
   if (!code) {
-    return NextResponse.redirect(new URL('/login', url.origin))
+    const loginUrl = new URL('/login', url.origin)
+    if (isResetFlow) {
+      loginUrl.searchParams.set('error', 'reset_link_invalid')
+    }
+    return NextResponse.redirect(loginUrl)
   }
 
   const cookieStore = await cookies()
@@ -34,7 +39,7 @@ export async function GET(request: Request) {
 
   if (error) {
     const loginUrl = new URL('/login', url.origin)
-    loginUrl.searchParams.set('error', 'auth_callback_failed')
+    loginUrl.searchParams.set('error', isResetFlow ? 'reset_link_invalid' : 'auth_callback_failed')
     return NextResponse.redirect(loginUrl)
   }
 
@@ -43,7 +48,15 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return NextResponse.redirect(new URL('/login', url.origin))
+    const loginUrl = new URL('/login', url.origin)
+    if (isResetFlow) {
+      loginUrl.searchParams.set('error', 'reset_link_invalid')
+    }
+    return NextResponse.redirect(loginUrl)
+  }
+
+  if (isResetFlow) {
+    return NextResponse.redirect(new URL('/reset-password', url.origin))
   }
 
   const { data: profile } = await supabase

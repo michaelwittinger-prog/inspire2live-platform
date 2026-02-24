@@ -3,6 +3,7 @@
 import { Suspense, useState, type FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getAuthCallbackUrl } from '@/lib/auth-redirect-url'
 
 type Tab = 'signin' | 'signup' | 'magic' | 'forgot'
 
@@ -44,6 +45,8 @@ function LoginContent() {
   const searchParams = useSearchParams()
   const [tab, setTab] = useState<Tab>('signin')
 
+  const authCallbackUrl = getAuthCallbackUrl()
+
   /* shared */
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -52,6 +55,7 @@ function LoginContent() {
   const [loading, setLoading] = useState(false)
 
   const authError = searchParams.get('error')
+  const resetStatus = searchParams.get('reset')
 
   /* ── Sign in with password ── */
   const handleSignIn = async (e: FormEvent) => {
@@ -87,7 +91,7 @@ function LoginContent() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: authCallbackUrl,
       },
     })
     if (error) {
@@ -110,7 +114,7 @@ function LoginContent() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: authCallbackUrl,
       },
     })
     if (error) {
@@ -129,7 +133,7 @@ function LoginContent() {
     setStatus(null)
     const supabase = createClient()
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/app/profile`,
+      redirectTo: `${authCallbackUrl}?next=/reset-password`,
     })
     if (error) {
       setStatus({ type: 'error', msg: error.message })
@@ -169,6 +173,16 @@ function LoginContent() {
         {authError === 'auth_callback_failed' && (
           <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             Login link expired or already used. Please sign in again.
+          </p>
+        )}
+        {authError === 'reset_link_invalid' && (
+          <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            Your password reset link is invalid or expired. Please request a new reset email.
+          </p>
+        )}
+        {resetStatus === 'success' && (
+          <p className="mb-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+            Password updated successfully. Please sign in with your new password.
           </p>
         )}
 

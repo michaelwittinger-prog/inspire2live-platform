@@ -376,16 +376,28 @@ chore(cline): update git-push script and CLINE_WORKFLOW rules
 
 ## 10 · Cross-Document Index
 
+See `docs/README.md` for the full categorized documentation index.
+
 | Document | Content |
 |----------|---------|
+| `docs/README.md` | **Documentation index** — start here |
 | `docs/MVP_SCOPE_AND_ROADMAP.md` | Work Package definitions and delivery milestones |
 | `docs/TRACEABILITY.md` | Requirement → ADR → code → test mapping |
 | `docs/IMPLEMENTATION_GUIDE.md` | Detailed coding patterns and conventions |
 | `docs/CLINE_WORKFLOW.md` | Cline git protocol and no-hang rules |
+| `docs/TEST_STRATEGY.md` | Test philosophy, coverage goals, risk map |
+| `docs/RELEASE_PROCESS.md` | Versioning, deployment, hotfix, rollback |
+| `docs/SECURITY_AND_PRIVACY.md` | GDPR compliance, data handling, security controls |
+| `docs/INCIDENT_RESPONSE.md` | Severity levels, escalation, rollback runbook |
+| `docs/MONITORING.md` | Observability, alerting, log access |
+| `docs/ENVIRONMENT_REFERENCE.md` | Every env variable explained |
+| `docs/ROLE_PERMISSION_MODEL.md` | Full role × space permission matrix |
+| `docs/DATA_DICTIONARY.md` | Database schema reference |
 | `docs/PLATFORM_AUDIT_REPORT.md` | Full audit of platform state against design |
 | `docs/WP_STATUS.md` | Current WP delivery status |
 | `docs/DESIGN_CHANGELOG.md` | Design decisions and deviations log |
-| `docs/ADR/` | Architecture Decision Records |
+| `docs/ADR/` | Architecture Decision Records (5 ADRs) |
+| `CHANGELOG.md` | Release history (semver) |
 | `supabase/migrations/` | Sequential DB schema history |
 
 ---
