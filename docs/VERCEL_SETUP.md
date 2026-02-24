@@ -91,6 +91,25 @@ To **manually trigger** a deploy without pushing code:
 ### Vercel build error (different from local)
 → Check the Vercel dashboard logs. Ensure all `NEXT_PUBLIC_*` environment variables are set in the Vercel project settings.
 
+### Invite modal shows: `Could not find the table 'public.invitations' in the schema cache`
+This is a **Supabase production schema state** issue (not a Vercel/Docker issue).
+
+Run in Supabase SQL editor (Production):
+
+```sql
+-- 1) Verify whether table exists
+select to_regclass('public.invitations');
+
+-- 2) If null, apply migration 00025_invitation_system.sql
+--    (via your normal migration pipeline)
+
+-- 3) Force PostgREST schema/cache reload
+notify pgrst, 'reload schema';
+notify pgrst, 'reload config';
+```
+
+After that, retry the invite flow.
+
 Required Vercel environment variables:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`

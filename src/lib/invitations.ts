@@ -48,6 +48,27 @@ export interface InvitationRecord {
   message: string | null
 }
 
+function mapInvitationDbError(error: { code?: string; message?: string } | null | undefined): string {
+  if (!error) return 'Unknown invitation error.'
+
+  const msg = (error.message ?? '').toLowerCase()
+
+  // Supabase/PostgREST when table is missing from schema cache
+  if (
+    error.code === 'PGRST205' ||
+    msg.includes("could not find the table 'public.invitations'") ||
+    msg.includes('schema cache') ||
+    msg.includes('relation "public.invitations" does not exist')
+  ) {
+    return (
+      'Invitation system is not enabled in this environment yet. ' +
+      'Apply Supabase migration 00025_invitation_system.sql and reload schema (notify pgrst, \'reload schema\').' 
+    )
+  }
+
+  return error.message ?? 'Unknown invitation error.'
+}
+
 // ─── Shortcut for untyped tables ─────────────────────────────────────────────
 
 function db(supabase: SupabaseClient<Database>) {
@@ -175,7 +196,7 @@ export async function createInvitation(
     if (error.code === '23505') {
       return { ok: false, error: 'An invitation to this person already exists.' }
     }
-    return { ok: false, error: error.message }
+    return { ok: false, error: mapInvitationDbError(error) }
   }
 
   return { ok: true, invitationId: (data as any).id as string }
@@ -198,7 +219,7 @@ export async function revokeInvitation(
     .eq('id', invitationId)
     .eq('status', 'invited')
 
-  if (error) return { ok: false, error: error.message }
+  if (error) return { ok: false, error: mapInvitationDbError(error) }
   return { ok: true }
 }
 
@@ -221,6 +242,9 @@ export async function respondToInvitation(
     .maybeSingle()
 
   if (fetchErr || !inv) {
+    if (fetchErr) {
+      return { ok: false, error: mapInvitationDbError(fetchErr) }
+    }
     return { ok: false, error: 'Invitation not found or already responded.' }
   }
 
@@ -231,7 +255,7 @@ export async function respondToInvitation(
     .update({ status: response, responded_at: new Date().toISOString() })
     .eq('id', invitationId)
 
-  if (updateErr) return { ok: false, error: updateErr.message }
+  if (updateErr) return { ok: false, error: mapInvitationDbError(updateErr) }
 
   if (response === 'accepted') {
     if (invite.scope === 'initiative' && invite.initiative_id) {
