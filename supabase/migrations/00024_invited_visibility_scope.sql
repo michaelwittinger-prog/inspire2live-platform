@@ -99,6 +99,42 @@ create policy "resources_select" on public.resources
 -- 4) Tighten congress visibility across lifecycle + workspace
 -- ─────────────────────────────────────────────────────────────
 
+-- Backward-compatibility shim:
+-- Some environments still have congress_topics.congress_id (older schema)
+-- instead of congress_topics.event_id (newer schema).
+-- Ensure event_id exists before creating policies that reference it.
+do $$
+begin
+  if not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'congress_topics'
+      and column_name = 'event_id'
+  ) then
+    alter table public.congress_topics add column event_id uuid;
+
+    if exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'congress_topics'
+        and column_name = 'congress_id'
+    ) then
+      execute 'update public.congress_topics set event_id = congress_id where event_id is null';
+    end if;
+
+    alter table public.congress_topics
+      add constraint congress_topics_event_id_fkey
+      foreign key (event_id)
+      references public.congress_events(id)
+      on delete cascade;
+
+    create index if not exists congress_topics_event_id_idx on public.congress_topics(event_id);
+  end if;
+end;
+$$;
+
 drop policy if exists "congress_events_select" on public.congress_events;
 drop policy if exists "auth_read_congress_events" on public.congress_events;
 create policy "congress_events_select" on public.congress_events
