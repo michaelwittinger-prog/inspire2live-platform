@@ -5,6 +5,7 @@
  * mark-read, mark-all-read, respond to invite (accept/decline).
  */
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { respondToInvitation } from '@/lib/invitations'
 
@@ -49,8 +50,33 @@ export async function acceptInviteAction(formData: FormData): Promise<void> {
   const id = formData.get('invitationId') as string
   if (!id) return
   const supabase = await createClient()
-  await respondToInvitation(supabase, id, 'accepted')
+
+  // Fetch invitation details BEFORE accepting.
+  // Once accepted, RLS might no longer allow the invitee to read the invitation row.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: inv } = await (supabase as any)
+    .from('invitations')
+    .select('scope, initiative_id, congress_id')
+    .eq('id', id)
+    .maybeSingle()
+
+  const result = await respondToInvitation(supabase, id, 'accepted')
+  if (!result.ok) {
+    // Keep it simple for now: stay on notifications.
+    // (We can add a toast/error state later if desired.)
+    revalidatePath('/app/notifications')
+    return
+  }
+
   revalidatePath('/app/notifications')
+
+  const scope = (inv as { scope?: string } | null)?.scope
+  if (scope === 'initiative' && (inv as { initiative_id?: string } | null)?.initiative_id) {
+    redirect(`/app/initiatives/${(inv as { initiative_id: string }).initiative_id}`)
+  }
+  if (scope === 'congress') {
+    redirect('/app/congress')
+  }
 }
 
 /**

@@ -233,54 +233,16 @@ export async function respondToInvitation(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'Not authenticated.' }
 
-  const { data: inv, error: fetchErr } = await db(supabase)
-    .from('invitations')
-    .select('*')
-    .eq('id', invitationId)
-    .eq('invitee_user_id', user.id)
-    .eq('status', 'invited')
-    .maybeSingle()
+  // Use SECURITY DEFINER RPC because invitees cannot insert into initiative_members
+  // due to strict RLS (only coordinators/admins can manage membership rows).
+  const { data, error } = await db(supabase).rpc('respond_to_invitation', {
+    inv_id: invitationId,
+    response,
+  })
 
-  if (fetchErr || !inv) {
-    if (fetchErr) {
-      return { ok: false, error: mapInvitationDbError(fetchErr) }
-    }
-    return { ok: false, error: 'Invitation not found or already responded.' }
-  }
-
-  const invite = inv as InvitationRecord
-
-  const { error: updateErr } = await db(supabase)
-    .from('invitations')
-    .update({ status: response, responded_at: new Date().toISOString() })
-    .eq('id', invitationId)
-
-  if (updateErr) return { ok: false, error: mapInvitationDbError(updateErr) }
-
-  if (response === 'accepted') {
-    if (invite.scope === 'initiative' && invite.initiative_id) {
-      await db(supabase)
-        .from('initiative_members')
-        .upsert({
-          initiative_id: invite.initiative_id,
-          user_id: user.id,
-          member_role: invite.invitee_role,
-          invite_status: 'accepted',
-          invited_by: invite.invited_by,
-          accepted_at: new Date().toISOString(),
-        })
-    } else if (invite.scope === 'congress' && invite.congress_id) {
-      await db(supabase)
-        .from('congress_members')
-        .upsert({
-          congress_id: invite.congress_id,
-          user_id: user.id,
-          member_role: invite.invitee_role,
-          invite_status: 'accepted',
-          invited_by: invite.invited_by,
-          accepted_at: new Date().toISOString(),
-        })
-    }
+  if (error) return { ok: false, error: mapInvitationDbError(error) }
+  if (!data || !(data as { ok?: boolean }).ok) {
+    return { ok: false, error: 'Invitation response failed.' }
   }
 
   return { ok: true }

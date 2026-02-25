@@ -23,6 +23,8 @@ function makeSupabase(overrides?: {
   insertData?: unknown
   insertError?: unknown
   updateError?: unknown
+  rpcData?: unknown
+  rpcError?: unknown
   fromOverrides?: Record<string, unknown>
 }) {
   const userId = overrides?.userId ?? 'user-123'
@@ -54,6 +56,10 @@ function makeSupabase(overrides?: {
     auth: {
       getUser: () => Promise.resolve({ data: { user: { id: userId } } }),
     },
+    rpc: () => Promise.resolve({
+      data: overrides?.rpcData ?? { ok: true },
+      error: overrides?.rpcError ?? null,
+    }),
     from: (table: string) => {
       if (table === 'profiles') {
         if (overrides?.profilesSelectData !== undefined) {
@@ -271,30 +277,24 @@ describe('revokeInvitation', () => {
 // ─── respondToInvitation ─────────────────────────────────────────────────────
 
 describe('respondToInvitation', () => {
-  it('returns error when invitation not found', async () => {
-    const supabase = {
-      auth: { getUser: () => Promise.resolve({ data: { user: { id: 'u1' } } }) },
-      from: () => ({
-        select: () => ({
-          eq: () => ({
-            eq: () => ({
-              eq: () => ({
-                maybeSingle: () => Promise.resolve({ data: null, error: null }),
-              }),
-            }),
-          }),
-        }),
-      }),
-    }
-    const result = await respondToInvitation(supabase as never, 'inv-bad', 'accepted')
+  it('calls RPC and returns ok when RPC succeeds', async () => {
+    const supabase = makeSupabase({ rpcData: { ok: true } })
+    const result = await respondToInvitation(supabase as never, 'inv-1', 'accepted')
+    expect(result.ok).toBe(true)
+  })
+
+  it('returns error when RPC returns an error', async () => {
+    const supabase = makeSupabase({ rpcError: { message: 'RPC failure' } })
+    const result = await respondToInvitation(supabase as never, 'inv-1', 'accepted')
     expect(result.ok).toBe(false)
-    expect(result.error).toMatch(/not found/i)
+    expect(result.error).toBe('RPC failure')
   })
 
   it('returns error when unauthenticated', async () => {
     const supabase = {
       auth: { getUser: () => Promise.resolve({ data: { user: null } }) },
       from: () => ({}),
+      rpc: () => Promise.resolve({ data: null, error: null }),
     }
     const result = await respondToInvitation(supabase as never, 'inv-1', 'accepted')
     expect(result.ok).toBe(false)

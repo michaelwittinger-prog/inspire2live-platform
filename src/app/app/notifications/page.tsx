@@ -38,7 +38,7 @@ export default async function NotificationsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: pendingInvites } = await (supabase as any)
     .from('invitations')
-    .select('*')
+    .select('id, scope, invitee_role, invited_at, message, initiative_id, initiatives(title), congress_id')
     .eq('invitee_user_id', user.id)
     .eq('status', 'invited')
     .order('invited_at', { ascending: false })
@@ -65,6 +65,8 @@ export default async function NotificationsPage() {
     invitee_role: string
     invited_at: string
     message: string | null
+    initiative_id?: string | null
+    initiatives?: { title?: string | null } | null
   }>
 
   const unread = notifications.filter(n => !n.is_read).length
@@ -99,8 +101,18 @@ export default async function NotificationsPage() {
                 <span className="mt-0.5 text-lg">✉️</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-neutral-900">
-                    Invitation to join a {inv.scope} as{' '}
-                    <span className="capitalize">{inv.invitee_role}</span>
+                    {inv.scope === 'initiative' ? (
+                      <>
+                        Invitation to join initiative{' '}
+                        <span className="font-bold">{inv.initiatives?.title ?? 'Untitled initiative'}</span> as{' '}
+                        <span className="capitalize">{inv.invitee_role}</span>
+                      </>
+                    ) : (
+                      <>
+                        Invitation to join a {inv.scope} as{' '}
+                        <span className="capitalize">{inv.invitee_role}</span>
+                      </>
+                    )}
                   </p>
                   {inv.message && (
                     <p className="mt-1 text-xs italic text-neutral-600">&ldquo;{inv.message}&rdquo;</p>
