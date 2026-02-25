@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, type FormEvent } from 'react'
+import { Suspense, useEffect, useState, type FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getAuthCallbackUrl } from '@/lib/auth-redirect-url'
@@ -43,7 +43,26 @@ function friendlyError(msg: string, onSwitchToSignin?: () => void): React.ReactN
 function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [tab, setTab] = useState<Tab>('signin')
+
+  const tabParam = searchParams.get('tab')
+
+  const getTabFromQuery = (value: string | null): Tab | null => {
+    if (!value) return null
+    switch (value.toLowerCase()) {
+      case 'signin':
+        return 'signin'
+      case 'signup':
+        return 'signup'
+      case 'magic':
+        return 'magic'
+      case 'forgot':
+        return 'forgot'
+      default:
+        return null
+    }
+  }
+
+  const [tab, setTab] = useState<Tab>(() => getTabFromQuery(tabParam) ?? 'signin')
 
   const authCallbackUrl = getAuthCallbackUrl()
 
@@ -56,6 +75,18 @@ function LoginContent() {
 
   const authError = searchParams.get('error')
   const resetStatus = searchParams.get('reset')
+
+  // Allow deep-linking like /login?tab=signup from the landing page.
+  useEffect(() => {
+    const t = getTabFromQuery(tabParam)
+    if (t && t !== tab) {
+      setTab(t)
+      setStatus(null)
+      setPassword('')
+      setConfirmPassword('')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabParam])
 
   /* ── Sign in with password ── */
   const handleSignIn = async (e: FormEvent) => {
@@ -151,6 +182,10 @@ function LoginContent() {
     setStatus(null)
     setPassword('')
     setConfirmPassword('')
+
+    const params = new URLSearchParams(searchParams)
+    params.set('tab', t)
+    router.replace(`/login?${params.toString()}`)
   }
 
   const tabs: { key: Tab; label: string }[] = [
