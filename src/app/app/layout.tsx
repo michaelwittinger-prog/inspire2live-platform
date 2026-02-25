@@ -42,15 +42,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const name = profile?.name || user.email || 'Unknown'
   let actualRole = normalizeRole(profile?.role)
 
-  // Auto-promote bootstrap admin emails to PlatformAdmin
-  const ADMIN_EMAILS = ['michael.wittinger@gmail.com', 'michael.wittinger@multivision.ai']
-  if (user.email && ADMIN_EMAILS.includes(user.email) && actualRole !== 'PlatformAdmin') {
-    await supabase
-      .from('profiles')
-      .update({ role: 'PlatformAdmin' })
-      .eq('id', user.id)
-    actualRole = 'PlatformAdmin'
-  }
+  // NOTE: Do not mutate platform roles at request-time based on email.
+  // Role is a DB-managed attribute (profiles.role) and must be updated only via
+  // explicit admin actions / migrations.
 
   const isAdmin = actualRole === 'PlatformAdmin'
 
