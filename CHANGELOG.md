@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **MVP scope pivot (2026-05-17):** Communications Workspace + World Campus Channel Intake adopted as the new Phase 1 / MVP scope per `docs/PLATFORM_CONCEPT_UPDATE_v1.md` v1.0. Initiative workspace, bureau, congress slice, resource library, and partner portal reclassified as Phase 2 surface area (no code removed).
+- Active delivery process changed from Work Packages to **sprints** — see `sprints/`.
+- `docs/MVP_SCOPE_AND_ROADMAP.md` rewritten to reflect Comms-first MVP, revised capability layers (L1–L4), revised demo narrative, and revised success metrics.
+- `docs/WP_STATUS.md` marked as historical (WP-0 through WP-5); WP-6 deferred into Phase 2.
+
 ### Added
+- `docs/PLATFORM_CONCEPT_UPDATE_v1.md` — full Concept Update v1.0 specification.
+- `sprints/` directory with Sprint 01 through Sprint 04 covering the Communications MVP (Weeks 1–8).
 - Invitation system for initiatives and congress (invite by email or platform user)
 - Notification system with in-app notification feed
 - Password reset flow with dedicated `/reset-password` page

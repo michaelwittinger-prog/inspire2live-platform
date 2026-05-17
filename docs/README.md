@@ -29,9 +29,11 @@
 
 | Document | Purpose |
 |----------|---------|
-| [MVP_SCOPE_AND_ROADMAP.md](MVP_SCOPE_AND_ROADMAP.md) | Work Package definitions, delivery milestones, phase gates |
-| [WP_STATUS.md](WP_STATUS.md) | Current Work Package delivery status |
-| [CONGRESS_PRODUCTION_READINESS.md](CONGRESS_PRODUCTION_READINESS.md) | Congress feature production checklist |
+| [PLATFORM_CONCEPT_UPDATE_v1.md](PLATFORM_CONCEPT_UPDATE_v1.md) | **May 2026 pivot** — Communications-first MVP; extends `PLATFORM_DESIGN_DOCUMENT.md` v2.0 |
+| [MVP_SCOPE_AND_ROADMAP.md](MVP_SCOPE_AND_ROADMAP.md) | MVP scope, capability layers, phase gates (revised for Comms MVP) |
+| [WP_STATUS.md](WP_STATUS.md) | Pre-pivot Work Package status (WP-0 through WP-5) — historical record |
+| [../sprints/README.md](../sprints/README.md) | **Active delivery** — sprint definitions and tasks for the Communications MVP |
+| [CONGRESS_PRODUCTION_READINESS.md](CONGRESS_PRODUCTION_READINESS.md) | Congress feature production checklist (Phase 2 surface) |
 | [PLATFORM_AUDIT_REPORT.md](PLATFORM_AUDIT_REPORT.md) | Full platform audit against design document |
 
 ## ⚙️ Operations & Runbooks
@@ -74,4 +76,4 @@
 
 ---
 
-*Last updated: 2026-02-24 · Maintainer: Michael Wittinger*
+*Last updated: 2026-05-17 · Maintainer: Michael Wittinger*
