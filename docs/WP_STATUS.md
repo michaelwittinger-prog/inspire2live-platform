@@ -1,8 +1,11 @@
 # Inspire2Live Platform — Work Package Status
 
-**Format:** Updated after every work package completion. Use this as the canonical progress reference.  
-**Last updated:** 2026-02-19 (WP-5 completed)
-**Roadmap source:** `docs/MVP_SCOPE_AND_ROADMAP.md`  
+> **⚠️ Historical record only.** As of 2026-05-17 the MVP scope pivoted to the **Communications Workspace** (see `docs/PLATFORM_CONCEPT_UPDATE_v1.md`). Active delivery has moved from Work Packages to **sprints** — see `sprints/README.md`. WP-0 through WP-5 remain in the codebase and are now classified as Phase 2 surface area. WP-6 (Polish + A11y + Deploy) is folded into Phase 2 polish and is no longer a Phase 1 / MVP gate.
+
+**Format:** Snapshot of pre-pivot delivery for reference only. Do not add new WPs here.
+**Last updated:** 2026-05-17 (Concept Update v1.0 pivot)
+**Pre-pivot roadmap:** `docs/MVP_SCOPE_AND_ROADMAP.md` §7 Phase 1a
+**Current roadmap:** `docs/MVP_SCOPE_AND_ROADMAP.md` §7 Phase 1b + `sprints/`
 **Traceability:** `docs/TRACEABILITY.md`
 
 ---
@@ -150,7 +153,7 @@
 ---
 
 ## WP-6 — Polish + Responsive + Accessibility + Vercel Deploy (Week 6)
-**Status: ⏭️ QUEUED — starts after WP-5**
+**Status: ⏸️ DEFERRED — folded into Phase 2 polish following 2026-05-17 MVP pivot**
 
 | Deliverable | REQ-ID | Status |
 |---|---|---|
@@ -182,9 +185,9 @@
 
 ## 🎯 Next Action
 
-**Current:** ✅ WP-5 complete — proceed to **WP-6: Polish + Responsive + Accessibility + Vercel Deploy**  
-**WP-6 entry point:** Responsive audit (375px → 1440px), then WCAG 2.1 AA keyboard/ARIA pass  
-**WP-6 key deliverables:** Loading skeletons + error boundaries, empty states, Vercel production deploy
+**Current:** MVP scope pivoted on 2026-05-17. WP delivery is paused.
+**New entry point:** `sprints/sprint-01-foundation-and-comms-shell/` — Communications Workspace MVP.
+**WP-6 disposition:** Deferred into Phase 2 polish; will be re-scoped once Phase 1b (Comms MVP) ships.
 
 ---
 
@@ -198,3 +201,4 @@
 | 2026-02-23 | User-management and permissions hardening pass: added `role_space_default_overrides` to generated DB types, removed `as any` usage in admin permission actions, added strict validation for scope/space/access inputs, and added new unit tests for permission server actions (scope consistency, successful upsert/audit, migration-missing handling). Typecheck + targeted permission tests green (45 tests). | Cross-cutting (Admin Permissions) |
 | 2026-02-23 | Admin permissions **Phase-2 UX polish**: enhanced override modal with explicit scope selector (global/initiative/congress), scoped ID input + inline guidance, pre-submit validation for scoped IDs, and server-action calls now send scoped parameters for set/reset flows. Revalidated with typecheck + targeted permission suite. | Cross-cutting (Admin Permissions UX) |
 | 2026-02-23 | Admin permissions **Phase-2b UX polish**: added per-space scoped-override badges in the user grid, active scope badge and last-action feedback in override workflow, and a right-panel preview of recent scoped overrides + permission audit entries. Extended admin permission data loader to include scoped override counts/details and audit summaries; expanded unit tests accordingly. Revalidated with typecheck + targeted suite (`46/46`). | Cross-cutting (Admin Permissions UX) |
+| 2026-05-17 | **MVP scope pivot — Concept Update v1.0.** Communications Workspace and World Campus Channel Intake adopted as the new Phase 1 / MVP. Initiative workspace, bureau, congress slice, resource library, and partner portal reclassified as Phase 2 surface (no code changes). Active delivery moved from Work Packages to `sprints/` (Sprint 01 through Sprint 04 cover the Comms MVP). | Cross-cutting (planning) |

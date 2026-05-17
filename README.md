@@ -209,7 +209,10 @@ inspire2live-platform/
 ├── supabase/
 │   ├── migrations/     # SQL migration files
 │   └── seed*.sql       # Seed data scripts
-├── docs/               # Architecture docs, ADRs, roadmap
+├── docs/               # Architecture docs, ADRs, roadmap, concept updates
+├── sprints/            # Active delivery — sprint folders with description + tasks
 ├── .env.example        # Environment variable template
 └── next.config.ts      # Next.js configuration
 ```
+
+> **Current MVP scope:** Communications Workspace pilot — see `docs/PLATFORM_CONCEPT_UPDATE_v1.md` and `sprints/README.md`. The previously-shipped initiative workspace, bureau, congress slice, resource library, and partner portal remain in the codebase as Phase 2 surface area.

@@ -6,7 +6,7 @@ import { DEMO_TEAM_MEMBERS_RICH } from '@/lib/demo-data'
 import { ActionModal } from '@/components/ui/action-modal'
 import { InviteCombobox } from '@/components/ui/invite-combobox'
 import type { ProfileSuggestion } from '@/components/ui/invite-combobox'
-import { sendInitiativeInvite, revokeInitiativeInvite } from './actions'
+import { sendInitiativeInvite } from './actions'
 import type { InviteFormState } from './actions'
 
 // Auth check is handled by the parent layout.tsx server component.

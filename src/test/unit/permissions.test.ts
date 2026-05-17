@@ -20,7 +20,7 @@ import {
   ROLE_SPACE_DEFAULTS,
   PLATFORM_SPACES,
 } from '@/lib/permissions'
-import type { AccessLevel, PlatformSpace } from '@/lib/permissions'
+import type { AccessLevel } from '@/lib/permissions'
 
 // ─── Minimal Supabase mock ────────────────────────────────────────────────────
 //
