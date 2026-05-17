@@ -9,9 +9,28 @@ export async function middleware(request: NextRequest) {
     },
   })
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const pathname = request.nextUrl.pathname
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/auth')
+  const isOnboardingPage = pathname.startsWith('/onboarding')
+  const isProtected = pathname.startsWith('/app')
+
+  // Without Supabase credentials (e.g. CI without secrets), treat every request
+  // as unauthenticated. Protected routes still redirect to /login so smoke tests
+  // verifying that contract continue to pass.
+  if (!supabaseUrl || !supabaseKey) {
+    if (isProtected) {
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = '/login'
+      return NextResponse.redirect(redirectUrl)
+    }
+    return response
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         getAll() {
@@ -36,14 +55,9 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  const pathname = request.nextUrl.pathname
-  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/auth')
-  const isOnboardingPage = pathname.startsWith('/onboarding')
-  const isProtected = pathname.startsWith('/app')
+  const { data: { user } } = await supabase.auth
+    .getUser()
+    .catch(() => ({ data: { user: null } }))
 
   if (!user && isProtected) {
     const redirectUrl = request.nextUrl.clone()
@@ -58,11 +72,17 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && !isOnboardingPage && !isAuthPage) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('onboarding_completed, role')
-      .eq('id', user.id)
-      .maybeSingle()
+    let profile: { onboarding_completed: boolean | null; role: string | null } | null = null
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('onboarding_completed, role')
+        .eq('id', user.id)
+        .maybeSingle()
+      profile = data
+    } catch {
+      // Treat profile lookup failure as no profile; downstream guards handle it.
+    }
 
     if (profile && profile.onboarding_completed === false && isProtected) {
       const redirectUrl = request.nextUrl.clone()
