@@ -187,8 +187,6 @@ function buildEmailHtml(params: {
   message?: string
   actionUrl: string
 }): string {
-  const scopeLabel = params.scope === 'initiative' ? 'initiative' : 'congress'
-
   return `<!DOCTYPE html>
 <html lang="en">
 <head>

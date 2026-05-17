@@ -40,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .eq('is_read', false)
 
   const name = profile?.name || user.email || 'Unknown'
-  let actualRole = normalizeRole(profile?.role)
+  const actualRole = normalizeRole(profile?.role)
 
   // NOTE: Do not mutate platform roles at request-time based on email.
   // Role is a DB-managed attribute (profiles.role) and must be updated only via

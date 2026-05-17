@@ -93,8 +93,14 @@ export function InviteCombobox({
     if (queryTooShort) return
 
     let cancelled = false
-    setLoading(true)
-    setError(null)
+
+    // Defer the loading-state updates to avoid the
+    // "synchronous setState in effect" lint rule (react-hooks/set-state-in-effect).
+    const loadingTimer = setTimeout(() => {
+      if (cancelled) return
+      setLoading(true)
+      setError(null)
+    }, 0)
 
     fetch(`/api/invite-search?q=${encodeURIComponent(debouncedQuery.trim())}`)
       .then(r => {
@@ -116,7 +122,10 @@ export function InviteCombobox({
         if (!cancelled) setLoading(false)
       })
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      clearTimeout(loadingTimer)
+    }
   }, [debouncedQuery, queryTooShort])
 
   // ── Selection helpers (declared before keyboard handler) ─────────────────

@@ -75,17 +75,6 @@ export type NavItemConfig = {
   href: string
 }
 
-const ACCESS_BY_ROLE: Record<PlatformRole, string[]> = {
-  PatientAdvocate:  ['dashboard', 'initiatives', 'tasks', 'congress', 'stories', 'resources', 'network', 'notifications', 'profile'],
-  Clinician:        ['dashboard', 'initiatives', 'tasks', 'congress', 'stories', 'resources', 'network', 'notifications', 'profile'],
-  Researcher:       ['dashboard', 'initiatives', 'tasks', 'congress', 'stories', 'resources', 'network', 'notifications', 'profile'],
-  Moderator:        ['dashboard', 'stories', 'congress', 'resources', 'network', 'notifications', 'profile'],
-  IndustryPartner:  ['dashboard', 'partners', 'congress', 'resources', 'network', 'notifications', 'profile'],
-  BoardMember:      ['dashboard', 'initiatives', 'congress', 'stories', 'resources', 'network', 'board', 'notifications', 'profile'],
-  HubCoordinator:   ['dashboard', 'bureau', 'initiatives', 'tasks', 'congress', 'stories', 'partners', 'resources', 'network', 'notifications', 'profile'],
-  PlatformAdmin:    ['dashboard', 'bureau', 'initiatives', 'tasks', 'congress', 'stories', 'partners', 'resources', 'network', 'board', 'notifications', 'profile', 'admin'],
-}
-
 const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
   PatientAdvocate: [
     { key: 'dashboard',     label: 'Dashboard',      href: '/app/dashboard' },
