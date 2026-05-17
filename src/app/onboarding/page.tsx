@@ -7,6 +7,10 @@ type ProfileRow = Tables<'profiles'>
 type InitiativeRow = Tables<'initiatives'>
 
 export default async function OnboardingPage() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    redirect('/login')
+  }
+
   const supabase = await createClient()
   const {
     data: { user },
