@@ -1634,6 +1634,7 @@ export type Database = {
           dismissed_reason: string | null
           id: string
           is_peter_kapitein: boolean
+          provider_message_id: string | null
           raw_content: string
           reviewed_at: string | null
           reviewed_by: string | null
@@ -1658,6 +1659,7 @@ export type Database = {
           dismissed_reason?: string | null
           id?: string
           is_peter_kapitein?: boolean
+          provider_message_id?: string | null
           raw_content: string
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -1682,6 +1684,7 @@ export type Database = {
           dismissed_reason?: string | null
           id?: string
           is_peter_kapitein?: boolean
+          provider_message_id?: string | null
           raw_content?: string
           reviewed_at?: string | null
           reviewed_by?: string | null

@@ -53,6 +53,33 @@ describe('communications classifier', () => {
     expect(result.matchedRuleIds[0]).toBe('custom:automation-qa')
   })
 
+  it('treats an exact sender override as decisive during replay classification', () => {
+    const result = classifyIntakeItem(
+      {
+        senderName: 'Webhook Sprint 05 Override',
+        rawContent: 'Please review this article for the comms queue https://example.org/automation-story',
+        sourceUrl: 'https://example.org/automation-story',
+      },
+      [
+        {
+          id: 'custom:sender-override',
+          name: 'Sender override',
+          matchField: 'sender_name',
+          matchType: 'exact',
+          pattern: 'Webhook Sprint 05 Override',
+          suggestedContentType: 'initiative_update',
+          suggestedConfidence: 'high',
+          marksPeter: false,
+          priority: 280,
+        },
+      ]
+    )
+
+    expect(result.contentType).toBe('initiative_update')
+    expect(result.confidence).toBe('high')
+    expect(result.matchedRuleIds[0]).toBe('custom:sender-override')
+  })
+
   it('extracts the first source URL from raw text', () => {
     expect(parseSourceUrl('More context here https://example.org/report and more text')).toBe(
       'https://example.org/report'

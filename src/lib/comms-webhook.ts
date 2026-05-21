@@ -23,6 +23,11 @@ type WebhookProcessingResult = {
   intakeItemIds: string[]
 }
 
+type WebhookEventRow = Pick<
+  Database['public']['Tables']['whatsapp_webhook_events']['Row'],
+  'id' | 'intake_item_id' | 'processing_status'
+>
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null
 }
@@ -131,16 +136,18 @@ export async function processWhatsAppWebhookPayload(
   const intakeItemIds: string[] = []
 
   for (const message of messages) {
+    let intakeItemId: string | null = null
+
     try {
       const { data: existingEvent, error: existingError } = await admin
         .from('whatsapp_webhook_events')
-        .select('id')
+        .select('id, intake_item_id, processing_status')
         .eq('provider_message_id', message.providerMessageId)
         .maybeSingle()
 
       if (existingError) throw new Error(existingError.message)
 
-      if (existingEvent) {
+      if ((existingEvent as WebhookEventRow | null)?.processing_status === 'accepted') {
         duplicates += 1
         continue
       }
@@ -155,43 +162,67 @@ export async function processWhatsAppWebhookPayload(
         rules
       )
 
-      const { data: intakeItem, error: intakeError } = await admin
+      const intakeItemPayload = {
+        provider_message_id: message.providerMessageId,
+        capture_method: 'webhook',
+        sender_name: message.senderName,
+        sender_whatsapp_id: message.senderWhatsappId || null,
+        raw_content: message.rawContent,
+        source_url: message.sourceUrl,
+        attached_media_ref: message.attachedMediaRef,
+        content_type: result.contentType,
+        classification_confidence: result.confidence,
+        is_peter_kapitein: result.isPeterKapitein,
+        status: 'unreviewed',
+        classifier_version: result.classifierVersion,
+        classifier_status: 'auto_classified',
+        classifier_reasoning: result.reasoning,
+        classifier_rule_ids: result.matchedRuleIds,
+      }
+
+      const { data: existingIntakeItem, error: existingIntakeError } = await admin
         .from('intake_items')
-        .insert({
-          capture_method: 'webhook',
-          sender_name: message.senderName,
-          sender_whatsapp_id: message.senderWhatsappId || null,
-          raw_content: message.rawContent,
-          source_url: message.sourceUrl,
-          attached_media_ref: message.attachedMediaRef,
-          content_type: result.contentType,
-          classification_confidence: result.confidence,
-          is_peter_kapitein: result.isPeterKapitein,
-          status: 'unreviewed',
-          classifier_version: result.classifierVersion,
-          classifier_status: 'auto_classified',
-          classifier_reasoning: result.reasoning,
-          classifier_rule_ids: result.matchedRuleIds,
-        })
         .select('id')
+        .eq('provider_message_id', message.providerMessageId)
         .maybeSingle()
 
-      if (intakeError) throw new Error(intakeError.message)
+      if (existingIntakeError) throw new Error(existingIntakeError.message)
 
-      const { error: eventError } = await admin.from('whatsapp_webhook_events').insert({
+      if (existingIntakeItem?.id) {
+        intakeItemId = existingIntakeItem.id
+
+        const { error: intakeUpdateError } = await admin
+          .from('intake_items')
+          .update(intakeItemPayload)
+          .eq('id', existingIntakeItem.id)
+
+        if (intakeUpdateError) throw new Error(intakeUpdateError.message)
+      } else {
+        const { data: intakeItem, error: intakeError } = await admin
+          .from('intake_items')
+          .insert(intakeItemPayload)
+          .select('id')
+          .maybeSingle()
+
+        if (intakeError) throw new Error(intakeError.message)
+        intakeItemId = intakeItem?.id ?? null
+      }
+
+      const { error: eventError } = await admin.from('whatsapp_webhook_events').upsert({
         provider_message_id: message.providerMessageId,
         sender_whatsapp_id: message.senderWhatsappId || null,
         sender_name: message.senderName,
         payload: message.payload as WebhookPayloadJson,
-        intake_item_id: intakeItem?.id ?? null,
+        intake_item_id: intakeItemId,
         processing_status: 'accepted',
+        failure_reason: null,
         processed_at: new Date().toISOString(),
-      })
+      }, { onConflict: 'provider_message_id' })
 
       if (eventError) throw new Error(eventError.message)
 
       accepted += 1
-      if (intakeItem?.id) intakeItemIds.push(intakeItem.id)
+      if (intakeItemId) intakeItemIds.push(intakeItemId)
     } catch (error) {
       failures += 1
       await admin.from('whatsapp_webhook_events').upsert(
@@ -200,6 +231,7 @@ export async function processWhatsAppWebhookPayload(
           sender_whatsapp_id: message.senderWhatsappId || null,
           sender_name: message.senderName,
           payload: message.payload as WebhookPayloadJson,
+          intake_item_id: intakeItemId,
           processing_status: 'failed',
           failure_reason: error instanceof Error ? error.message : 'Unknown webhook processing error',
           processed_at: new Date().toISOString(),

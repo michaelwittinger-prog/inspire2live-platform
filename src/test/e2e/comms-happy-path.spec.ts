@@ -1,30 +1,17 @@
 import { test, expect } from '@playwright/test'
 
-async function openIntakeQueue(page: import('@playwright/test').Page) {
-  if (/\/app\/comms\/intake/.test(page.url())) {
-    await expect(page).toHaveURL(/\/app\/comms\/intake/)
-    return
-  }
-
-  await page.getByRole('link', { name: /^Communications$/i }).click()
-  await expect(page).toHaveURL(/\/app\/comms/)
-  await page.locator('a[href="/app/comms/intake"]').click()
-  await expect(page).toHaveURL(/\/app\/comms\/intake/)
-}
-
 test.describe('Communications happy path', () => {
   test('coordinator can submit intake, route to calendar, and publish', async ({ page }) => {
     const uniqueSuffix = Date.now().toString().slice(-6)
     const senderName = `Sprint 04 E2E ${uniqueSuffix}`
     const draftTitle = `Sprint 04 E2E Draft ${uniqueSuffix}`
 
-    await page.goto('/login')
+    await page.goto('/login?next=/app/comms/intake')
     await page.getByLabel(/email/i).fill('atefeh@inspire2live.org')
     await page.getByLabel(/^password$/i).fill('demo1234')
     await page.locator('form').getByRole('button', { name: /^sign in$/i }).click()
 
-    await expect(page).toHaveURL(/\/app\/(dashboard|comms\/intake)/)
-    await openIntakeQueue(page)
+    await expect(page).toHaveURL(/\/app\/comms\/intake/)
 
     await page.getByRole('link', { name: /\+ new intake item/i }).click()
     await expect(page).toHaveURL(/\/app\/comms\/intake\/new/)

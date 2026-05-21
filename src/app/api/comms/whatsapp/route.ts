@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import {
+  authenticateWhatsAppWebhookRequest,
+  COMMS_WEBHOOK_SECRET_HEADER,
+} from '@/lib/comms-webhook-auth'
 import { processWhatsAppWebhookPayload } from '@/lib/comms-webhook'
 
 export async function GET(request: Request) {
@@ -18,7 +22,20 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const payload = await request.json()
+    const rawBody = await request.text()
+    const authResult = authenticateWhatsAppWebhookRequest({
+      rawBody,
+      signatureHeader: request.headers.get('x-hub-signature-256'),
+      secretHeader: request.headers.get(COMMS_WEBHOOK_SECRET_HEADER),
+      appSecret: process.env.WHATSAPP_APP_SECRET,
+      webhookSecret: process.env.WHATSAPP_WEBHOOK_SECRET,
+    })
+
+    if (!authResult.ok) {
+      return NextResponse.json({ ok: false, error: authResult.error }, { status: authResult.status })
+    }
+
+    const payload = JSON.parse(rawBody) as unknown
     const admin = createAdminClient()
     const result = await processWhatsAppWebhookPayload(admin, payload)
 
@@ -27,6 +44,10 @@ export async function POST(request: Request) {
       ...result,
     })
   } catch (error) {
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ ok: false, error: 'Webhook payload must be valid JSON.' }, { status: 400 })
+    }
+
     return NextResponse.json(
       {
         ok: false,

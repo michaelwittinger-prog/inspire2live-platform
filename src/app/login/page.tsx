@@ -72,6 +72,8 @@ function LoginContent() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [status, setStatus] = useState<{ type: 'error' | 'success'; msg: string } | null>(null)
   const [loading, setLoading] = useState(false)
+  const nextPath = searchParams.get('next')
+  const redirectTarget = nextPath && nextPath.startsWith('/app/') ? nextPath : '/app/dashboard'
 
   const authError = searchParams.get('error')
   const resetStatus = searchParams.get('reset')
@@ -98,7 +100,7 @@ function LoginContent() {
     if (error) {
       setStatus({ type: 'error', msg: 'Invalid email or password. Please try again.' })
     } else {
-      router.push('/app/dashboard')
+      router.push(redirectTarget)
       router.refresh()
     }
     setLoading(false)
@@ -393,7 +395,8 @@ function LoginContent() {
                 { name: 'Dr. Kai', role: 'Researcher', email: 'kai@inspire2live.org', initials: 'KB', color: 'bg-blue-100 text-blue-700' },
                 { name: 'Dr. Nadia', role: 'Clinician', email: 'nadia@inspire2live.org', initials: 'NR', color: 'bg-emerald-100 text-emerald-700' },
                 { name: 'Peter', role: 'BoardMember', email: 'peter@inspire2live.org', initials: 'PL', color: 'bg-violet-100 text-violet-700' },
-                { name: 'Admin', role: 'PlatformAdmin', email: 'admin@inspire2live.org', initials: 'AD', color: 'bg-red-100 text-red-700' },
+                { name: 'Maryana', role: 'PlatformAdmin', email: 'marsu101@proton.me', initials: 'MS', color: 'bg-red-100 text-red-700' },
+                { name: 'Michael', role: 'PlatformAdmin', email: 'michael.wittinger@gmail.com', initials: 'MW', color: 'bg-red-100 text-red-700' },
               ].map((demo) => (
                 <button
                   key={demo.email}

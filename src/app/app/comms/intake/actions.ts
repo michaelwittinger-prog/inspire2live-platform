@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { canAccessCommsWorkspace } from '@/lib/comms-access'
 import {
+  CONTENT_TYPE_META,
   buildCalendarDraftFromIntake,
   buildTagsFromIntake,
   getRoutingOptions,
@@ -26,6 +27,7 @@ import {
 import {
   COMMS_CLASSIFIER_VERSION,
   classifyIntakeItem,
+  type PersistedClassifierReason,
   toClassifierRules,
 } from '@/lib/comms-classifier'
 import { sendDailyCommsDigest } from '@/lib/comms-digest'
@@ -104,6 +106,43 @@ async function loadEnabledClassifierRules(supabase: AppSupabaseClient) {
 
   if (error) throw new Error(error.message)
   return toClassifierRules((data ?? []) as ClassifierRuleRow[])
+}
+
+function buildCorrectedClassifierMetadata({
+  senderName,
+  previousType,
+  nextType,
+  promotedRuleId,
+}: {
+  senderName: string
+  previousType: IntakeContentType
+  nextType: IntakeContentType
+  promotedRuleId?: string | null
+}) {
+  const reasoning: PersistedClassifierReason[] = [
+    {
+      ruleId: 'manual:coordinator-correction',
+      label: 'Coordinator correction',
+      evidence: `Updated from ${CONTENT_TYPE_META[previousType].label} to ${CONTENT_TYPE_META[nextType].label}.`,
+      effect: 'type' as const,
+    },
+  ]
+
+  if (isPeterKapiteinSignal(senderName)) {
+    reasoning.unshift({
+      ruleId: 'manual:founder-preserved',
+      label: 'Founder signal preserved',
+      evidence: senderName,
+      effect: 'founder_signal' as const,
+    })
+  }
+
+  return {
+    classifierVersion: `${COMMS_CLASSIFIER_VERSION}:manual-correction`,
+    classifierReasoning: reasoning,
+    classifierRuleIds: promotedRuleId ? ['manual:coordinator-correction', promotedRuleId] : ['manual:coordinator-correction'],
+    isPeterKapitein: isPeterKapiteinSignal(senderName),
+  }
 }
 
 function mergeTextBlocks(existing: string | null | undefined, addition: string) {
@@ -449,7 +488,7 @@ export async function routeIntakeItem(
     const { data: item, error: loadError } = await supabase
       .from('intake_items')
       .select(
-        'id, capture_method, captured_at, classifier_reasoning, classifier_rule_ids, classifier_status, classifier_version, classification_confidence, content_type, created_at, dismissed_reason, attached_media_ref, is_peter_kapitein, raw_content, reviewed_at, reviewed_by, routed_to_id, routed_to_type, sender_name, sender_whatsapp_id, source_url, status'
+        'id, capture_method, captured_at, classifier_reasoning, classifier_rule_ids, classifier_status, classifier_version, classification_confidence, content_type, created_at, dismissed_reason, attached_media_ref, is_peter_kapitein, provider_message_id, raw_content, reviewed_at, reviewed_by, routed_to_id, routed_to_type, sender_name, sender_whatsapp_id, source_url, status'
       )
       .eq('id', intakeItemId)
       .maybeSingle()
@@ -560,6 +599,8 @@ export async function editIntakeClassification(
     if (loadError) throw new Error(loadError.message)
     if (!item) throw new Error('Intake item not found.')
 
+    let promotedRuleId: string | null = null
+
     if (item.content_type !== nextType) {
       const { data: correction, error: logError } = await supabase
         .from('intake_classification_corrections')
@@ -590,29 +631,45 @@ export async function editIntakeClassification(
       if (exampleError) throw new Error(exampleError.message)
 
       if (promoteAsRule) {
-        const { error: ruleError } = await supabase.from('intake_classifier_rules').insert({
-          rule_name: `Sender rule: ${item.sender_name}`,
-          description: 'Promoted from a coordinator correction in the intake queue.',
-          match_field: 'sender_name',
-          match_type: 'exact',
-          pattern: item.sender_name,
-          suggested_content_type: nextType,
-          suggested_confidence: 'high',
-          marks_peter: isPeterKapiteinSignal(item.sender_name),
-          priority: 280,
-          created_from_correction_id: correction?.id ?? null,
-          created_by: user.id,
-        })
+        const { data: rule, error: ruleError } = await supabase
+          .from('intake_classifier_rules')
+          .insert({
+            rule_name: `Sender rule: ${item.sender_name}`,
+            description: 'Promoted from a coordinator correction in the intake queue.',
+            match_field: 'sender_name',
+            match_type: 'exact',
+            pattern: item.sender_name,
+            suggested_content_type: nextType,
+            suggested_confidence: 'high',
+            marks_peter: isPeterKapiteinSignal(item.sender_name),
+            priority: 280,
+            created_from_correction_id: correction?.id ?? null,
+            created_by: user.id,
+          })
+          .select('id')
+          .maybeSingle()
         if (ruleError) throw new Error(ruleError.message)
+        promotedRuleId = rule?.id ?? null
       }
     }
+
+    const correctedMetadata = buildCorrectedClassifierMetadata({
+      senderName: item.sender_name,
+      previousType: item.content_type as IntakeContentType,
+      nextType,
+      promotedRuleId,
+    })
 
     const { error: updateError } = await supabase
       .from('intake_items')
       .update({
         content_type: nextType,
         classification_confidence: 'high',
+        is_peter_kapitein: correctedMetadata.isPeterKapitein,
+        classifier_version: correctedMetadata.classifierVersion,
         classifier_status: 'corrected',
+        classifier_reasoning: correctedMetadata.classifierReasoning,
+        classifier_rule_ids: correctedMetadata.classifierRuleIds,
       })
       .eq('id', intakeItemId)
 

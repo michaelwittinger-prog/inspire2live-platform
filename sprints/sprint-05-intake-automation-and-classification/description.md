@@ -1,7 +1,7 @@
 # Sprint 05 — Intake Automation & Classification
 
 **Phase:** 2 draft backlog
-**Status:** In Progress (autonomous engineering work complete; awaiting sprint review before push)
+**Status:** In Progress (security and data-integrity hardening complete; awaiting sprint review before any push)
 
 ## Goal
 
@@ -23,11 +23,11 @@ Sprint 04 proves the communications workflow operationally. The next highest-lev
 
 - `pnpm lint`
 - `pnpm exec tsc --noEmit`
-- `pnpm test` (`206/206`)
+- `pnpm test` (`211/211`)
 - `pnpm build`
 - `pnpm dlx supabase@2.76.10 db push --local`
 - `pnpm dlx supabase@2.76.10 db lint --local --fail-on error`
-- `pnpm exec playwright test src/test/e2e/comms-happy-path.spec.ts src/test/e2e/comms-webhook-ingestion.spec.ts --project=chromium` against the local Supabase stack
+- `PW_USE_PROD_SERVER=true PW_FORCE_FRESH_SERVER=true pnpm exec playwright test src/test/e2e/comms-happy-path.spec.ts src/test/e2e/comms-webhook-ingestion.spec.ts --project=chromium --workers=1`
 
 ## Delivery notes reflected in the workflow
 

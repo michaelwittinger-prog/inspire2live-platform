@@ -1,16 +1,5 @@
 import { expect, test } from '@playwright/test'
-
-async function openIntakeQueue(page: import('@playwright/test').Page) {
-  if (/\/app\/comms\/intake/.test(page.url())) {
-    await expect(page).toHaveURL(/\/app\/comms\/intake/)
-    return
-  }
-
-  await page.getByRole('link', { name: /^Communications$/i }).click()
-  await expect(page).toHaveURL(/\/app\/comms/)
-  await page.locator('a[href="/app/comms/intake"]').click()
-  await expect(page).toHaveURL(/\/app\/comms\/intake/)
-}
+import { COMMS_WEBHOOK_SECRET_HEADER } from '@/lib/comms-webhook-auth'
 
 test.describe('Communications webhook ingestion', () => {
   test('coordinator can review webhook classification, correct it, and replay it', async ({ page, request }) => {
@@ -20,6 +9,9 @@ test.describe('Communications webhook ingestion', () => {
     const providerMessageId = `wamid.sprint05.${uniqueSuffix}`
 
     const webhookResponse = await request.post('/api/comms/whatsapp', {
+      headers: {
+        [COMMS_WEBHOOK_SECRET_HEADER]: process.env.WHATSAPP_WEBHOOK_SECRET ?? 'playwright-local-whatsapp-secret',
+      },
       data: {
         entry: [
           {
@@ -51,13 +43,12 @@ test.describe('Communications webhook ingestion', () => {
       expect(body.accepted).toBe(1)
     }).toPass()
 
-    await page.goto('/login')
+    await page.goto('/login?next=/app/comms/intake')
     await page.getByLabel(/email/i).fill('atefeh@inspire2live.org')
     await page.getByLabel(/^password$/i).fill('demo1234')
     await page.locator('form').getByRole('button', { name: /^sign in$/i }).click()
 
-    await expect(page).toHaveURL(/\/app\/(dashboard|comms\/intake)/)
-    await openIntakeQueue(page)
+    await expect(page).toHaveURL(/\/app\/comms\/intake/)
 
     const intakeCard = page.locator('article').filter({ hasText: senderName }).first()
     await expect(intakeCard).toBeVisible()

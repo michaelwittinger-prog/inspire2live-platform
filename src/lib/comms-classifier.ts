@@ -42,6 +42,8 @@ type MatchedRule = {
   label: string
   evidence: string
   effect: 'type' | 'confidence' | 'founder_signal'
+  matchField: ClassifierRule['matchField']
+  matchType: ClassifierRule['matchType']
   suggestedContentType?: IntakeContentType
   suggestedConfidence?: IntakeClassifierConfidence
   marksPeter?: boolean
@@ -179,6 +181,8 @@ function evaluateRule(rule: ClassifierRule, input: IntakeClassifierInput): Match
     label: rule.name,
     evidence: fieldValue.slice(0, 140),
     effect: rule.marksPeter ? 'founder_signal' : 'type',
+    matchField: rule.matchField,
+    matchType: rule.matchType,
     suggestedContentType: rule.suggestedContentType,
     suggestedConfidence: rule.suggestedConfidence,
     marksPeter: rule.marksPeter,
@@ -212,6 +216,9 @@ export function classifyIntakeItem(
     .filter((match): match is MatchedRule => Boolean(match))
 
   const peterSignal = isPeterKapiteinSignal(input.senderName) || matches.some((match) => match.marksPeter)
+  const exactSenderOverride = matches.find(
+    (match) => match.matchField === 'sender_name' && match.matchType === 'exact' && match.suggestedContentType
+  )
 
   const scores = new Map<IntakeContentType, number>()
   for (const match of matches) {
@@ -220,10 +227,14 @@ export function classifyIntakeItem(
   }
 
   const sortedTypes = Array.from(scores.entries()).sort((a, b) => b[1] - a[1])
-  const [winningType, winningWeight] = sortedTypes[0] ?? [getDefaultType(input), 0]
+  const [winningType, winningWeight] = exactSenderOverride
+    ? [exactSenderOverride.suggestedContentType, exactSenderOverride.weight]
+    : (sortedTypes[0] ?? [getDefaultType(input), 0])
   const contentType = winningType as IntakeContentType
 
-  const confidence = peterSignal
+  const confidence = exactSenderOverride
+    ? 'high'
+    : peterSignal
     ? 'high'
     : toConfidence(
         winningWeight,

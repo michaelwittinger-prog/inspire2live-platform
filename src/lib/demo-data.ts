@@ -590,7 +590,8 @@ export const DEMO_USERS = [
   { id: 'u3', name: 'Kai Tanaka', email: 'kai@inspire2live.org', role: 'Researcher', country: 'JP', last_active: new Date(Date.now() - 3 * 86400000).toISOString(), status: 'active', onboarding_completed: true },
   { id: 'u4', name: 'Nadia Al-Rashid', email: 'nadia@inspire2live.org', role: 'Clinician', country: 'NL', last_active: new Date(Date.now() - 5 * 86400000).toISOString(), status: 'active', onboarding_completed: true },
   { id: 'u5', name: 'Peter de Groot', email: 'peter@inspire2live.org', role: 'BoardMember', country: 'NL', last_active: new Date(Date.now() - 7 * 86400000).toISOString(), status: 'active', onboarding_completed: true },
-  { id: 'u6', name: 'Admin User', email: 'admin@inspire2live.org', role: 'PlatformAdmin', country: 'NL', last_active: new Date().toISOString(), status: 'active', onboarding_completed: true },
+  { id: 'u6', name: 'Maryana Sukhorukova', email: 'marsu101@proton.me', role: 'PlatformAdmin', country: 'AT', last_active: new Date().toISOString(), status: 'active', onboarding_completed: true },
+  { id: 'u7', name: 'Michael Wittinger', email: 'michael.wittinger@gmail.com', role: 'PlatformAdmin', country: 'AT', last_active: new Date().toISOString(), status: 'active', onboarding_completed: true },
 ]
 
 // ─── Congress assignments (responsibility layer) ─────────────────────────────
