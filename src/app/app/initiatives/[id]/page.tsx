@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_INITIATIVES, DEMO_TEAM_MEMBERS_RICH } from '@/lib/demo-data'
 
 // ─── Risk indicator helpers ───────────────────────────────────────────────────
 
@@ -72,10 +71,8 @@ export default async function InitiativeOverviewPage({
       .maybeSingle(),
   ])
 
-  // Try demo data if no DB row
-  const demo = DEMO_INITIATIVES.find((i) => i.id === id)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const init: any = dbInit ?? demo
+  const init: any = dbInit
 
   if (!init) {
     return (
@@ -86,24 +83,24 @@ export default async function InitiativeOverviewPage({
     )
   }
 
-  // Compose metrics — prefer live health view, fall back to demo fields
-  const memberCount = healthRow?.member_count ?? init.member_count ?? 0
-  const openTasks = healthRow?.open_tasks ?? init.open_tasks ?? 0
-  const blockedTasks = healthRow?.blocked_tasks ?? init.blocked_tasks ?? 0
-  const completedMilestones = healthRow?.completed_milestones ?? init.completed_milestones ?? 0
-  const totalMilestones = healthRow?.total_milestones ?? init.total_milestones ?? 0
-  const overdueMilestones = healthRow?.overdue_milestones ?? init.overdue_milestones ?? 0
-  const approachingMilestones = healthRow?.approaching_milestones ?? init.approaching_milestones ?? 0
-  const lastActivityAt: string | null = healthRow?.last_activity_at ?? init.last_activity_at ?? null
+  // Compose metrics from health view
+  const memberCount = healthRow?.member_count ?? 0
+  const openTasks = healthRow?.open_tasks ?? 0
+  const blockedTasks = healthRow?.blocked_tasks ?? 0
+  const completedMilestones = healthRow?.completed_milestones ?? 0
+  const totalMilestones = healthRow?.total_milestones ?? 0
+  const overdueMilestones = healthRow?.overdue_milestones ?? 0
+  const approachingMilestones = healthRow?.approaching_milestones ?? 0
+  const lastActivityAt: string | null = healthRow?.last_activity_at ?? null
   const totalTasks = healthRow?.total_tasks ?? null
   const completedTasks = healthRow?.completed_tasks ?? null
 
-  // Lead info from health view (already joined) or demo
-  const leadName: string | null = healthRow?.lead_name ?? init.lead?.name ?? null
-  const leadCountry: string | null = healthRow?.lead_country ?? init.lead?.country ?? null
-  const leadRole: string | null = init.lead?.role ?? null
+  // Lead info from health view (already joined)
+  const leadName: string | null = healthRow?.lead_name ?? null
+  const leadCountry: string | null = healthRow?.lead_country ?? null
+  const leadRole: string | null = null
 
-  // Core team — fetch from DB, fallback to demo rich members
+  // Core team — fetch from DB
   const { data: dbTeam } = await supabase
     .from('initiative_members')
     .select('user_id, role, profiles(full_name, role, country)')
@@ -111,12 +108,10 @@ export default async function InitiativeOverviewPage({
     .limit(5)
 
   type CoreMember = { user_id: string; name: string; role: string; platform_role: string }
-  const coreTeam: CoreMember[] = dbTeam && dbTeam.length > 0
-    ? dbTeam.map(m => {
-        const p = m.profiles as { full_name?: string; role?: string } | null
-        return { user_id: m.user_id, name: p?.full_name ?? 'Member', role: m.role ?? 'contributor', platform_role: p?.role ?? '' }
-      })
-    : DEMO_TEAM_MEMBERS_RICH.slice(0, 5).map(m => ({ user_id: m.user_id, name: m.name, role: m.role, platform_role: m.platform_role }))
+  const coreTeam: CoreMember[] = (dbTeam ?? []).map(m => {
+    const p = m.profiles as { full_name?: string; role?: string } | null
+    return { user_id: m.user_id, name: p?.full_name ?? 'Member', role: m.role ?? 'contributor', platform_role: p?.role ?? '' }
+  })
 
   // Safe extras — objectives may be string[] or {title,status}[] from DB Json column
   const objectives: string[] = Array.isArray(init.objectives)

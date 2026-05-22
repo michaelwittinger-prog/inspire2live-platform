@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { DEMO_NETWORK_INTERNAL, DEMO_NETWORK_EXTERNAL } from '@/lib/demo-data'
 import { ActionModal } from '@/components/ui/action-modal'
 
 const ROLE_COLOR: Record<string, string> = {
@@ -53,19 +52,42 @@ function activityDot(lastActiveAt: string) {
 
 type InviteType = 'platform' | 'initiative' | 'group'
 
+type InternalMember = {
+  user_id: string
+  name: string
+  role: string
+  organization: string
+  country: string
+  initiatives: string[]
+  last_active_at: string
+}
+
+type ExternalPartner = {
+  id: string
+  name: string
+  type: string
+  relationship: string
+  contact: string
+  focus: string
+  linked_initiatives: string[]
+}
+
 export default function NetworkPage() {
   const [tab, setTab] = useState<'internal' | 'external'>('internal')
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteType, setInviteType] = useState<InviteType>('platform')
   const [search, setSearch] = useState('')
 
-  const internal = DEMO_NETWORK_INTERNAL.filter(m =>
+  const allInternal: InternalMember[] = []
+  const allExternal: ExternalPartner[] = []
+
+  const internal = allInternal.filter(m =>
     !search || m.name.toLowerCase().includes(search.toLowerCase()) ||
     m.organization.toLowerCase().includes(search.toLowerCase()) ||
     m.role.toLowerCase().includes(search.toLowerCase())
   )
 
-  const external = DEMO_NETWORK_EXTERNAL.filter(p =>
+  const external = allExternal.filter(p =>
     !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
     p.focus.toLowerCase().includes(search.toLowerCase())
   )
@@ -77,7 +99,7 @@ export default function NetworkPage() {
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">My Network</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            {internal.length} platform members · {DEMO_NETWORK_EXTERNAL.length} external partners
+            {internal.length} platform members · {external.length} external partners
           </p>
         </div>
         <button
@@ -102,7 +124,7 @@ export default function NetworkPage() {
                 tab === t ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
               }`}
             >
-              {t === 'internal' ? `Platform Members (${DEMO_NETWORK_INTERNAL.length})` : `External Partners (${DEMO_NETWORK_EXTERNAL.length})`}
+              {t === 'internal' ? `Platform Members (${allInternal.length})` : `External Partners (${allExternal.length})`}
             </button>
           ))}
         </div>

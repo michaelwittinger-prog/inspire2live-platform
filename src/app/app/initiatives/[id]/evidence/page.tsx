@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_EVIDENCE_RICH } from '@/lib/demo-data'
 import { PlaceholderButton } from '@/components/ui/client-buttons'
 
 const CATEGORY_META: Record<string, { label: string; color: string; icon: string }> = {
@@ -47,22 +46,18 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
     .eq('initiative_id', id)
     .order('created_at', { ascending: false })
 
-  const usingDemo = !dbEvidence || dbEvidence.length === 0
-
-  const evidence: EvidenceItem[] = usingDemo
-    ? DEMO_EVIDENCE_RICH
-    : dbEvidence!.map((e) => ({
-        id: String(e.id),
-        title: String(e.title),
-        category: String(e.type ?? 'operational'),
-        status: 'published',
-        linked_milestone: null,
-        owner: 'Team member',
-        version: '1.0',
-        uploaded_at: String(e.created_at),
-        file_type: 'pdf',
-        description: '',
-      }))
+  const evidence: EvidenceItem[] = (dbEvidence ?? []).map((e) => ({
+    id: String(e.id),
+    title: String(e.title),
+    category: String(e.type ?? 'operational'),
+    status: 'published',
+    linked_milestone: null,
+    owner: 'Team member',
+    version: '1.0',
+    uploaded_at: String(e.created_at),
+    file_type: 'pdf',
+    description: '',
+  }))
 
   // Summary counts
   const published = evidence.filter(e => e.status === 'published').length
@@ -95,12 +90,6 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
           }
         />
       </div>
-
-      {usingDemo && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-700">
-          📋 Showing representative example evidence items for this initiative
-        </div>
-      )}
 
       {/* ── Summary chips ── */}
       <div className="flex flex-wrap gap-2">

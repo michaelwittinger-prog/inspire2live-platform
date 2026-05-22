@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_MILESTONES_RICH, STAGE_META, STAGE_ORDER, normalizeStage } from '@/lib/demo-data'
+import { STAGE_META, STAGE_ORDER, normalizeStage } from '@/lib/demo-data'
 import type { InitiativeStage } from '@/lib/demo-data'
 import { PlaceholderButton } from '@/components/ui/client-buttons'
 
@@ -51,25 +51,22 @@ export default async function MilestonesPage({ params }: { params: Promise<{ id:
     .order('target_date')
 
   const nowMs = new Date().getTime()
-  const usingDemo = !dbMilestones || dbMilestones.length === 0
 
-  // Map DB or demo to unified type
-  const milestones: MilestoneItem[] = usingDemo
-    ? DEMO_MILESTONES_RICH
-    : dbMilestones!.map(m => {
-        const isOverdue = m.status !== 'completed' && new Date(m.target_date).getTime() < nowMs
-        return {
-          id: m.id,
-          title: m.title,
-          stage: normalizeStage(dbInit?.phase),
-          status: isOverdue ? 'overdue' : m.status,
-          target_date: m.target_date,
-          completed_date: m.completed_date,
-          evidence_required: m.evidence_required,
-          description: m.description ?? '',
-          outcome: null,
-        }
-      })
+  // Map DB milestones to unified type
+  const milestones: MilestoneItem[] = (dbMilestones ?? []).map(m => {
+    const isOverdue = m.status !== 'completed' && new Date(m.target_date).getTime() < nowMs
+    return {
+      id: m.id,
+      title: m.title,
+      stage: normalizeStage(dbInit?.phase),
+      status: isOverdue ? 'overdue' : m.status,
+      target_date: m.target_date,
+      completed_date: m.completed_date,
+      evidence_required: m.evidence_required,
+      description: m.description ?? '',
+      outcome: null,
+    }
+  })
 
   // Summary
   const totalCount = milestones.length
@@ -112,12 +109,6 @@ export default async function MilestonesPage({ params }: { params: Promise<{ id:
           }
         />
       </div>
-
-      {usingDemo && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-700">
-          📋 Showing representative example content for this initiative
-        </div>
-      )}
 
       {/* ── Summary stats ── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

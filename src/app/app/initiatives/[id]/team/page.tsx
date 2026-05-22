@@ -2,7 +2,6 @@
 
 import { useState, useActionState } from 'react'
 import { useParams } from 'next/navigation'
-import { DEMO_TEAM_MEMBERS_RICH } from '@/lib/demo-data'
 import { ActionModal } from '@/components/ui/action-modal'
 import { InviteCombobox } from '@/components/ui/invite-combobox'
 import type { ProfileSuggestion } from '@/components/ui/invite-combobox'
@@ -185,9 +184,6 @@ type TeamMember = {
   organization?: string | null
 }
 
-// TODO: once DB is seeded, replace DEMO with real members from initiative_members
-const DEMO_MEMBERS: TeamMember[] = DEMO_TEAM_MEMBERS_RICH
-
 export default function TeamPage() {
   const [inviteOpen, setInviteOpen] = useState(false)
   const params = useParams<{ id?: string | string[] }>()
@@ -195,7 +191,7 @@ export default function TeamPage() {
   const initiativeId = Array.isArray(rawId) ? rawId[0] : (rawId ?? '')
   const initiativeTitle = 'Initiative'
 
-  const members: TeamMember[] = DEMO_MEMBERS
+  const members: TeamMember[] = []
   const sorted = [...members].sort((a, b) => {
     const order = (r: string) => r === 'lead' ? 0 : r === 'reviewer' ? 1 : 2
     return order(a.role) - order(b.role)
@@ -229,10 +225,6 @@ export default function TeamPage() {
         initiativeId={initiativeId}
         initiativeTitle={initiativeTitle}
       />
-
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-700">
-        📋 Showing example team. Real membership data loads once DB is seeded.
-      </div>
 
       {/* ── Lead spotlight ── */}
       {lead && (
@@ -269,6 +261,16 @@ export default function TeamPage() {
             </div>
           </div>
         </section>
+      )}
+
+      {/* ── Empty state ── */}
+      {members.length === 0 && (
+        <div className="rounded-xl border border-dashed border-neutral-300 py-12 text-center">
+          <p className="text-sm font-medium text-neutral-600">No team members yet</p>
+          <p className="mt-1 text-xs text-neutral-400">
+            Invite people to this initiative using the button above.
+          </p>
+        </div>
       )}
 
       {/* ── All members ── */}

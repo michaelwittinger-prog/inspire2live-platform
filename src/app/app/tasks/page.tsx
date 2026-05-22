@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_TASKS, DEMO_INITIATIVES } from '@/lib/demo-data'
 
 const priorityStyle: Record<string, string> = {
   urgent: 'bg-red-100 text-red-700',
@@ -28,20 +27,14 @@ export default async function MyTasksPage() {
     .eq('assignee_id', user.id)
     .order('due_date', { ascending: true })
 
-  const tasks = (dbTasks ?? []).length > 0
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ? dbTasks!.map((t: any) => ({
-        id: t.id, title: t.title, status: t.status,
-        priority: t.priority, due_date: t.due_date,
-        initiative_id: t.initiative_id,
-        initiative_title: t.initiatives?.title ?? 'Unknown',
-      }))
-    : DEMO_TASKS.map(t => ({
-        ...t, initiative_title:
-          DEMO_INITIATIVES.find(i => i.id === t.initiative_id)?.title ?? 'Unknown',
-      }))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tasks = (dbTasks ?? []).map((t: any) => ({
+    id: t.id, title: t.title, status: t.status,
+    priority: t.priority, due_date: t.due_date,
+    initiative_id: t.initiative_id,
+    initiative_title: t.initiatives?.title ?? 'Unknown',
+  }))
 
-  const usingDemo = (dbTasks ?? []).length === 0
   const open = tasks.filter(t => t.status !== 'done')
   const overdue = open.filter(t => t.due_date && new Date(t.due_date) < new Date())
 
@@ -53,12 +46,6 @@ export default async function MyTasksPage() {
           {open.length} open · {overdue.length} overdue
         </p>
       </div>
-
-      {usingDemo && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-700">
-          📋 Showing demo tasks. Create real tasks inside an initiative workspace.
-        </div>
-      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-neutral-200 bg-white p-3 shadow-sm">
