@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_RESOURCES } from '@/lib/demo-data'
 import { PlaceholderButton, UploadIcon } from '@/components/ui/client-buttons'
 
 const typeColor: Record<string, string> = { document: 'bg-blue-100 text-blue-700', protocol: 'bg-purple-100 text-purple-700', data: 'bg-emerald-100 text-emerald-700', template: 'bg-amber-100 text-amber-700', guide: 'bg-orange-100 text-orange-700' }
@@ -11,9 +10,7 @@ export default async function ResourcesPage() {
   if (!user) redirect('/login')
 
   const { data: dbResources } = await supabase.from('resources').select('*').order('created_at', { ascending: false })
-  const resources = (dbResources ?? []).length > 0
-    ? dbResources!.map(r => ({ id: r.id, title: r.title, type: r.type, language: r.language ?? 'en', version: '1.0', initiative: '', uploaded_by: 'Team', uploaded_at: r.created_at }))
-    : DEMO_RESOURCES
+  const resources = (dbResources ?? []).map(r => ({ id: r.id, title: r.title, type: r.type, language: r.language ?? 'en', version: '1.0', initiative: '', uploaded_by: 'Team', uploaded_at: r.created_at }))
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
@@ -24,21 +21,28 @@ export default async function ResourcesPage() {
         </div>
         <PlaceholderButton label="Upload Resource" icon={<UploadIcon />} message="Resource upload will be available in the next release." />
       </div>
-      <div className="space-y-2">
-        {resources.map(r => (
-          <div key={r.id} className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-100">
-              <svg className="h-5 w-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+      {resources.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-neutral-300 py-16 text-center text-neutral-500">
+          <p className="text-base font-medium">No resources yet</p>
+          <p className="mt-1 text-sm">Shared resources across initiatives will appear here.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {resources.map(r => (
+            <div key={r.id} className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-100">
+                <svg className="h-5 w-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-neutral-900 truncate">{r.title}</p>
+                <p className="text-xs text-neutral-500">{r.initiative} · By {r.uploaded_by} · {new Date(r.uploaded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+              </div>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${typeColor[r.type] ?? 'bg-neutral-100 text-neutral-600'}`}>{r.type}</span>
+              <span className="shrink-0 text-xs text-neutral-400">v{r.version}</span>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-neutral-900 truncate">{r.title}</p>
-              <p className="text-xs text-neutral-500">{r.initiative} · By {r.uploaded_by} · {new Date(r.uploaded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-            </div>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${typeColor[r.type] ?? 'bg-neutral-100 text-neutral-600'}`}>{r.type}</span>
-            <span className="shrink-0 text-xs text-neutral-400">v{r.version}</span>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

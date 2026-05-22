@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { DEMO_NOTIFICATIONS } from '@/lib/demo-data'
 import { markAllNotificationsRead, markNotificationRead, acceptInviteAction, declineInviteAction } from './actions'
 
 const TYPE_ICON: Record<string, string> = {
@@ -45,20 +44,16 @@ export default async function NotificationsPage() {
     .order('invited_at', { ascending: false })
     .limit(10)
 
-  const useDemo = !dbNotifs || dbNotifs.length === 0
-
-  const notifications = useDemo
-    ? DEMO_NOTIFICATIONS
-      : dbNotifs!.map(n => ({
-        id: n.id,
-        type: n.type,
-        title: n.title ?? '',
-        body: n.body ?? '',
-        is_read: n.is_read,
-        created_at: n.created_at,
-        link: (n as unknown as { link_url?: string; link?: string }).link_url ?? (n as unknown as { link?: string }).link ?? null,
-        invitation_id: null as string | null,
-      }))
+  const notifications = (dbNotifs ?? []).map(n => ({
+    id: n.id,
+    type: n.type,
+    title: n.title ?? '',
+    body: n.body ?? '',
+    is_read: n.is_read,
+    created_at: n.created_at,
+    link: (n as unknown as { link_url?: string; link?: string }).link_url ?? (n as unknown as { link?: string }).link ?? null,
+    invitation_id: null as string | null,
+  }))
 
   const invites = (pendingInvites ?? []) as Array<{
     id: string
@@ -170,7 +165,7 @@ export default async function NotificationsPage() {
             </div>
             <div className="flex shrink-0 flex-col items-end gap-2">
               {!n.is_read && <span className="h-2 w-2 rounded-full bg-orange-500" />}
-              {!n.is_read && !useDemo && (
+              {!n.is_read && (
                 <form action={markNotificationRead.bind(null, n.id)}>
                   <button
                     type="submit"
