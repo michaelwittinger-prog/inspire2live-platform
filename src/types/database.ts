@@ -696,7 +696,10 @@ export type Database = {
         Row: {
           created_at: string
           end_date: string | null
+          attendance_kind: string
           event_type: string
+          event_image_url: string | null
+          event_website_url: string | null
           i2l_representatives: string[] | null
           id: string
           initiative_ids: string[] | null
@@ -711,6 +714,9 @@ export type Database = {
           output_media_stored: boolean
           output_newsletter_mentioned: boolean
           output_report_drafted: boolean
+          presentation_asset_url: string | null
+          presentation_summary: string | null
+          push_to_group_calendar: boolean
           stage: string
           start_date: string
           updated_at: string
@@ -718,7 +724,10 @@ export type Database = {
         Insert: {
           created_at?: string
           end_date?: string | null
+          attendance_kind?: string
           event_type: string
+          event_image_url?: string | null
+          event_website_url?: string | null
           i2l_representatives?: string[] | null
           id?: string
           initiative_ids?: string[] | null
@@ -733,6 +742,9 @@ export type Database = {
           output_media_stored?: boolean
           output_newsletter_mentioned?: boolean
           output_report_drafted?: boolean
+          presentation_asset_url?: string | null
+          presentation_summary?: string | null
+          push_to_group_calendar?: boolean
           stage?: string
           start_date: string
           updated_at?: string
@@ -740,7 +752,10 @@ export type Database = {
         Update: {
           created_at?: string
           end_date?: string | null
+          attendance_kind?: string
           event_type?: string
+          event_image_url?: string | null
+          event_website_url?: string | null
           i2l_representatives?: string[] | null
           id?: string
           initiative_ids?: string[] | null
@@ -755,6 +770,9 @@ export type Database = {
           output_media_stored?: boolean
           output_newsletter_mentioned?: boolean
           output_report_drafted?: boolean
+          presentation_asset_url?: string | null
+          presentation_summary?: string | null
+          push_to_group_calendar?: boolean
           stage?: string
           start_date?: string
           updated_at?: string

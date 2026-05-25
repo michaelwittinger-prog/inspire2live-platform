@@ -14,7 +14,7 @@ import { EVENT_STAGE_META, type EventStage } from '@/lib/comms-workflow'
 import { createClient } from '@/lib/supabase/server'
 
 const EVENT_DETAIL_SELECT =
-  'id, name, event_type, start_date, end_date, location_city, location_country, organiser, stage, is_annual_congress, is_i2l_organised, initiative_ids, i2l_representatives, output_report_drafted, output_linkedin_published, output_newsletter_mentioned, output_media_stored, notes'
+  'id, name, event_type, start_date, end_date, location_city, location_country, organiser, stage, is_annual_congress, is_i2l_organised, attendance_kind, presentation_summary, presentation_asset_url, event_image_url, event_website_url, push_to_group_calendar, initiative_ids, i2l_representatives, output_report_drafted, output_linkedin_published, output_newsletter_mentioned, output_media_stored, notes'
 const EVENT_DETAIL_FALLBACK_SELECT =
   'id, name, event_type, start_date, end_date, location_city, location_country, organiser, stage, is_annual_congress, initiative_ids, i2l_representatives, output_report_drafted, output_linkedin_published, output_newsletter_mentioned, output_media_stored, notes'
 
@@ -47,7 +47,18 @@ export default async function CommsEventDetailPage({ params }: { params: Promise
       .select(EVENT_DETAIL_FALLBACK_SELECT)
       .eq('id', id)
       .maybeSingle()
-    event = fallbackEvent ? { ...fallbackEvent, is_i2l_organised: false } : null
+    event = fallbackEvent
+      ? {
+          ...fallbackEvent,
+          is_i2l_organised: false,
+          attendance_kind: 'visitor',
+          presentation_summary: null,
+          presentation_asset_url: null,
+          event_image_url: null,
+          event_website_url: null,
+          push_to_group_calendar: false,
+        }
+      : null
   }
 
   if (!event) notFound()
@@ -143,6 +154,22 @@ export default async function CommsEventDetailPage({ params }: { params: Promise
               <span className="text-sm font-semibold text-neutral-800">Country</span>
               <input name="location_country" defaultValue={event.location_country ?? ''} className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
             </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-semibold text-neutral-800">Kind of attending</span>
+              <select name="attendance_kind" defaultValue={event.attendance_kind ?? 'visitor'} className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm">
+                {['visitor', 'presenter', 'chair', 'organiser', 'sponsor', 'speaker'].map((kind) => (
+                  <option key={kind} value={kind}>
+                    {kind.charAt(0).toUpperCase() + kind.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-semibold text-neutral-800">Event website</span>
+              <input type="url" name="event_website_url" defaultValue={event.event_website_url ?? ''} placeholder="https://example.org/event" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
+            </label>
           </div>
 
           <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-medium text-violet-900">
@@ -155,8 +182,13 @@ export default async function CommsEventDetailPage({ params }: { params: Promise
             I2L-organised event
           </label>
 
+          <label className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900">
+            <input type="checkbox" name="push_to_group_calendar" value="true" defaultChecked={event.push_to_group_calendar} />
+            Push to group calendar
+          </label>
+
           <fieldset className="space-y-3">
-            <legend className="text-sm font-semibold text-neutral-800">I2L representatives</legend>
+            <legend className="text-sm font-semibold text-neutral-800">Person attending</legend>
             <div className="grid gap-2 md:grid-cols-2">
               {(profiles ?? []).map((profile) => (
                 <label key={profile.id} className="flex items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm">
@@ -166,6 +198,49 @@ export default async function CommsEventDetailPage({ params }: { params: Promise
               ))}
             </div>
           </fieldset>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block space-y-2">
+              <span className="text-sm font-semibold text-neutral-800">Picture upload / image link</span>
+              <input
+                type="url"
+                name="event_image_url"
+                defaultValue={event.event_image_url ?? ''}
+                placeholder="Example: event photo, invitation image, or SharePoint image URL"
+                className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-semibold text-neutral-800">Upload presentation / slide link</span>
+              <input
+                type="url"
+                name="presentation_asset_url"
+                defaultValue={event.presentation_asset_url ?? ''}
+                placeholder="Example: deck, PDF, or SharePoint presentation URL"
+                className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
+
+          {event.event_image_url && (
+            <div
+              aria-label="Event image"
+              className="h-48 w-full rounded-xl border border-neutral-200 bg-cover bg-center"
+              style={{ backgroundImage: `url(${event.event_image_url})` }}
+            />
+          )}
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-neutral-800">Summary of presentation</span>
+            <textarea
+              name="presentation_summary"
+              rows={4}
+              defaultValue={event.presentation_summary ?? ''}
+              placeholder="Required when the kind of attending is Presenter."
+              className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+            />
+          </label>
 
           <label className="block space-y-2">
             <span className="text-sm font-semibold text-neutral-800">Notes</span>
@@ -180,6 +255,25 @@ export default async function CommsEventDetailPage({ params }: { params: Promise
         </form>
 
         <div className="space-y-5">
+          <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-neutral-900">Event links</h2>
+            <div className="mt-4 grid gap-2">
+              {event.event_website_url && (
+                <a href={event.event_website_url} target="_blank" rel="noreferrer" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800 hover:bg-blue-100">
+                  Open event website
+                </a>
+              )}
+              {event.presentation_asset_url && (
+                <a href={event.presentation_asset_url} target="_blank" rel="noreferrer" className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800 hover:bg-violet-100">
+                  Open presentation
+                </a>
+              )}
+              <p className={`rounded-xl border px-4 py-3 text-sm font-semibold ${event.push_to_group_calendar ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-neutral-200 bg-neutral-50 text-neutral-600'}`}>
+                {event.push_to_group_calendar ? 'Ready for group calendar' : 'Not pushed to group calendar'}
+              </p>
+            </div>
+          </section>
+
           <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-neutral-900">Lifecycle</h2>
             <div className="mt-4 flex flex-wrap gap-2">

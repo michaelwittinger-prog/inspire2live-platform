@@ -26,7 +26,7 @@ export default async function CommsCalendarPage({
     data: { user },
   } = await supabase.auth.getUser()
 
-  const [{ data: entriesData }, { data: authorsData }, { data: intakeCandidatesData }, { data: currentProfile }] = await Promise.all([
+  const [{ data: entriesData }, { data: authorsData }, { data: currentProfile }] = await Promise.all([
     supabase
       .from('content_calendar')
       .select('id, title, channels, status, scheduled_at, published_at, body_draft, author_id, source_intake_id, source_link, attached_media_refs, tags, created_at')
@@ -36,13 +36,6 @@ export default async function CommsCalendarPage({
       .from('profiles')
       .select('id, name, email, role, comms_team, user_type')
       .order('name'),
-    supabase
-      .from('intake_items')
-      .select('id, sender_name, content_type, raw_content, captured_at')
-      .eq('status', 'unreviewed')
-      .in('content_type', ['article_share', 'event_report'])
-      .order('captured_at', { ascending: false })
-      .limit(12),
     user
       ? supabase.from('profiles').select('role, comms_team, user_type').eq('id', user.id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -81,13 +74,6 @@ export default async function CommsCalendarPage({
         created_at: string
       }>}
       authors={authors}
-      intakeCandidates={(intakeCandidatesData ?? []) as Array<{
-        id: string
-        sender_name: string
-        content_type: string
-        raw_content: string
-        captured_at: string
-      }>}
       view={view}
       statusFilter={statusFilter}
       currentUserId={user?.id ?? null}
