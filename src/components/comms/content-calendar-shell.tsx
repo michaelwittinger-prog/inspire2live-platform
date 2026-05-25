@@ -6,7 +6,6 @@ import { ActionModal } from '@/components/ui/action-modal'
 import { IntegrationStubForm } from '@/components/comms/integration-stub-form'
 import { StatusBadge } from '@/components/ui/status-badge'
 import {
-  promoteIntakeCandidate,
   saveCalendarEntry,
   transitionCalendarStatus,
   type CalendarFormState,
@@ -46,14 +45,6 @@ type AuthorOption = {
   id: string
   name: string
   email: string
-}
-
-type IntakeCandidate = {
-  id: string
-  sender_name: string
-  content_type: string
-  raw_content: string
-  captured_at: string
 }
 
 type PlannerView = 'month' | 'list' | 'drafts' | 'my_items'
@@ -393,7 +384,6 @@ function CalendarListCard({
 export function ContentCalendarShell({
   entries,
   authors,
-  intakeCandidates,
   view,
   statusFilter,
   currentUserId,
@@ -403,7 +393,6 @@ export function ContentCalendarShell({
 }: {
   entries: CalendarEntry[]
   authors: AuthorOption[]
-  intakeCandidates: IntakeCandidate[]
   view: PlannerView
   statusFilter: 'all' | CalendarStatus
   currentUserId?: string | null
@@ -413,7 +402,6 @@ export function ContentCalendarShell({
 }) {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<CalendarEntry | null>(null)
-  const [promotionState, promoteAction] = useActionState(promoteIntakeCandidate, INITIAL_STATE)
 
   const statusFilteredEntries =
     statusFilter === 'all' ? entries : entries.filter((entry) => entry.status === statusFilter)
@@ -460,44 +448,6 @@ export function ContentCalendarShell({
       </header>
 
       <CalendarEditorModal authors={authors} entry={editingEntry} open={editorOpen} onClose={() => setEditorOpen(false)} />
-
-      <section className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-semibold text-neutral-900">Promote from intake</h3>
-            <p className="text-sm text-neutral-500">
-              One-click conversion for the strongest intake signals waiting to become calendar drafts.
-            </p>
-          </div>
-          {promotionState.error && <p className="text-sm text-red-700">{promotionState.error}</p>}
-          {promotionState.ok && promotionState.message && <p className="text-sm text-emerald-700">{promotionState.message}</p>}
-        </div>
-
-        {intakeCandidates.length === 0 ? (
-          <p className="text-sm text-neutral-500">No unrouted article shares or event reports are waiting right now.</p>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-2">
-            {intakeCandidates.map((candidate) => (
-              <div key={candidate.id} className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">
-                  {candidate.content_type.replace('_', ' ')}
-                </p>
-                <h4 className="mt-2 text-sm font-semibold text-neutral-900">{candidate.sender_name}</h4>
-                <p className="mt-2 line-clamp-3 text-sm text-neutral-600">{candidate.raw_content}</p>
-                <form action={promoteAction} className="mt-4">
-                  <input type="hidden" name="intake_item_id" value={candidate.id} />
-                  <button
-                    type="submit"
-                    className="rounded-xl bg-neutral-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800"
-                  >
-                    Promote to calendar
-                  </button>
-                </form>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">

@@ -15,6 +15,12 @@ type EventCard = {
   stage: string
   is_annual_congress: boolean
   is_i2l_organised: boolean
+  attendance_kind: string
+  presentation_summary: string | null
+  presentation_asset_url: string | null
+  event_image_url: string | null
+  event_website_url: string | null
+  push_to_group_calendar: boolean
   initiativeLabels: string[]
   representativeLabels: string[]
   outputs: Array<{ label: string; done: boolean }>
@@ -46,6 +52,10 @@ function formatDateRange(startDate: string, endDate: string | null) {
 
 function formatLocation(city: string | null, country: string | null) {
   return [city, country].filter(Boolean).join(', ') || 'Location TBD'
+}
+
+function humanize(value: string) {
+  return value.replaceAll('_', ' ').replace(/^\w/, (char) => char.toUpperCase())
 }
 
 export function EventsPipelineShell({
@@ -126,6 +136,37 @@ export function EventsPipelineShell({
             <input name="location_country" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
           </label>
 
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-neutral-800">Kind of attending</span>
+            <select name="attendance_kind" defaultValue="visitor" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm">
+              {['visitor', 'presenter', 'chair', 'organiser', 'sponsor', 'speaker'].map((kind) => (
+                <option key={kind} value={kind}>
+                  {humanize(kind)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-neutral-800">Event website</span>
+            <input type="url" name="event_website_url" placeholder="https://example.org/event" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
+          </label>
+
+          <label className="block space-y-2 md:col-span-2">
+            <span className="text-sm font-semibold text-neutral-800">Picture upload / image link</span>
+            <input type="url" name="event_image_url" placeholder="Example: SharePoint image URL or public event photo link" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
+          </label>
+
+          <label className="block space-y-2 md:col-span-2">
+            <span className="text-sm font-semibold text-neutral-800">Presenter summary</span>
+            <textarea name="presentation_summary" rows={3} placeholder="Required when attending as presenter." className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
+          </label>
+
+          <label className="block space-y-2 md:col-span-2">
+            <span className="text-sm font-semibold text-neutral-800">Upload presentation / slide link</span>
+            <input type="url" name="presentation_asset_url" placeholder="Example: SharePoint deck URL, Google Drive link, or PDF URL" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
+          </label>
+
           <label className="flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-900">
             <input type="checkbox" name="is_annual_congress" value="true" />
             Annual Congress event
@@ -134,6 +175,11 @@ export function EventsPipelineShell({
           <label className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900">
             <input type="checkbox" name="is_i2l_organised" value="true" />
             I2L-organised event
+          </label>
+
+          <label className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900">
+            <input type="checkbox" name="push_to_group_calendar" value="true" />
+            Push to group calendar
           </label>
 
           {initiatives.length > 0 && (
@@ -226,7 +272,9 @@ export function EventsPipelineShell({
                   {event.is_annual_congress && <StatusBadge label="Annual Congress" tone="violet" />}
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-neutral-900">{event.name}</h3>
+                  <Link href={`/app/comms/events/${event.id}`} className="text-lg font-semibold text-neutral-900 hover:text-orange-700">
+                    {event.name}
+                  </Link>
                   <p className="text-sm text-neutral-500">{formatDateRange(event.start_date, event.end_date)}</p>
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs">
@@ -240,24 +288,72 @@ export function EventsPipelineShell({
                   )}
                   {event.representativeLabels.map((rep) => (
                     <span key={rep} className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 font-semibold text-blue-700">
-                      Rep: {rep}
+                      Attending: {rep}
                     </span>
                   ))}
+                  {event.representativeLabels.length === 0 && (
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-semibold text-amber-700">
+                      Person attending: Unassigned
+                    </span>
+                  )}
+                  <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 font-semibold text-sky-700">
+                    Kind: {humanize(event.attendance_kind)}
+                  </span>
                   {event.initiativeLabels.map((initiative) => (
                     <span key={initiative} className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 font-semibold text-violet-700">
                       {initiative}
                     </span>
                   ))}
+                  {event.push_to_group_calendar && (
+                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
+                      Group calendar
+                    </span>
+                  )}
                 </div>
               </div>
 
-              <Link
-                href={`/app/comms/events/${event.id}`}
-                className="rounded-xl border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-800 transition hover:bg-neutral-50"
-              >
-                Open detail
-              </Link>
+              <div className="flex flex-wrap gap-2">
+                {event.event_website_url && (
+                  <a
+                    href={event.event_website_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-800 transition hover:bg-blue-50"
+                  >
+                    Event website
+                  </a>
+                )}
+                <Link
+                  href={`/app/comms/events/${event.id}`}
+                  className="rounded-xl border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-800 transition hover:bg-neutral-50"
+                >
+                  Open detail
+                </Link>
+              </div>
             </div>
+
+            {(event.event_image_url || event.presentation_summary || event.presentation_asset_url) && (
+              <div className="mt-4 grid gap-3 md:grid-cols-[160px_1fr]">
+                {event.event_image_url && (
+                  <div
+                    aria-label="Event image"
+                    className="h-28 w-full rounded-xl border border-neutral-200 bg-cover bg-center"
+                    style={{ backgroundImage: `url(${event.event_image_url})` }}
+                  />
+                )}
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">Presentation</p>
+                  <p className="mt-1 line-clamp-3 text-sm text-neutral-700">
+                    {event.presentation_summary || (event.attendance_kind === 'presenter' ? 'Presenter summary still needed.' : 'No presentation summary needed.')}
+                  </p>
+                  {event.presentation_asset_url && (
+                    <a href={event.presentation_asset_url} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-700 hover:text-blue-900">
+                      Open presentation
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="mt-4 grid gap-2 md:grid-cols-4">
               {event.outputs.map((output) => (

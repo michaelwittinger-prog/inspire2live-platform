@@ -5,7 +5,7 @@ import { type EventStage } from '@/lib/comms-workflow'
 const VALID_STAGES = new Set<EventStage>(['announced', 'attending', 'in_progress', 'post_event', 'archived'])
 const VALID_SCOPES = new Set(['all', 'i2l', 'networking', 'past'])
 const EVENT_PIPELINE_SELECT =
-  'id, name, event_type, start_date, end_date, location_city, location_country, organiser, stage, is_annual_congress, is_i2l_organised, initiative_ids, i2l_representatives, output_report_drafted, output_linkedin_published, output_newsletter_mentioned, output_media_stored'
+  'id, name, event_type, start_date, end_date, location_city, location_country, organiser, stage, is_annual_congress, is_i2l_organised, attendance_kind, presentation_summary, presentation_asset_url, event_image_url, event_website_url, push_to_group_calendar, initiative_ids, i2l_representatives, output_report_drafted, output_linkedin_published, output_newsletter_mentioned, output_media_stored'
 const EVENT_PIPELINE_FALLBACK_SELECT =
   'id, name, event_type, start_date, end_date, location_city, location_country, organiser, stage, is_annual_congress, initiative_ids, i2l_representatives, output_report_drafted, output_linkedin_published, output_newsletter_mentioned, output_media_stored'
 
@@ -32,7 +32,16 @@ export default async function CommsEventsPage({
       .from('events')
       .select(EVENT_PIPELINE_FALLBACK_SELECT)
       .order('start_date', { ascending: false })
-    eventsData = (fallbackEvents ?? []).map((event) => ({ ...event, is_i2l_organised: false }))
+    eventsData = (fallbackEvents ?? []).map((event) => ({
+      ...event,
+      is_i2l_organised: false,
+      attendance_kind: 'visitor',
+      presentation_summary: null,
+      presentation_asset_url: null,
+      event_image_url: null,
+      event_website_url: null,
+      push_to_group_calendar: false,
+    }))
   }
 
   const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile.name ?? profile.email]))
@@ -50,6 +59,12 @@ export default async function CommsEventsPage({
     stage: string
     is_annual_congress: boolean
     is_i2l_organised: boolean
+    attendance_kind: string
+    presentation_summary: string | null
+    presentation_asset_url: string | null
+    event_image_url: string | null
+    event_website_url: string | null
+    push_to_group_calendar: boolean
     initiative_ids: string[] | null
     i2l_representatives: string[] | null
     output_report_drafted: boolean

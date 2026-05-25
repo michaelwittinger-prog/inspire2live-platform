@@ -23,6 +23,11 @@ function parseLineList(raw: string) {
     .filter(Boolean)
 }
 
+function safeReturnPath(formData: FormData) {
+  const path = asText(formData.get('return_path'))
+  return path.startsWith('/app/comms/') ? path : '/app/comms/campus'
+}
+
 async function requireCommsOperator() {
   const supabase = await createClient()
   const {
@@ -95,4 +100,74 @@ export async function saveCampusSession(formData: FormData) {
 
   revalidatePath('/app/comms/campus-log')
   revalidatePath(`/app/comms/campus-log/sessions/${sessionId}`)
+}
+
+export async function addCampusAgendaItem(formData: FormData) {
+  const { supabase } = await requireCommsOperator()
+  const sessionId = asText(formData.get('session_id'))
+  const agendaItem = asText(formData.get('agenda_item'))
+  const returnPath = safeReturnPath(formData)
+
+  if (!sessionId || !agendaItem) throw new Error('Session and agenda item are required.')
+
+  const { data: session, error: loadError } = await supabase
+    .from('campus_sessions')
+    .select('action_items_for_publication')
+    .eq('id', sessionId)
+    .maybeSingle()
+
+  if (loadError) throw new Error(loadError.message)
+  if (!session) throw new Error('Campus session not found.')
+
+  const nextItem = `Agenda: ${agendaItem.slice(0, 180)}`
+  const existingItems = session.action_items_for_publication ?? []
+  const actionItems = existingItems.includes(nextItem) ? existingItems : [...existingItems, nextItem]
+
+  const { error } = await supabase
+    .from('campus_sessions')
+    .update({ action_items_for_publication: actionItems })
+    .eq('id', sessionId)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/app/comms/campus')
+  revalidatePath('/app/comms/campus-log')
+  revalidatePath(returnPath)
+}
+
+export async function addCampusActionItem(formData: FormData) {
+  const { supabase } = await requireCommsOperator()
+  const sessionId = asText(formData.get('session_id'))
+  const action = asText(formData.get('action_item'))
+  const assignee = asText(formData.get('assigned_to'))
+  const dueDate = asText(formData.get('due_date'))
+  const returnPath = safeReturnPath(formData)
+
+  if (!sessionId || !action || !assignee || !dueDate) {
+    throw new Error('Action item, assigned person, and date are required.')
+  }
+
+  const { data: session, error: loadError } = await supabase
+    .from('campus_sessions')
+    .select('action_items_for_publication')
+    .eq('id', sessionId)
+    .maybeSingle()
+
+  if (loadError) throw new Error(loadError.message)
+  if (!session) throw new Error('Campus session not found.')
+
+  const nextItem = `Action: ${action.slice(0, 180)} | Owner: ${assignee.slice(0, 80)} | Due: ${dueDate}`
+  const existingItems = session.action_items_for_publication ?? []
+  const actionItems = existingItems.includes(nextItem) ? existingItems : [...existingItems, nextItem]
+
+  const { error } = await supabase
+    .from('campus_sessions')
+    .update({ action_items_for_publication: actionItems })
+    .eq('id', sessionId)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/app/comms/campus')
+  revalidatePath('/app/comms/campus-log')
+  revalidatePath(returnPath)
 }

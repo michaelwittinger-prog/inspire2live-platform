@@ -44,6 +44,12 @@ function ensureValidStage(value: string): EventStage {
   return value as EventStage
 }
 
+function attendanceKind(formData: FormData) {
+  const value = asText(formData.get('attendance_kind')) || 'visitor'
+  const allowed = new Set(['visitor', 'presenter', 'chair', 'organiser', 'sponsor', 'speaker'])
+  return allowed.has(value) ? value : 'visitor'
+}
+
 export async function createEvent(formData: FormData) {
   const { supabase } = await requireCommsOperator()
   const name = asText(formData.get('name'))
@@ -63,6 +69,12 @@ export async function createEvent(formData: FormData) {
       location_city: asText(formData.get('location_city')) || null,
       location_country: asText(formData.get('location_country')) || null,
       notes: asText(formData.get('notes')) || null,
+      attendance_kind: attendanceKind(formData),
+      presentation_summary: asText(formData.get('presentation_summary')) || null,
+      presentation_asset_url: asText(formData.get('presentation_asset_url')) || null,
+      event_image_url: asText(formData.get('event_image_url')) || null,
+      event_website_url: asText(formData.get('event_website_url')) || null,
+      push_to_group_calendar: asText(formData.get('push_to_group_calendar')) === 'true',
       is_annual_congress: asText(formData.get('is_annual_congress')) === 'true',
       is_i2l_organised: asText(formData.get('is_i2l_organised')) === 'true',
       stage: 'announced',
@@ -91,6 +103,12 @@ export async function saveEventDetails(formData: FormData) {
     location_city: asText(formData.get('location_city')) || null,
     location_country: asText(formData.get('location_country')) || null,
     notes: asText(formData.get('notes')) || null,
+    attendance_kind: attendanceKind(formData),
+    presentation_summary: asText(formData.get('presentation_summary')) || null,
+    presentation_asset_url: asText(formData.get('presentation_asset_url')) || null,
+    event_image_url: asText(formData.get('event_image_url')) || null,
+    event_website_url: asText(formData.get('event_website_url')) || null,
+    push_to_group_calendar: asText(formData.get('push_to_group_calendar')) === 'true',
     is_annual_congress: asText(formData.get('is_annual_congress')) === 'true',
     is_i2l_organised: asText(formData.get('is_i2l_organised')) === 'true',
     i2l_representatives: parseValues(formData, 'i2l_representatives'),
