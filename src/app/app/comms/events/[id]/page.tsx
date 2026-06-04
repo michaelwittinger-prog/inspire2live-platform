@@ -19,7 +19,9 @@ import {
   formatDelimitedList,
   formatTokenLabel,
   getEventTypeLabel,
+  getEventSetupContent,
   getPodcastWorkflowProgress,
+  isI2LOwnedEvent,
   isPodcastEventType,
 } from '@/lib/comms-events'
 import { getIntegrationStubFlags } from '@/lib/comms-integrations'
@@ -27,7 +29,7 @@ import { EVENT_STAGE_META, type EventStage } from '@/lib/comms-workflow'
 import { createClient } from '@/lib/supabase/server'
 
 const EVENT_DETAIL_SELECT =
-  'id, name, event_type, start_date, end_date, location_city, location_country, organiser, stage, is_annual_congress, is_i2l_organised, attendance_kind, presentation_summary, presentation_asset_url, event_image_url, event_website_url, push_to_group_calendar, initiative_ids, i2l_representatives, output_report_drafted, output_linkedin_published, output_newsletter_mentioned, output_media_stored, notes, podcast_series_name, podcast_episode_title, podcast_hosts, podcast_guests, podcast_recording_mode, podcast_distribution_channels, podcast_recording_link, podcast_preparation_notes, podcast_run_of_show, podcast_followup_notes, podcast_guest_confirmed, podcast_brief_ready, podcast_release_form_ready, podcast_equipment_ready, podcast_recording_completed, podcast_backup_completed, podcast_edit_completed, podcast_transcript_completed, podcast_show_notes_completed, podcast_published, podcast_followup_completed'
+  'id, name, event_type, start_date, end_date, location_city, location_country, organiser, owner_id, stage, is_annual_congress, is_i2l_organised, attendance_kind, presentation_summary, presentation_asset_url, event_image_url, event_website_url, push_to_group_calendar, initiative_ids, i2l_representatives, output_report_drafted, output_linkedin_published, output_newsletter_mentioned, output_media_stored, notes, podcast_series_name, podcast_episode_title, podcast_hosts, podcast_guests, podcast_recording_mode, podcast_distribution_channels, podcast_recording_link, podcast_preparation_notes, podcast_run_of_show, podcast_followup_notes, podcast_guest_confirmed, podcast_brief_ready, podcast_release_form_ready, podcast_equipment_ready, podcast_recording_completed, podcast_backup_completed, podcast_edit_completed, podcast_transcript_completed, podcast_show_notes_completed, podcast_published, podcast_followup_completed'
 const EVENT_DETAIL_FALLBACK_SELECT =
   'id, name, event_type, start_date, end_date, location_city, location_country, organiser, stage, is_annual_congress, initiative_ids, i2l_representatives, output_report_drafted, output_linkedin_published, output_newsletter_mentioned, output_media_stored, notes'
 
@@ -91,6 +93,7 @@ export default async function CommsEventDetailPage({ params }: { params: Promise
     event = fallbackEvent
       ? withPodcastDefaults({
           ...fallbackEvent,
+          owner_id: null,
           is_i2l_organised: false,
           attendance_kind: 'visitor',
           presentation_summary: null,
@@ -113,7 +116,18 @@ export default async function CommsEventDetailPage({ params }: { params: Promise
   const representativeSet = new Set(event.i2l_representatives ?? [])
   const linkedInitiativeSet = new Set(event.initiative_ids ?? [])
   const podcastDistributionSet = new Set(event.podcast_distribution_channels ?? [])
+  const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile.name ?? profile.email ?? 'Unknown']))
   const linkedInitiatives = (initiatives ?? []).filter((initiative) => linkedInitiativeSet.has(initiative.id))
+  const effectiveOwned = isI2LOwnedEvent({
+    eventType: event.event_type,
+    isI2lOrganised: event.is_i2l_organised,
+    isAnnualCongress: event.is_annual_congress,
+  })
+  const setup = getEventSetupContent({
+    eventType: event.event_type,
+    isI2lOrganised: effectiveOwned,
+    isAnnualCongress: event.is_annual_congress,
+  })
   const isPodcast = isPodcastEventType(event.event_type)
   const podcastWorkflowProgress = getPodcastWorkflowProgress(event)
   const stubFlags = getIntegrationStubFlags()
@@ -144,7 +158,13 @@ export default async function CommsEventDetailPage({ params }: { params: Promise
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge label={EVENT_STAGE_META[event.stage as EventStage]?.label ?? event.stage} tone={EVENT_STAGE_META[event.stage as EventStage]?.tone ?? 'neutral'} />
             <StatusBadge label={getEventTypeLabel(event.event_type)} tone="blue" />
-            <StatusBadge label={event.is_i2l_organised ? 'I2L own' : 'Networking'} tone={event.is_i2l_organised ? 'green' : 'neutral'} />
+            <StatusBadge label={effectiveOwned ? 'I2L own' : 'Networking'} tone={effectiveOwned ? 'green' : 'neutral'} />
+            {effectiveOwned && event.owner_id && (
+              <StatusBadge label={`Owner: ${profileMap.get(event.owner_id) ?? 'Assigned'}`} tone="green" />
+            )}
+            {effectiveOwned && !event.owner_id && (
+              <StatusBadge label="Owner missing" tone="amber" />
+            )}
             {isPodcast && (
               <StatusBadge
                 label={`Podcast workflow ${podcastWorkflowProgress.completed}/${podcastWorkflowProgress.total}`}
@@ -184,13 +204,18 @@ export default async function CommsEventDetailPage({ params }: { params: Promise
                 ))}
               </select>
               <p className="text-xs text-neutral-500">
-                Choose Podcast to open the dedicated setup, recording, and follow-up workspace below.
+                {setup.typeHint}
               </p>
             </label>
 
             <label className="block space-y-2">
-              <span className="text-sm font-semibold text-neutral-800">Organiser</span>
-              <input name="organiser" defaultValue={event.organiser ?? ''} className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
+              <span className="text-sm font-semibold text-neutral-800">{setup.organiserLabel}</span>
+              <input
+                name="organiser"
+                defaultValue={event.organiser ?? ''}
+                placeholder={setup.organiserPlaceholder}
+                className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+              />
             </label>
 
             <label className="block space-y-2">
@@ -213,26 +238,28 @@ export default async function CommsEventDetailPage({ params }: { params: Promise
               <input name="location_country" defaultValue={event.location_country ?? ''} className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
             </label>
 
-            <label className="block space-y-2">
-              <span className="text-sm font-semibold text-neutral-800">Kind of attending</span>
-              <select name="attendance_kind" defaultValue={event.attendance_kind ?? 'visitor'} className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm">
-                {ATTENDANCE_KIND_OPTIONS.map((kind) => (
-                  <option key={kind.value} value={kind.value}>
-                    {kind.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {setup.attendanceKindLabel ? (
+              <label className="block space-y-2">
+                <span className="text-sm font-semibold text-neutral-800">{setup.attendanceKindLabel}</span>
+                <select name="attendance_kind" defaultValue={event.attendance_kind ?? 'visitor'} className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm">
+                  {ATTENDANCE_KIND_OPTIONS.map((kind) => (
+                    <option key={kind.value} value={kind.value}>
+                      {kind.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <input type="hidden" name="attendance_kind" value={event.attendance_kind ?? 'organiser'} />
+            )}
 
             <label className="block space-y-2">
-              <span className="text-sm font-semibold text-neutral-800">
-                {isPodcast ? 'Episode landing page' : 'Event website'}
-              </span>
+              <span className="text-sm font-semibold text-neutral-800">{setup.websiteLabel}</span>
               <input
                 type="url"
                 name="event_website_url"
                 defaultValue={event.event_website_url ?? ''}
-                placeholder={isPodcast ? 'https://example.org/podcast-episode' : 'https://example.org/event'}
+                placeholder={setup.websitePlaceholder}
                 className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
               />
             </label>
@@ -243,59 +270,73 @@ export default async function CommsEventDetailPage({ params }: { params: Promise
             Annual Congress event
           </label>
 
-          <label className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900">
-            <input type="checkbox" name="is_i2l_organised" value="true" defaultChecked={event.is_i2l_organised} />
-            I2L-organised event
-          </label>
+          {isPodcast ? (
+            <>
+              <input type="hidden" name="is_i2l_organised" value="true" />
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900">
+                Podcasts are always treated as I2L-owned productions.
+              </div>
+            </>
+          ) : (
+            <label className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900">
+              <input type="checkbox" name="is_i2l_organised" value="true" defaultChecked={event.is_i2l_organised} />
+              I2L-organised event
+            </label>
+          )}
 
           <label className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900">
             <input type="checkbox" name="push_to_group_calendar" value="true" defaultChecked={event.push_to_group_calendar} />
             Push to group calendar
           </label>
 
-          <fieldset className="space-y-3">
-            <legend className="text-sm font-semibold text-neutral-800">Person attending</legend>
-            <div className="grid gap-2 md:grid-cols-2">
-              {(profiles ?? []).map((profile) => (
-                <label key={profile.id} className="flex items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm">
-                  <input type="checkbox" name="i2l_representatives" value={profile.id} defaultChecked={representativeSet.has(profile.id)} />
-                  <span>{profile.name ?? profile.email}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          {setup.ownerLabel && (
+            <label className="block space-y-2">
+              <span className="text-sm font-semibold text-neutral-800">{setup.ownerLabel}</span>
+              <select name="owner_id" required defaultValue={event.owner_id ?? ''} className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm">
+                <option value="">Select owner</option>
+                {(profiles ?? []).map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.name ?? profile.email}
+                  </option>
+                ))}
+              </select>
+              {setup.ownerHelp && <p className="text-xs text-neutral-500">{setup.ownerHelp}</p>}
+            </label>
+          )}
+
+          {setup.attendeeLegend && (
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-semibold text-neutral-800">{setup.attendeeLegend}</legend>
+              <div className="grid gap-2 md:grid-cols-2">
+                {(profiles ?? []).map((profile) => (
+                  <label key={profile.id} className="flex items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm">
+                    <input type="checkbox" name="i2l_representatives" value={profile.id} defaultChecked={representativeSet.has(profile.id)} />
+                    <span>{profile.name ?? profile.email}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
 
           <div className="grid gap-4 md:grid-cols-2">
             <label className="block space-y-2">
-              <span className="text-sm font-semibold text-neutral-800">
-                {isPodcast ? 'Cover art / guest image link' : 'Picture upload / image link'}
-              </span>
+              <span className="text-sm font-semibold text-neutral-800">{setup.imageLabel}</span>
               <input
                 type="url"
                 name="event_image_url"
                 defaultValue={event.event_image_url ?? ''}
-                placeholder={
-                  isPodcast
-                    ? 'Example: episode artwork, guest photo, or SharePoint image URL'
-                    : 'Example: event photo, invitation image, or SharePoint image URL'
-                }
+                placeholder={setup.imagePlaceholder}
                 className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
               />
             </label>
 
             <label className="block space-y-2">
-              <span className="text-sm font-semibold text-neutral-800">
-                {isPodcast ? 'Brief / script / asset link' : 'Upload presentation / slide link'}
-              </span>
+              <span className="text-sm font-semibold text-neutral-800">{setup.assetLabel}</span>
               <input
                 type="url"
                 name="presentation_asset_url"
                 defaultValue={event.presentation_asset_url ?? ''}
-                placeholder={
-                  isPodcast
-                    ? 'Example: recording brief, script, or shared production folder'
-                    : 'Example: deck, PDF, or SharePoint presentation URL'
-                }
+                placeholder={setup.assetPlaceholder}
                 className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
               />
             </label>
@@ -310,18 +351,12 @@ export default async function CommsEventDetailPage({ params }: { params: Promise
           )}
 
           <label className="block space-y-2">
-            <span className="text-sm font-semibold text-neutral-800">
-              {isPodcast ? 'Episode summary / editorial angle' : 'Summary of presentation'}
-            </span>
+            <span className="text-sm font-semibold text-neutral-800">{setup.summaryLabel}</span>
             <textarea
               name="presentation_summary"
               rows={4}
               defaultValue={event.presentation_summary ?? ''}
-              placeholder={
-                isPodcast
-                  ? 'Capture the episode angle, hook, target audience, and key talking points.'
-                  : 'Required when the kind of attending is Presenter.'
-              }
+              placeholder={setup.summaryPlaceholder}
               className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
             />
           </label>
@@ -508,7 +543,7 @@ export default async function CommsEventDetailPage({ params }: { params: Promise
               )}
               {event.presentation_asset_url && (
                 <a href={event.presentation_asset_url} target="_blank" rel="noreferrer" className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800 hover:bg-violet-100">
-                  {isPodcast ? 'Open brief or script' : 'Open presentation'}
+                  Open {setup.assetLabel.toLowerCase()}
                 </a>
               )}
               <p className={`rounded-xl border px-4 py-3 text-sm font-semibold ${event.push_to_group_calendar ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-neutral-200 bg-neutral-50 text-neutral-600'}`}>

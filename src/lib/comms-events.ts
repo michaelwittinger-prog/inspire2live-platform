@@ -9,6 +9,7 @@ export const EVENT_TYPE_OPTIONS = [
 ] as const
 
 export type EventType = (typeof EVENT_TYPE_OPTIONS)[number]['value']
+export type EventSetupMode = 'attendance' | 'i2l_owned' | 'podcast'
 
 export const ATTENDANCE_KIND_OPTIONS = [
   { value: 'visitor', label: 'Visitor' },
@@ -111,6 +112,148 @@ export function normalizeAttendanceKind(value: string) {
 
 export function isPodcastEventType(value: string | null | undefined) {
   return value === 'podcast'
+}
+
+export function isI2LOwnedEvent(input: {
+  eventType: string | null | undefined
+  isI2lOrganised?: boolean | null | undefined
+  isAnnualCongress?: boolean | null | undefined
+}) {
+  return Boolean(input.isAnnualCongress || input.isI2lOrganised || isPodcastEventType(input.eventType))
+}
+
+export function normalizeI2LOwnedFlag(input: {
+  eventType: string | null | undefined
+  isI2lOrganised?: boolean | null | undefined
+  isAnnualCongress?: boolean | null | undefined
+}) {
+  return isI2LOwnedEvent(input)
+}
+
+export function getEventSetupMode(input: {
+  eventType: string | null | undefined
+  isI2lOrganised?: boolean | null | undefined
+  isAnnualCongress?: boolean | null | undefined
+}): EventSetupMode {
+  if (isPodcastEventType(input.eventType)) return 'podcast'
+  if (isI2LOwnedEvent(input)) return 'i2l_owned'
+  return 'attendance'
+}
+
+export function supportsAttendanceSetup(input: {
+  eventType: string | null | undefined
+  isI2lOrganised?: boolean | null | undefined
+  isAnnualCongress?: boolean | null | undefined
+}) {
+  return getEventSetupMode(input) === 'attendance'
+}
+
+export function supportsInternalParticipantSelection(input: {
+  eventType: string | null | undefined
+  isI2lOrganised?: boolean | null | undefined
+  isAnnualCongress?: boolean | null | undefined
+}) {
+  return supportsAttendanceSetup(input)
+}
+
+export function requiresOwnerAssignment(input: {
+  eventType: string | null | undefined
+  isI2lOrganised?: boolean | null | undefined
+  isAnnualCongress?: boolean | null | undefined
+}) {
+  return getEventSetupMode(input) !== 'attendance'
+}
+
+export function getDefaultAttendanceKind(input: {
+  eventType: string | null | undefined
+  isI2lOrganised?: boolean | null | undefined
+  isAnnualCongress?: boolean | null | undefined
+}) {
+  return supportsAttendanceSetup(input) ? 'visitor' : 'organiser'
+}
+
+export function getEventSetupContent(input: {
+  eventType: string | null | undefined
+  isI2lOrganised?: boolean | null | undefined
+  isAnnualCongress?: boolean | null | undefined
+}) {
+  const mode = getEventSetupMode(input)
+
+  if (mode === 'podcast') {
+    return {
+      mode,
+      typeHint:
+        'Podcast setup is treated as an I2L-owned production workflow with one responsible owner.',
+      ownerLabel: 'Responsible owner',
+      ownerHelp: 'Assign the person accountable for planning, recording, publishing, and follow-up.',
+      organiserLabel: 'Publishing channel / production partner',
+      organiserPlaceholder: 'Example: Inspire2Live, studio partner, or distribution partner',
+      websiteLabel: 'Episode landing page',
+      websitePlaceholder: 'https://example.org/podcast-episode',
+      imageLabel: 'Cover art / guest image link',
+      imagePlaceholder: 'Example: episode artwork, guest photo, or SharePoint image URL',
+      summaryLabel: 'Episode summary / editorial angle',
+      summaryPlaceholder:
+        'Capture the episode angle, hook, target audience, and key talking points.',
+      assetLabel: 'Brief / script / asset link',
+      assetPlaceholder:
+        'Example: recording brief, script, or shared production folder',
+      attendeeLegend: null,
+      attendeeChipPrefix: null,
+      attendeeEmptyLabel: null,
+      attendanceKindLabel: null,
+      showPodcastWorkflow: true,
+    }
+  }
+
+  if (mode === 'i2l_owned') {
+    return {
+      mode,
+      typeHint:
+        'I2L-owned events use accountable ownership instead of attendee tracking.',
+      ownerLabel: 'Responsible owner',
+      ownerHelp: 'Assign the person responsible for delivery, coordination, and follow-up.',
+      organiserLabel: 'Lead organiser / hosting team',
+      organiserPlaceholder: 'Example: Inspire2Live events team',
+      websiteLabel: 'Event website',
+      websitePlaceholder: 'https://example.org/event',
+      imageLabel: 'Event image link',
+      imagePlaceholder: 'Example: invitation image, agenda visual, or SharePoint image URL',
+      summaryLabel: 'Event brief / production summary',
+      summaryPlaceholder:
+        'Capture the purpose, audience, runbook highlights, and communication angle.',
+      assetLabel: 'Runbook / deck / support asset',
+      assetPlaceholder: 'Example: runbook, deck, or internal planning folder',
+      attendeeLegend: null,
+      attendeeChipPrefix: null,
+      attendeeEmptyLabel: null,
+      attendanceKindLabel: null,
+      showPodcastWorkflow: false,
+    }
+  }
+
+  return {
+    mode,
+    typeHint:
+      'External attendance events track how I2L participates and who attends from the team.',
+    ownerLabel: null,
+    ownerHelp: null,
+    organiserLabel: 'External organiser',
+    organiserPlaceholder: 'Example: conference host or partner organisation',
+    websiteLabel: 'Event website',
+    websitePlaceholder: 'https://example.org/event',
+    imageLabel: 'Picture upload / image link',
+    imagePlaceholder: 'Example: event photo, invitation image, or SharePoint image URL',
+    summaryLabel: 'Presentation summary',
+    summaryPlaceholder: 'Required when attending as presenter.',
+    assetLabel: 'Presentation / slide link',
+    assetPlaceholder: 'Example: deck, PDF, or SharePoint presentation URL',
+    attendeeLegend: 'I2L attendees',
+    attendeeChipPrefix: 'Attending',
+    attendeeEmptyLabel: 'I2L attendee: Unassigned',
+    attendanceKindLabel: 'Kind of attending',
+    showPodcastWorkflow: false,
+  }
 }
 
 export function isPodcastRecordingMode(value: string): value is PodcastRecordingMode {

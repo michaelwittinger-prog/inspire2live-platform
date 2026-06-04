@@ -1,11 +1,12 @@
 import { EventsPipelineShell } from '@/components/comms/events-pipeline-shell'
+import { isI2LOwnedEvent } from '@/lib/comms-events'
 import { createClient } from '@/lib/supabase/server'
 import { type EventStage } from '@/lib/comms-workflow'
 
 const VALID_STAGES = new Set<EventStage>(['announced', 'attending', 'in_progress', 'post_event', 'archived'])
 const VALID_SCOPES = new Set(['all', 'i2l', 'networking', 'past'])
 const EVENT_PIPELINE_SELECT =
-  'id, name, event_type, start_date, end_date, location_city, location_country, organiser, stage, is_annual_congress, is_i2l_organised, attendance_kind, presentation_summary, presentation_asset_url, event_image_url, event_website_url, push_to_group_calendar, initiative_ids, i2l_representatives, output_report_drafted, output_linkedin_published, output_newsletter_mentioned, output_media_stored'
+  'id, name, event_type, start_date, end_date, location_city, location_country, organiser, owner_id, stage, is_annual_congress, is_i2l_organised, attendance_kind, presentation_summary, presentation_asset_url, event_image_url, event_website_url, push_to_group_calendar, initiative_ids, i2l_representatives, output_report_drafted, output_linkedin_published, output_newsletter_mentioned, output_media_stored'
 const EVENT_PIPELINE_FALLBACK_SELECT =
   'id, name, event_type, start_date, end_date, location_city, location_country, organiser, stage, is_annual_congress, initiative_ids, i2l_representatives, output_report_drafted, output_linkedin_published, output_newsletter_mentioned, output_media_stored'
 
@@ -34,6 +35,7 @@ export default async function CommsEventsPage({
       .order('start_date', { ascending: false })
     eventsData = (fallbackEvents ?? []).map((event) => ({
       ...event,
+      owner_id: null,
       is_i2l_organised: false,
       attendance_kind: 'visitor',
       presentation_summary: null,
@@ -56,6 +58,7 @@ export default async function CommsEventsPage({
     location_city: string | null
     location_country: string | null
     organiser: string | null
+    owner_id: string | null
     stage: string
     is_annual_congress: boolean
     is_i2l_organised: boolean
@@ -75,8 +78,13 @@ export default async function CommsEventsPage({
     .filter((event) => stageFilter === 'all' || event.stage === stageFilter)
     .filter((event) => eventTypeFilter === 'all' || event.event_type === eventTypeFilter)
     .filter((event) => {
-      if (scopeFilter === 'i2l') return event.is_i2l_organised || event.is_annual_congress
-      if (scopeFilter === 'networking') return !event.is_i2l_organised && !event.is_annual_congress
+      const effectiveOwned = isI2LOwnedEvent({
+        eventType: event.event_type,
+        isI2lOrganised: event.is_i2l_organised,
+        isAnnualCongress: event.is_annual_congress,
+      })
+      if (scopeFilter === 'i2l') return effectiveOwned
+      if (scopeFilter === 'networking') return !effectiveOwned
       if (scopeFilter === 'past') return new Date(event.end_date ?? event.start_date) < new Date()
       return true
     })
@@ -85,6 +93,7 @@ export default async function CommsEventsPage({
       ...event,
       initiativeLabels: (event.initiative_ids ?? []).map((id) => initiativeMap.get(id)).filter(Boolean) as string[],
       representativeLabels: (event.i2l_representatives ?? []).map((id) => profileMap.get(id)).filter(Boolean) as string[],
+      ownerLabel: event.owner_id ? profileMap.get(event.owner_id) ?? null : null,
       outputs: [
         { label: 'Report', done: event.output_report_drafted },
         { label: 'LinkedIn', done: event.output_linkedin_published },
@@ -101,6 +110,7 @@ export default async function CommsEventsPage({
       eventTypeFilter={eventTypeFilter}
       eventTypes={Array.from(new Set((eventsData ?? []).map((event) => event.event_type))).sort()}
       initiatives={(initiatives ?? []).map((initiative) => ({ id: initiative.id, label: initiative.title }))}
+      people={(profiles ?? []).map((profile) => ({ id: profile.id, label: profile.name ?? profile.email ?? 'Unknown' }))}
     />
   )
 }

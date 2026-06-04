@@ -713,6 +713,7 @@ export type Database = {
           name: string
           notes: string | null
           organiser: string | null
+          owner_id: string | null
           output_linkedin_published: boolean
           output_media_stored: boolean
           output_newsletter_mentioned: boolean
@@ -762,6 +763,7 @@ export type Database = {
           name: string
           notes?: string | null
           organiser?: string | null
+          owner_id?: string | null
           output_linkedin_published?: boolean
           output_media_stored?: boolean
           output_newsletter_mentioned?: boolean
@@ -811,6 +813,7 @@ export type Database = {
           name?: string
           notes?: string | null
           organiser?: string | null
+          owner_id?: string | null
           output_linkedin_published?: boolean
           output_media_stored?: boolean
           output_newsletter_mentioned?: boolean
