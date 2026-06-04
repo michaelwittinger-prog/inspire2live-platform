@@ -1,11 +1,11 @@
 import Link from 'next/link'
-import { createEvent } from '@/app/app/comms/events/actions'
+import { EventCreateForm } from '@/components/comms/event-create-form'
 import { StatusBadge } from '@/components/ui/status-badge'
 import {
-  ATTENDANCE_KIND_OPTIONS,
-  EVENT_TYPE_OPTIONS,
-  getEventTypeLabel,
   formatTokenLabel,
+  getEventSetupContent,
+  getEventTypeLabel,
+  isI2LOwnedEvent,
 } from '@/lib/comms-events'
 import { EVENT_STAGE_META, type EventStage } from '@/lib/comms-workflow'
 
@@ -18,6 +18,7 @@ type EventCard = {
   location_city: string | null
   location_country: string | null
   organiser: string | null
+  ownerLabel: string | null
   stage: string
   is_annual_congress: boolean
   is_i2l_organised: boolean
@@ -67,6 +68,7 @@ export function EventsPipelineShell({
   eventTypeFilter,
   eventTypes,
   initiatives,
+  people,
 }: {
   events: EventCard[]
   stageFilter: 'all' | EventStage
@@ -74,6 +76,7 @@ export function EventsPipelineShell({
   eventTypeFilter: string
   eventTypes: string[]
   initiatives: Option[]
+  people: Option[]
 }) {
   return (
     <section className="space-y-6">
@@ -87,7 +90,7 @@ export function EventsPipelineShell({
             </span>
           </div>
           <p className="text-sm text-neutral-600">
-            Track I2L-organised events separately from networking attendance while keeping congress links visible.
+            Track I2L-owned productions separately from external attendance while keeping congress links visible.
           </p>
         </div>
       </header>
@@ -96,117 +99,7 @@ export function EventsPipelineShell({
         <summary className="cursor-pointer list-none text-base font-semibold text-neutral-900">
           Create event
         </summary>
-        <form action={createEvent} className="mt-4 grid gap-4 md:grid-cols-2">
-          <label className="block space-y-2 md:col-span-2">
-            <span className="text-sm font-semibold text-neutral-800">Event name</span>
-            <input name="name" required className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-sm font-semibold text-neutral-800">Event type</span>
-            <select name="event_type" defaultValue="conference" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm">
-              {EVENT_TYPE_OPTIONS.map((eventType) => (
-                <option key={eventType.value} value={eventType.value}>
-                  {eventType.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-neutral-500">
-              Podcast events unlock a production workspace after creation with setup, recording, and follow-up tracking.
-            </p>
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-sm font-semibold text-neutral-800">Start date</span>
-            <input type="date" name="start_date" required className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-sm font-semibold text-neutral-800">End date</span>
-            <input type="date" name="end_date" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-sm font-semibold text-neutral-800">Organiser</span>
-            <input name="organiser" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-sm font-semibold text-neutral-800">City</span>
-            <input name="location_city" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-sm font-semibold text-neutral-800">Country</span>
-            <input name="location_country" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-sm font-semibold text-neutral-800">Kind of attending</span>
-            <select name="attendance_kind" defaultValue="visitor" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm">
-              {ATTENDANCE_KIND_OPTIONS.map((kind) => (
-                <option key={kind.value} value={kind.value}>
-                  {kind.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-sm font-semibold text-neutral-800">Event website</span>
-            <input type="url" name="event_website_url" placeholder="https://example.org/event" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
-          </label>
-
-          <label className="block space-y-2 md:col-span-2">
-            <span className="text-sm font-semibold text-neutral-800">Picture upload / image link</span>
-            <input type="url" name="event_image_url" placeholder="Example: SharePoint image URL or public event photo link" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
-          </label>
-
-          <label className="block space-y-2 md:col-span-2">
-            <span className="text-sm font-semibold text-neutral-800">Presenter summary</span>
-            <textarea name="presentation_summary" rows={3} placeholder="Required when attending as presenter." className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
-          </label>
-
-          <label className="block space-y-2 md:col-span-2">
-            <span className="text-sm font-semibold text-neutral-800">Upload presentation / slide link</span>
-            <input type="url" name="presentation_asset_url" placeholder="Example: SharePoint deck URL, Google Drive link, or PDF URL" className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
-          </label>
-
-          <label className="flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-900">
-            <input type="checkbox" name="is_annual_congress" value="true" />
-            Annual Congress event
-          </label>
-
-          <label className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900">
-            <input type="checkbox" name="is_i2l_organised" value="true" />
-            I2L-organised event
-          </label>
-
-          <label className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900">
-            <input type="checkbox" name="push_to_group_calendar" value="true" />
-            Push to group calendar
-          </label>
-
-          {initiatives.length > 0 && (
-            <div className="md:col-span-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-              <p className="text-sm font-semibold text-neutral-800">Reference initiatives</p>
-              <p className="mt-1 text-xs text-neutral-500">
-                Linkage happens on the detail page, but these are the current initiatives available for follow-up.
-              </p>
-            </div>
-          )}
-
-          <label className="block space-y-2 md:col-span-2">
-            <span className="text-sm font-semibold text-neutral-800">Notes</span>
-            <textarea name="notes" rows={4} className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm" />
-          </label>
-
-          <div className="md:col-span-2 flex justify-end">
-            <button type="submit" className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-700">
-              Create event
-            </button>
-          </div>
-        </form>
+        <EventCreateForm initiatives={initiatives} people={people} />
       </details>
 
       <nav className="flex flex-wrap gap-2" aria-label="Event ownership filters">
@@ -266,112 +159,132 @@ export function EventsPipelineShell({
       )}
 
       <div className="space-y-4">
-        {events.map((event) => (
-          <article key={event.id} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge label={EVENT_STAGE_META[event.stage as EventStage]?.label ?? event.stage} tone={EVENT_STAGE_META[event.stage as EventStage]?.tone ?? 'neutral'} />
-                  <StatusBadge label={getEventTypeLabel(event.event_type)} tone="blue" />
-                  <StatusBadge label={event.is_i2l_organised || event.is_annual_congress ? 'I2L own' : 'Networking'} tone={event.is_i2l_organised || event.is_annual_congress ? 'green' : 'neutral'} />
-                  {event.is_annual_congress && <StatusBadge label="Annual Congress" tone="violet" />}
-                </div>
-                <div>
-                  <Link href={`/app/comms/events/${event.id}`} className="text-lg font-semibold text-neutral-900 hover:text-orange-700">
-                    {event.name}
-                  </Link>
-                  <p className="text-sm text-neutral-500">{formatDateRange(event.start_date, event.end_date)}</p>
-                </div>
-                <div className="flex flex-wrap gap-2 text-xs">
-                  <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 font-semibold text-neutral-700">
-                    {formatLocation(event.location_city, event.location_country)}
-                  </span>
-                  {event.organiser && (
+        {events.map((event) => {
+          const effectiveOwned = isI2LOwnedEvent({
+            eventType: event.event_type,
+            isI2lOrganised: event.is_i2l_organised,
+            isAnnualCongress: event.is_annual_congress,
+          })
+          const setup = getEventSetupContent({
+            eventType: event.event_type,
+            isI2lOrganised: effectiveOwned,
+            isAnnualCongress: event.is_annual_congress,
+          })
+
+          return (
+            <article key={event.id} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge label={EVENT_STAGE_META[event.stage as EventStage]?.label ?? event.stage} tone={EVENT_STAGE_META[event.stage as EventStage]?.tone ?? 'neutral'} />
+                    <StatusBadge label={getEventTypeLabel(event.event_type)} tone="blue" />
+                    <StatusBadge label={effectiveOwned ? 'I2L own' : 'Networking'} tone={effectiveOwned ? 'green' : 'neutral'} />
+                    {event.is_annual_congress && <StatusBadge label="Annual Congress" tone="violet" />}
+                  </div>
+                  <div>
+                    <Link href={`/app/comms/events/${event.id}`} className="text-lg font-semibold text-neutral-900 hover:text-orange-700">
+                      {event.name}
+                    </Link>
+                    <p className="text-sm text-neutral-500">{formatDateRange(event.start_date, event.end_date)}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 font-semibold text-neutral-700">
-                      Organiser: {event.organiser}
+                      {formatLocation(event.location_city, event.location_country)}
                     </span>
-                  )}
-                  {event.representativeLabels.map((rep) => (
-                    <span key={rep} className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 font-semibold text-blue-700">
-                      Attending: {rep}
-                    </span>
-                  ))}
-                  {event.representativeLabels.length === 0 && (
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-semibold text-amber-700">
-                      Person attending: Unassigned
-                    </span>
-                  )}
-                  <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 font-semibold text-sky-700">
-                    Kind: {formatTokenLabel(event.attendance_kind)}
-                  </span>
-                  {event.initiativeLabels.map((initiative) => (
-                    <span key={initiative} className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 font-semibold text-violet-700">
-                      {initiative}
-                    </span>
-                  ))}
-                  {event.push_to_group_calendar && (
-                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
-                      Group calendar
-                    </span>
-                  )}
+                    {event.organiser && (
+                      <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 font-semibold text-neutral-700">
+                        {setup.organiserLabel}: {event.organiser}
+                      </span>
+                    )}
+                    {event.ownerLabel && (
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
+                        Owner: {event.ownerLabel}
+                      </span>
+                    )}
+                    {setup.attendeeChipPrefix && event.representativeLabels.map((rep) => (
+                      <span key={rep} className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 font-semibold text-blue-700">
+                        {setup.attendeeChipPrefix}: {rep}
+                      </span>
+                    ))}
+                    {setup.attendeeEmptyLabel && event.representativeLabels.length === 0 && (
+                      <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-semibold text-amber-700">
+                        {setup.attendeeEmptyLabel}
+                      </span>
+                    )}
+                    {setup.attendanceKindLabel && (
+                      <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 font-semibold text-sky-700">
+                        Kind: {formatTokenLabel(event.attendance_kind)}
+                      </span>
+                    )}
+                    {event.initiativeLabels.map((initiative) => (
+                      <span key={initiative} className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 font-semibold text-violet-700">
+                        {initiative}
+                      </span>
+                    ))}
+                    {event.push_to_group_calendar && (
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
+                        Group calendar
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex flex-wrap gap-2">
-                {event.event_website_url && (
-                  <a
-                    href={event.event_website_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-800 transition hover:bg-blue-50"
-                  >
-                    Event website
-                  </a>
-                )}
-                <Link
-                  href={`/app/comms/events/${event.id}`}
-                  className="rounded-xl border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-800 transition hover:bg-neutral-50"
-                >
-                  Open detail
-                </Link>
-              </div>
-            </div>
-
-            {(event.event_image_url || event.presentation_summary || event.presentation_asset_url) && (
-              <div className="mt-4 grid gap-3 md:grid-cols-[160px_1fr]">
-                {event.event_image_url && (
-                  <div
-                    aria-label="Event image"
-                    className="h-28 w-full rounded-xl border border-neutral-200 bg-cover bg-center"
-                    style={{ backgroundImage: `url(${event.event_image_url})` }}
-                  />
-                )}
-                <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">Presentation</p>
-                  <p className="mt-1 line-clamp-3 text-sm text-neutral-700">
-                    {event.presentation_summary || (event.attendance_kind === 'presenter' ? 'Presenter summary still needed.' : 'No presentation summary needed.')}
-                  </p>
-                  {event.presentation_asset_url && (
-                    <a href={event.presentation_asset_url} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-700 hover:text-blue-900">
-                      Open presentation
+                <div className="flex flex-wrap gap-2">
+                  {event.event_website_url && (
+                    <a
+                      href={event.event_website_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-800 transition hover:bg-blue-50"
+                    >
+                      {setup.websiteLabel}
                     </a>
                   )}
+                  <Link
+                    href={`/app/comms/events/${event.id}`}
+                    className="rounded-xl border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-800 transition hover:bg-neutral-50"
+                  >
+                    Open detail
+                  </Link>
                 </div>
               </div>
-            )}
 
-            <div className="mt-4 grid gap-2 md:grid-cols-4">
-              {event.outputs.map((output) => (
-                <div key={output.label} className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">{output.label}</p>
-                  <p className={`mt-1 text-sm font-semibold ${output.done ? 'text-emerald-700' : 'text-neutral-500'}`}>
-                    {output.done ? 'Done' : 'Pending'}
-                  </p>
+              {(event.event_image_url || event.presentation_summary || event.presentation_asset_url) && (
+                <div className="mt-4 grid gap-3 md:grid-cols-[160px_1fr]">
+                  {event.event_image_url && (
+                    <div
+                      aria-label="Event image"
+                      className="h-28 w-full rounded-xl border border-neutral-200 bg-cover bg-center"
+                      style={{ backgroundImage: `url(${event.event_image_url})` }}
+                    />
+                  )}
+                  <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">{setup.summaryLabel}</p>
+                    <p className="mt-1 line-clamp-3 text-sm text-neutral-700">
+                      {event.presentation_summary || (setup.attendanceKindLabel && event.attendance_kind === 'presenter' ? 'Presenter summary still needed.' : 'No summary captured yet.')}
+                    </p>
+                    {event.presentation_asset_url && (
+                      <a href={event.presentation_asset_url} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-700 hover:text-blue-900">
+                        Open {setup.assetLabel.toLowerCase()}
+                      </a>
+                    )}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </article>
-        ))}
+              )}
+
+              <div className="mt-4 grid gap-2 md:grid-cols-4">
+                {event.outputs.map((output) => (
+                  <div key={output.label} className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">{output.label}</p>
+                    <p className={`mt-1 text-sm font-semibold ${output.done ? 'text-emerald-700' : 'text-neutral-500'}`}>
+                      {output.done ? 'Done' : 'Pending'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </article>
+          )
+        })}
       </div>
     </section>
   )

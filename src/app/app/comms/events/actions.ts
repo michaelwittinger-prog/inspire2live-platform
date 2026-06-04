@@ -5,13 +5,17 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { canAccessCommsWorkspace } from '@/lib/comms-access'
 import {
+  getDefaultAttendanceKind,
   isPodcastEventType,
   isPodcastWorkflowField,
+  normalizeI2LOwnedFlag,
   normalizeAttendanceKind,
   normalizeEventType,
   normalizePodcastRecordingMode,
   parseDelimitedList,
   parsePodcastDistributionChannels,
+  requiresOwnerAssignment,
+  supportsInternalParticipantSelection,
 } from '@/lib/comms-events'
 import { EVENT_STAGE_META, type EventStage } from '@/lib/comms-workflow'
 
@@ -57,8 +61,13 @@ function isChecked(formData: FormData, key: string) {
   return asText(formData.get(key)) === 'true'
 }
 
-function attendanceKind(formData: FormData) {
-  return normalizeAttendanceKind(asText(formData.get('attendance_kind')) || 'visitor')
+function attendanceKind(formData: FormData, input: {
+  eventType: string
+  isI2lOrganised: boolean
+  isAnnualCongress: boolean
+}) {
+  const fallback = getDefaultAttendanceKind(input)
+  return normalizeAttendanceKind(asText(formData.get('attendance_kind')) || fallback)
 }
 
 function parsePodcastFields(formData: FormData, eventType: string) {
@@ -124,8 +133,18 @@ export async function createEvent(formData: FormData) {
   const name = asText(formData.get('name'))
   const eventType = normalizeEventType(asText(formData.get('event_type')) || 'conference')
   const startDate = asText(formData.get('start_date'))
+  const isAnnualCongress = isChecked(formData, 'is_annual_congress')
+  const isI2lOrganised = normalizeI2LOwnedFlag({
+    eventType,
+    isI2lOrganised: isChecked(formData, 'is_i2l_organised'),
+    isAnnualCongress,
+  })
+  const ownerId = asText(formData.get('owner_id')) || null
 
   if (!name || !startDate) throw new Error('Event name and start date are required.')
+  if (requiresOwnerAssignment({ eventType, isI2lOrganised, isAnnualCongress }) && !ownerId) {
+    throw new Error('A responsible owner is required for I2L-owned events.')
+  }
 
   const { data, error } = await supabase
     .from('events')
@@ -138,14 +157,26 @@ export async function createEvent(formData: FormData) {
       location_city: asText(formData.get('location_city')) || null,
       location_country: asText(formData.get('location_country')) || null,
       notes: asText(formData.get('notes')) || null,
-      attendance_kind: attendanceKind(formData),
+      owner_id: ownerId,
+      attendance_kind: attendanceKind(formData, {
+        eventType,
+        isI2lOrganised,
+        isAnnualCongress,
+      }),
       presentation_summary: asText(formData.get('presentation_summary')) || null,
       presentation_asset_url: asText(formData.get('presentation_asset_url')) || null,
       event_image_url: asText(formData.get('event_image_url')) || null,
       event_website_url: asText(formData.get('event_website_url')) || null,
       push_to_group_calendar: isChecked(formData, 'push_to_group_calendar'),
-      is_annual_congress: isChecked(formData, 'is_annual_congress'),
-      is_i2l_organised: isChecked(formData, 'is_i2l_organised'),
+      is_annual_congress: isAnnualCongress,
+      is_i2l_organised: isI2lOrganised,
+      i2l_representatives: supportsInternalParticipantSelection({
+        eventType,
+        isI2lOrganised,
+        isAnnualCongress,
+      })
+        ? parseValues(formData, 'i2l_representatives')
+        : [],
       ...parsePodcastFields(formData, eventType),
       stage: 'announced',
     })
@@ -165,6 +196,17 @@ export async function saveEventDetails(formData: FormData) {
   if (!eventId) throw new Error('Event is required.')
 
   const eventType = normalizeEventType(asText(formData.get('event_type')) || 'conference')
+  const isAnnualCongress = isChecked(formData, 'is_annual_congress')
+  const isI2lOrganised = normalizeI2LOwnedFlag({
+    eventType,
+    isI2lOrganised: isChecked(formData, 'is_i2l_organised'),
+    isAnnualCongress,
+  })
+  const ownerId = asText(formData.get('owner_id')) || null
+  if (requiresOwnerAssignment({ eventType, isI2lOrganised, isAnnualCongress }) && !ownerId) {
+    throw new Error('A responsible owner is required for I2L-owned events.')
+  }
+
   const payload = {
     name: asText(formData.get('name')),
     event_type: eventType,
@@ -174,15 +216,26 @@ export async function saveEventDetails(formData: FormData) {
     location_city: asText(formData.get('location_city')) || null,
     location_country: asText(formData.get('location_country')) || null,
     notes: asText(formData.get('notes')) || null,
-    attendance_kind: attendanceKind(formData),
+    owner_id: ownerId,
+    attendance_kind: attendanceKind(formData, {
+      eventType,
+      isI2lOrganised,
+      isAnnualCongress,
+    }),
     presentation_summary: asText(formData.get('presentation_summary')) || null,
     presentation_asset_url: asText(formData.get('presentation_asset_url')) || null,
     event_image_url: asText(formData.get('event_image_url')) || null,
     event_website_url: asText(formData.get('event_website_url')) || null,
     push_to_group_calendar: isChecked(formData, 'push_to_group_calendar'),
-    is_annual_congress: isChecked(formData, 'is_annual_congress'),
-    is_i2l_organised: isChecked(formData, 'is_i2l_organised'),
-    i2l_representatives: parseValues(formData, 'i2l_representatives'),
+    is_annual_congress: isAnnualCongress,
+    is_i2l_organised: isI2lOrganised,
+    i2l_representatives: supportsInternalParticipantSelection({
+      eventType,
+      isI2lOrganised,
+      isAnnualCongress,
+    })
+      ? parseValues(formData, 'i2l_representatives')
+      : [],
     ...parsePodcastFields(formData, eventType),
   }
 

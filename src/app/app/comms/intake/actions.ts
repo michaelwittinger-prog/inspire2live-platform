@@ -31,7 +31,7 @@ import {
   toClassifierRules,
 } from '@/lib/comms-classifier'
 import { sendDailyCommsDigest } from '@/lib/comms-digest'
-import { normalizeEventType } from '@/lib/comms-events'
+import { isI2LOwnedEvent, normalizeEventType } from '@/lib/comms-events'
 import { buildRecoveryTitle } from '@/lib/comms-media'
 import type { Database } from '@/types/database'
 
@@ -223,7 +223,7 @@ async function createDestinationRecord(
     const draft = eventDraft ?? buildEventDraftFromIntake(item)
     const { data: events, error: eventsError } = await sb
       .from('events')
-      .select('id, name, start_date, notes, organiser, location_city, location_country, initiative_ids, is_annual_congress, event_type')
+      .select('id, name, start_date, notes, organiser, location_city, location_country, initiative_ids, is_annual_congress, is_i2l_organised, owner_id, event_type')
       .order('start_date', { ascending: false })
 
     if (eventsError) throw new Error(eventsError.message)
@@ -238,11 +238,18 @@ async function createDestinationRecord(
 
     if (existing) {
       const current = (events ?? []).find((event) => event.id === existing.id)
+      const nextEventType = normalizeEventType(draft.eventType || current?.event_type || 'conference')
+      const nextAnnualCongress = Boolean(current?.is_annual_congress || draft.isAnnualCongress)
+      const nextI2lOwned = isI2LOwnedEvent({
+        eventType: nextEventType,
+        isI2lOrganised: current?.is_i2l_organised,
+        isAnnualCongress: nextAnnualCongress,
+      })
       const { error: updateError } = await sb
         .from('events')
         .update({
           name: draft.name || current?.name || title,
-          event_type: normalizeEventType(draft.eventType || current?.event_type || 'conference'),
+          event_type: nextEventType,
           organiser: draft.organiser || current?.organiser,
           location_city: draft.locationCity || current?.location_city,
           location_country: draft.locationCountry || current?.location_country,
@@ -250,7 +257,9 @@ async function createDestinationRecord(
           initiative_ids: linkedInitiativeId
             ? uniqueValues([...(current?.initiative_ids ?? []), linkedInitiativeId])
             : current?.initiative_ids,
-          is_annual_congress: Boolean(current?.is_annual_congress || draft.isAnnualCongress),
+          is_annual_congress: nextAnnualCongress,
+          is_i2l_organised: nextI2lOwned,
+          owner_id: current?.owner_id ?? (nextI2lOwned ? userId : null),
         })
         .eq('id', existing.id)
 
@@ -258,11 +267,18 @@ async function createDestinationRecord(
       return { routedToId: existing.id, routedToType: 'event' }
     }
 
+    const nextEventType = normalizeEventType(draft.eventType || 'conference')
+    const nextAnnualCongress = Boolean(draft.isAnnualCongress)
+    const nextI2lOwned = isI2LOwnedEvent({
+      eventType: nextEventType,
+      isI2lOrganised: false,
+      isAnnualCongress: nextAnnualCongress,
+    })
     const { data, error } = await sb
       .from('events')
       .insert({
         name: draft.name || title,
-        event_type: normalizeEventType(draft.eventType || 'conference'),
+        event_type: nextEventType,
         start_date: draft.startDate || item.captured_at.slice(0, 10),
         end_date: draft.endDate || null,
         organiser: draft.organiser || item.sender_name,
@@ -271,7 +287,9 @@ async function createDestinationRecord(
         stage: item.content_type === 'event_report' ? 'post_event' : 'announced',
         initiative_ids: linkedInitiativeId ? [linkedInitiativeId] : null,
         notes: draft.notes || item.raw_content,
-        is_annual_congress: Boolean(draft.isAnnualCongress),
+        is_annual_congress: nextAnnualCongress,
+        is_i2l_organised: nextI2lOwned,
+        owner_id: nextI2lOwned ? userId : null,
       })
       .select('id')
       .maybeSingle()
