@@ -38,6 +38,11 @@ designed and validated *before* implementation.
   *Not started · In progress · Skipped · Completed*.
 - Make all events from both stakeholder groups (Campus + Communications)
   intuitively reachable from this one screen.
+- Show each team member's **role / user type** (e.g. "Communications") wherever
+  people are named on the dashboard, so "who is who" is obvious at a glance.
+- Provide a shared **weekly meeting agenda** where team members propose agenda
+  items (title + short summary); the proposer is recorded as the **owner**, and
+  each agenda item becomes a trackable task on the dashboard.
 - Optimise for clarity and low cognitive load across age groups (large targets,
   plain language, no jargon, strong defaults).
 
@@ -68,9 +73,11 @@ designed and validated *before* implementation.
 
 ## 4. Team dashboard content
 
-The screen is composed of three stacked content blocks (WhatsApp channels,
-events, update feed), with a filter bar attached to the feed. Order reflects
-"shared awareness first, then drill-in."
+The screen is composed of four stacked content blocks (WhatsApp channels,
+events, weekly meeting agenda, update feed), with a filter bar attached to the
+feed. Order reflects "shared awareness first, then drill-in." Throughout, every
+person named on the dashboard (owners, proposers, senders) carries a small
+**role / user-type badge** — see §4.5.
 
 ### 4.1 WhatsApp channels (2)
 Two side-by-side cards: **Campus** and **Communications**.
@@ -89,26 +96,64 @@ A compact, scannable list/grid of **all events**, reachable from one place.
 - Each row: event name, date, scope/type badge, current stage, and owner.
 - Filter chips: *All · I2L · Networking · Congress · Podcast · Past*. These are
   the events block's **own** scope/type chips and are **independent** of the feed
-  status filter (§4.4) — status filtering applies to the update feed only.
+  status filter (§4.6) — status filtering applies to the update feed only.
 - Each row links to the existing event detail (`/app/comms/events/[id]`).
 - "Both groups" requirement: events associated with Campus stakeholders and with
   the Communications group should both appear here without the user needing to
   know which underlying list they came from — one merged, filterable view.
 
-### 4.3 Update feed (what's been done / in progress / deadlines)
+### 4.3 Weekly meeting agenda
+A shared, recurring agenda that the comms team builds together ahead of its
+weekly meeting — the most "common ground" block on the page.
+- Any comms-workspace member can **add an agenda item** with a **title** and a
+  **short summary** (plain text, a sentence or two — not a full document).
+- The person who adds an item is recorded as its **owner**. Ownership is
+  automatic and not reassignable from this view (keeps it simple and
+  accountable — "you proposed it, you own it").
+- Adding an agenda item **also creates a task that appears on the dashboard**
+  (in the update feed, §4.4) — owned by the same person, defaulting to **Not
+  started**, with the agenda's scheduled date as its deadline. This is what
+  "sets the task for the dashboard" means: proposing the topic *is* committing
+  to following up on it.
+- Items are grouped by the **upcoming weekly meeting** (e.g. "Meeting — Mon 9
+  June"); a simple "Add item" affordance sits at the top of that group.
+- Each item shows: title, short summary, owner (with role badge, §4.5), and its
+  linked task's current status badge — so the agenda doubles as a lightweight
+  view of "what we said we'd do."
+- Past meetings' agendas remain visible (collapsed by default) as a simple
+  running record — no separate "minutes" feature in v1.
+
+### 4.4 Update feed (what's been done / in progress / deadlines)
 A reverse-chronological **activity + work feed** — the heart of "common ground."
 - Each entry: title, what it is (content card / event task / campus action /
-  CRM follow-up), who owns it, its **work status**, and its **deadline** (if any,
-  with overdue highlighted).
+  CRM follow-up / **agenda item**), who owns it (with role badge, §4.5), its
+  **work status**, and its **deadline** (if any, with overdue highlighted).
 - Aggregates existing work items the team already produces:
   - Content cards (`content_calendar`)
   - Event outputs & tasks (`events`, tasks)
   - Campus actions/decisions (`campus_sessions`)
   - CRM follow-ups (`comms_crm_*`)
+  - **Weekly agenda items** (§4.3) — each one surfaces here as a task owned by
+    its proposer
 - Sort: deadline-aware (overdue → due soon → no date), matching the personal
   panel's existing "Deadlines" logic.
 
-### 4.4 Feed filters (applies to the update feed only)
+### 4.5 Role / user-type badges
+Wherever a person's name appears on the dashboard — channel senders, event
+owners, agenda owners, feed item owners, the owner filter — show a small,
+consistent **role badge** next to it, e.g. `Communications`, `Board`,
+`Platform`. This uses the **existing** `user_type` model
+(`src/lib/user-workspace.ts`: `UserType` = `default | comms | board | partner`,
+already labelled `Communications` for `comms`) — no new role/type needs to be
+invented. The ask is purely to **surface this existing label visually** on the
+team dashboard so the team can immediately see who is "Comms," who is "Board,"
+etc., without opening a profile.
+- Badge style: small pill, neutral colour, e.g. reusing the `*_META` colour
+  token conventions already used for statuses/channels (§6 Reuse).
+- Source: `getUserWorkspaceLabel(profile)` — already implemented; just needs to
+  be rendered in these new contexts.
+
+### 4.6 Feed filters (applies to the update feed only)
 A filter bar above the update feed with **three** controls. It does **not**
 affect the WhatsApp channel cards or the events block.
 
@@ -180,6 +225,18 @@ that would justify promoting it to a real field.
 - **Reuse:** the `StatCard`, status/stage `*_META` colour tokens, and card
   layouts already exist — the team view should reuse them for visual
   consistency, not invent new components.
+- **Role badges (new, lightweight):** no new role/type is introduced. Render the
+  existing `getUserWorkspaceLabel` output (`Communications`, `Board`, `Platform`,
+  `Partner` — from `UserType` in `src/lib/user-workspace.ts`) as a small pill
+  beside any person's name on the team dashboard.
+- **Weekly meeting agenda (new data):** needs a small new table, e.g.
+  `comms_weekly_agenda_items` — `id, meeting_date, title, summary, owner_id,
+  status, created_at`. On insert, a corresponding task entry is created (or the
+  agenda item is simply surfaced directly in the feed as its own work-item type
+  — implementation detail to settle during build) so it appears in the update
+  feed owned by its proposer with status **Not started** and the meeting date as
+  its deadline. RLS: any comms-workspace member can read all items and create
+  their own; only the owner (or a PlatformAdmin) can edit/withdraw their item.
 
 ---
 
@@ -218,11 +275,19 @@ gate on implementation.
   live waiting-for-review counts and recent signals.
 - **All events** from both groups are reachable from the team view with their own
   scope/type filtering and links to event detail.
-- A single **update feed** aggregates content, events, campus, and CRM work with
-  owner + deadline, overdue clearly flagged, visible to all comms users equally.
+- A single **update feed** aggregates content, events, campus, CRM, and
+  **weekly agenda** work with owner + deadline, overdue clearly flagged,
+  visible to all comms users equally.
 - The feed has **status, owner, and date-range** filters; it opens showing all
   statuses, and Completed (✅ green tick) vs Skipped (🟧 amber dash) are visually
   distinct. These filters apply to the feed only, not to events or channels.
+- Every person named on the dashboard (channel senders, event/agenda/feed
+  owners, owner filter) carries a **role/user-type badge** (e.g.
+  `Communications`, `Board`, `Platform`, `Partner`) using the existing
+  `getUserWorkspaceLabel` model — no new role is introduced.
+- Any comms-workspace member can **add a weekly agenda item** (title + short
+  summary); they become its **owner**, and the item automatically appears as a
+  task on the dashboard (Not started, deadline = meeting date).
 - Access is restricted to comms-workspace users; no new outbound/sync behaviour
   is introduced.
 - UX wireframe reviewed and signed off before implementation.
@@ -236,6 +301,13 @@ gate on implementation.
 - Per-user customisable dashboard layouts.
 - A distinct underlying "skipped" data state (resolved as visual-only, §5) —
   could be revisited if the team later wants to report on it separately.
+- Reassigning agenda-item ownership, threaded discussion on agenda items, or a
+  formal "minutes/decisions" capture flow (the agenda stays a lightweight list
+  of proposed topics + linked tasks; richer meeting-notes tooling is a
+  candidate for a later iteration, possibly folding into the existing
+  campus-decisions pattern).
+- Introducing any **new** role/user type — "Communications" already exists as
+  `user_type = 'comms'`; this work only makes the existing label visible.
 
 ---
 
@@ -248,12 +320,23 @@ All initial open questions are now settled:
 2. **Skipped vs Completed** — both map to `archived`; distinguished only by badge
    — ✅ green tick for Completed, 🟧 amber dash for Skipped. (§5)
 3. **Filter scope** — status filter applies to the **update feed only**; the
-   events block keeps its own independent scope/type chips. (§4.2, §4.4)
+   events block keeps its own independent scope/type chips. (§4.2, §4.6)
 4. **Default feed view** — show **all statuses** by default; the feed offers
    **owner**, **date-range (from → to)**, and **status** filters for the user to
-   narrow down. (§4.4)
+   narrow down. (§4.6)
 5. **Visibility** — **all blocks shared equally**; every comms-workspace user
    sees the full team view, including all CRM follow-ups. (§2, §8)
+
+### Added in this revision (2026-06-07)
+6. **Role / user-type badges** — surface each person's existing `user_type`
+   label (e.g. "Communications") next to their name throughout the dashboard.
+   No new role is created — `comms` already exists and is already labelled
+   "Communications" in `src/lib/user-workspace.ts`. (§2, §4.5)
+7. **Weekly meeting agenda** — a shared block where any comms-workspace member
+   can add an agenda item (title + short summary); the proposer becomes its
+   **owner**, and the item automatically becomes a tracked task on the
+   dashboard (appears in the update feed, owned by the proposer, status
+   "Not started", deadline = the meeting date). (§2, §4.3, §6)
 
 No open questions remain. Next step is the UX wireframe (§7) for sign-off before
 implementation is scheduled into a sprint.
