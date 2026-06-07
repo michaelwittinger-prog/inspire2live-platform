@@ -79,7 +79,7 @@ function LoginContent() {
   const authError = searchParams.get('error')
   const resetStatus = searchParams.get('reset')
 
-  // Allow deep-linking like /login?tab=signup from the landing page.
+  // Allow deep-linking like /login?tab=signup, e.g. from invitation emails.
   useEffect(() => {
     const t = getTabFromQuery(tabParam)
     if (t && t !== tab) {
