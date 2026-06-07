@@ -204,8 +204,8 @@ function LoginContent() {
           <Image
             src="/brand/inspire2live-logo.png"
             alt="Inspire2Live"
-            width={454}
-            height={355}
+            width={409}
+            height={262}
             priority
             className="h-16 w-auto"
           />

@@ -181,8 +181,8 @@ export function TopNav({
             <Image
               src="/brand/inspire2live-logo.png"
               alt="Inspire2Live"
-              width={454}
-              height={355}
+              width={409}
+              height={262}
               priority
               className="h-9 w-auto md:h-10"
             />
