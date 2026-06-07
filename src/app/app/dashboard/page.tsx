@@ -6,6 +6,8 @@ import { getDashboardConfig } from '@/lib/dashboard-config'
 import { buildDashboardGreeting, resolveDashboardVariant } from '@/lib/dashboard-view'
 import { applyCanonicalCommsFallback, isCommsUser } from '@/lib/user-workspace'
 import { getViewAsRole, getViewAsUserType } from '@/lib/view-as'
+import { CommsDashboardPanel } from '@/components/comms/comms-personal-dashboard'
+import { loadCommsPersonalDashboardData } from '@/lib/comms-personal-dashboard-data'
 
 type InitiativeHealth = Tables<'initiative_health'>
 type MemberActivity = Tables<'member_activity_summary'>
@@ -42,18 +44,6 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
   )
 }
 
-function formatShortDate(value: string | null) {
-  if (!value) return 'No date'
-  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(new Date(value))
-}
-
-function parseCampusDecision(value: string) {
-  const parts = value.split('|').map((part) => part.trim())
-  return {
-    decision: parts[0]?.replace(/^Decision:\s*/i, '').trim() || value,
-    owner: parts.find((part) => /^Owner:/i.test(part))?.replace(/^Owner:\s*/i, '').trim() || 'Unassigned',
-  }
-}
 
 /* ─── Coordinator view ───────────────────────────────────────────────────── */
 function CoordinatorDashboard({
@@ -367,187 +357,6 @@ function BoardDashboard({ initiatives }: { initiatives: InitiativeHealth[] }) {
   )
 }
 
-function CommsDashboardPanel({
-  name,
-  tasks,
-  contentItems,
-  incomingItems,
-  projectSummaries,
-  decisions,
-}: {
-  name: string | null | undefined
-  tasks: { id: string; title: string; status: string; priority: string; due_date: string | null; initiative_id: string }[]
-  contentItems: { id: string; title: string; status: string; scheduled_at: string | null; source_link: string | null }[]
-  incomingItems: { id: string; sender_name: string; content_type: string; raw_content: string; source_url: string | null; captured_at: string }[]
-  projectSummaries: { id: string; title: string; summary: string; href: string; label: string }[]
-  decisions: { id: string; decision: string; owner: string; href: string; meeting: string }[]
-}) {
-  const firstName = (name ?? 'Michael').split(' ')[0]
-  const openTasks = tasks.filter((task) => task.status !== 'done')
-  const dueSoon = [
-    ...openTasks.map((task) => ({
-      id: `task-${task.id}`,
-      title: task.title,
-      date: task.due_date,
-      label: task.priority,
-      href: `/app/initiatives/${task.initiative_id}/tasks`,
-    })),
-    ...contentItems.map((item) => ({
-      id: `content-${item.id}`,
-      title: item.title,
-      date: item.scheduled_at,
-      label: item.status,
-      href: '/app/comms/planner?view=my_items',
-    })),
-  ].sort((a, b) => {
-    if (!a.date) return 1
-    if (!b.date) return -1
-    return new Date(a.date).getTime() - new Date(b.date).getTime()
-  })
-
-  return (
-    <section className="space-y-5 rounded-2xl border border-orange-200 bg-orange-50/70 p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-orange-700">My communications dashboard</p>
-          <h2 className="mt-1 text-xl font-semibold text-neutral-950">Hello {firstName}, here is what needs your attention.</h2>
-          <p className="mt-1 text-sm text-orange-900/80">
-            Your deadlines, assigned content, incoming WhatsApp signals, and project summaries are gathered in one place.
-          </p>
-        </div>
-        <Link
-          href="/app/comms/planner"
-          className="rounded-xl bg-neutral-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800"
-        >
-          Open planner
-        </Link>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="My Open Tasks" value={openTasks.length} sub="assigned to you" />
-        <StatCard label="My Content" value={contentItems.length} sub="drafts and scheduled cards" />
-        <StatCard label="Incoming Messages" value={incomingItems.length} sub="waiting for review" />
-        <StatCard label="Project Summaries" value={projectSummaries.length} sub="campus and events" />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-xl border border-orange-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-neutral-900">Deadlines</h3>
-            <Link href="/app/comms/planner?view=my_items" className="text-xs font-semibold text-orange-700 hover:underline">
-              My items
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {dueSoon.slice(0, 6).map((item) => (
-              <Link key={item.id} href={item.href} className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 px-3 py-2 hover:bg-neutral-50">
-                <span className="line-clamp-1 text-sm font-medium text-neutral-900">{item.title}</span>
-                <span className="shrink-0 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-600">
-                  {formatShortDate(item.date)}
-                </span>
-              </Link>
-            ))}
-            {dueSoon.length === 0 && (
-              <p className="rounded-lg border border-dashed border-neutral-300 py-6 text-center text-sm text-neutral-500">
-                No personal deadlines are assigned right now.
-              </p>
-            )}
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-orange-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-neutral-900">Incoming for review</h3>
-            <Link href="/app/comms/intake" className="text-xs font-semibold text-orange-700 hover:underline">
-              Open intake
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {incomingItems.slice(0, 5).map((item) => (
-              <div key={item.id} className="rounded-lg border border-neutral-200 px-3 py-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-neutral-900">{item.sender_name}</p>
-                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                    {item.content_type.replaceAll('_', ' ')}
-                  </span>
-                </div>
-                <p className="mt-1 line-clamp-2 text-sm text-neutral-600">{item.raw_content}</p>
-                {item.source_url && (
-                  <a href={item.source_url} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-700 hover:text-blue-900">
-                    Open source
-                  </a>
-                )}
-              </div>
-            ))}
-            {incomingItems.length === 0 && (
-              <p className="rounded-lg border border-dashed border-neutral-300 py-6 text-center text-sm text-neutral-500">
-                No incoming messages are waiting.
-              </p>
-            )}
-          </div>
-        </section>
-      </div>
-
-      <section className="rounded-xl border border-orange-200 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-neutral-900">Project summaries</h3>
-          <Link href="/app/comms/campus" className="text-xs font-semibold text-orange-700 hover:underline">
-            Open campus
-          </Link>
-        </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          {projectSummaries.map((item) => (
-            <Link key={item.id} href={item.href} className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 hover:bg-white">
-              <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">{item.label}</span>
-              <p className="mt-2 text-sm font-semibold text-neutral-900">{item.title}</p>
-              <p className="mt-1 line-clamp-3 text-sm text-neutral-600">{item.summary}</p>
-            </Link>
-          ))}
-          {projectSummaries.length === 0 && (
-            <p className="rounded-lg border border-dashed border-neutral-300 py-6 text-center text-sm text-neutral-500">
-              No campus or event summaries yet.
-            </p>
-          )}
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-orange-200 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-neutral-900">Recent decisions</h3>
-          <Link href="/app/comms/campus" className="text-xs font-semibold text-orange-700 hover:underline">
-            Open meetings
-          </Link>
-        </div>
-        <div className="space-y-2">
-          {decisions.map((item) => (
-            <Link key={item.id} href={item.href} className="block rounded-lg border border-neutral-200 px-3 py-3 hover:bg-neutral-50">
-              <p className="text-sm font-medium text-neutral-900">{item.decision}</p>
-              <p className="mt-1 text-xs text-neutral-500">{item.owner} · {item.meeting}</p>
-            </Link>
-          ))}
-          {decisions.length === 0 && (
-            <p className="rounded-lg border border-dashed border-neutral-300 py-6 text-center text-sm text-neutral-500">
-              No structured decisions captured yet.
-            </p>
-          )}
-        </div>
-      </section>
-
-      <div className="grid gap-3 md:grid-cols-3">
-        <Link href="/app/comms/campus" className="rounded-xl border border-orange-200 bg-white px-4 py-3 text-sm font-semibold text-orange-900 shadow-sm hover:border-orange-400">
-          Campus feed
-        </Link>
-        <Link href="/app/comms/events" className="rounded-xl border border-orange-200 bg-white px-4 py-3 text-sm font-semibold text-orange-900 shadow-sm hover:border-orange-400">
-          Events
-        </Link>
-        <Link href="/app/comms/library" className="rounded-xl border border-orange-200 bg-white px-4 py-3 text-sm font-semibold text-orange-900 shadow-sm hover:border-orange-400">
-          Library
-        </Link>
-      </div>
-    </section>
-  )
-}
-
 /* ─── Page ───────────────────────────────────────────────────────────────── */
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -647,111 +456,9 @@ export default async function DashboardPage() {
 
   const greeting = buildDashboardGreeting(profile?.name)
 
-  let commsPersonalTasks: {
-    id: string
-    title: string
-    status: string
-    priority: string
-    due_date: string | null
-    initiative_id: string
-  }[] = []
-  let commsContentItems: {
-    id: string
-    title: string
-    status: string
-    scheduled_at: string | null
-    source_link: string | null
-  }[] = []
-  let commsIncomingItems: {
-    id: string
-    sender_name: string
-    content_type: string
-    raw_content: string
-    source_url: string | null
-    captured_at: string
-  }[] = []
-  let commsProjectSummaries: { id: string; title: string; summary: string; href: string; label: string }[] = []
-  let commsDecisionItems: { id: string; decision: string; owner: string; href: string; meeting: string }[] = []
-
-  if (showCommsBlocks) {
-    const today = new Date()
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate()).toISOString()
-
-    const [
-      { data: personalTaskRows },
-      { data: contentRows },
-      { data: incomingRows },
-      { data: campusRows },
-      { data: eventRows },
-    ] = await Promise.all([
-      supabase
-        .from('tasks')
-        .select('id, title, status, priority, due_date, initiative_id')
-        .eq('assignee_id', user.id)
-        .neq('status', 'done')
-        .order('due_date', { ascending: true })
-        .limit(8),
-      supabase
-        .from('content_calendar')
-        .select('id, title, status, scheduled_at, source_link')
-        .eq('author_id', user.id)
-        .neq('status', 'archived')
-        .order('scheduled_at', { ascending: true, nullsFirst: false })
-        .limit(8),
-      supabase
-        .from('intake_items')
-        .select('id, sender_name, content_type, raw_content, source_url, captured_at')
-        .eq('status', 'unreviewed')
-        .order('captured_at', { ascending: false })
-        .limit(6),
-      supabase
-        .from('campus_sessions')
-        .select('id, session_date, theme, summary, decisions_for_publication')
-        .order('session_date', { ascending: false })
-        .limit(4),
-      supabase
-        .from('events')
-        .select('id, name, start_date, location_city, location_country, notes')
-        .gte('start_date', today.toISOString().slice(0, 10))
-        .lt('start_date', nextMonth.slice(0, 10))
-        .order('start_date', { ascending: true })
-        .limit(2),
-    ])
-
-    commsPersonalTasks = personalTaskRows ?? []
-    commsContentItems = contentRows ?? []
-    commsIncomingItems = incomingRows ?? []
-    commsProjectSummaries = [
-      ...((campusRows ?? []).map((row) => ({
-        id: `campus-${row.id}`,
-        title: row.theme || `Campus session ${formatShortDate(row.session_date)}`,
-        summary: row.summary || 'Campus session notes and action items are ready for review.',
-        href: `/app/comms/campus/${new Date(row.session_date).getFullYear()}/${new Date(row.session_date).getMonth() + 1}`,
-        label: 'Campus',
-      }))),
-      ...((eventRows ?? []).map((row) => ({
-        id: `event-${row.id}`,
-        title: row.name,
-        summary: row.notes || [row.location_city, row.location_country].filter(Boolean).join(', ') || 'Upcoming event needs follow-up planning.',
-        href: `/app/comms/events/${row.id}`,
-        label: 'Event',
-      }))),
-    ]
-    commsDecisionItems = (campusRows ?? [])
-      .flatMap((row) =>
-        (row.decisions_for_publication ?? []).map((decision, index) => {
-          const parsed = parseCampusDecision(decision)
-          return {
-            id: `${row.id}-${index}`,
-            decision: parsed.decision,
-            owner: parsed.owner,
-            href: `/app/comms/campus/${new Date(row.session_date).getFullYear()}/${new Date(row.session_date).getMonth() + 1}`,
-            meeting: row.theme || `Campus ${formatShortDate(row.session_date)}`,
-          }
-        })
-      )
-      .slice(0, 4)
-  }
+  const commsPersonalData = showCommsBlocks
+    ? await loadCommsPersonalDashboardData(supabase, user.id)
+    : null
 
   const { data: dbNotifications } = await supabase
     .from('notifications')
@@ -802,15 +509,8 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {showCommsBlocks && (
-        <CommsDashboardPanel
-          name={profile?.name}
-          tasks={commsPersonalTasks}
-          contentItems={commsContentItems}
-          incomingItems={commsIncomingItems}
-          projectSummaries={commsProjectSummaries}
-          decisions={commsDecisionItems}
-        />
+      {showCommsBlocks && commsPersonalData && (
+        <CommsDashboardPanel name={profile?.name} {...commsPersonalData} />
       )}
 
       {isCoordinator && !showCommsBlocks && (
