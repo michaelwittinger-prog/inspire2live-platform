@@ -32,7 +32,7 @@ const COMMS_NAV_SECTIONS: Array<{
 }> = [
   {
     label: 'Overview',
-    items: [{ label: 'Dashboard', href: '/app/dashboard' }],
+    items: [{ label: 'Dashboard', href: '/app/comms/dashboard' }],
   },
   {
     label: 'Workspace',

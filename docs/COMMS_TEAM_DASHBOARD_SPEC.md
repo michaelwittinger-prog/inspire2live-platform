@@ -1,6 +1,6 @@
 # Communications Team Dashboard — Product & UX Spec (Draft for Review)
 
-**Status:** Draft for review — not yet scheduled into a sprint
+**Status:** Implemented on branch `team-dashboard` (pending DB migration apply + UX review)
 **Author:** Communications workspace working notes
 **Date:** 2026-06-07
 **Owner space:** Communications Workspace (`/app/comms`)
