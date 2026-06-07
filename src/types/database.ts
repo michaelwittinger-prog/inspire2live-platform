@@ -1915,6 +1915,7 @@ export type Database = {
           attached_media_ref: string | null
           capture_method: string
           captured_at: string
+          channel: string | null
           classifier_reasoning: Json
           classifier_rule_ids: string[]
           classifier_status: string
@@ -1940,6 +1941,7 @@ export type Database = {
           attached_media_ref?: string | null
           capture_method: string
           captured_at?: string
+          channel?: string | null
           classifier_reasoning?: Json
           classifier_rule_ids?: string[]
           classifier_status?: string
@@ -1965,6 +1967,7 @@ export type Database = {
           attached_media_ref?: string | null
           capture_method?: string
           captured_at?: string
+          channel?: string | null
           classifier_reasoning?: Json
           classifier_rule_ids?: string[]
           classifier_status?: string
@@ -2500,6 +2503,57 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "campus_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_outbound_messages: {
+        Row: {
+          body: string
+          delivery_status: string
+          error_detail: string | null
+          graph_message_id: string | null
+          id: string
+          in_reply_to_intake_item_id: string | null
+          recipient_whatsapp_id: string
+          sent_at: string
+          sent_by: string | null
+        }
+        Insert: {
+          body: string
+          delivery_status?: string
+          error_detail?: string | null
+          graph_message_id?: string | null
+          id?: string
+          in_reply_to_intake_item_id?: string | null
+          recipient_whatsapp_id: string
+          sent_at?: string
+          sent_by?: string | null
+        }
+        Update: {
+          body?: string
+          delivery_status?: string
+          error_detail?: string | null
+          graph_message_id?: string | null
+          id?: string
+          in_reply_to_intake_item_id?: string | null
+          recipient_whatsapp_id?: string
+          sent_at?: string
+          sent_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_outbound_messages_in_reply_to_intake_item_id_fkey"
+            columns: ["in_reply_to_intake_item_id"]
+            isOneToOne: false
+            referencedRelation: "intake_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_outbound_messages_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
