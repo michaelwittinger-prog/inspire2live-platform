@@ -39,6 +39,7 @@ const COMMS_NAV_SECTIONS: Array<{
     items: [
       { label: 'Planner', href: '/app/comms/planner' },
       { label: 'Campus', href: '/app/comms/campus', badge: 'campus' },
+      { label: 'WhatsApp', href: '/app/comms/whatsapp' },
       { label: 'CRM', href: '/app/comms/crm' },
     ],
   },

@@ -167,6 +167,7 @@ export async function processWhatsAppWebhookPayload(
         capture_method: 'webhook',
         sender_name: message.senderName,
         sender_whatsapp_id: message.senderWhatsappId || null,
+        channel: 'communications' as const,
         raw_content: message.rawContent,
         source_url: message.sourceUrl,
         attached_media_ref: message.attachedMediaRef,

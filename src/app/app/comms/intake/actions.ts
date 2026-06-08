@@ -516,7 +516,7 @@ export async function routeIntakeItem(
     const { data: item, error: loadError } = await supabase
       .from('intake_items')
       .select(
-        'id, capture_method, captured_at, classifier_reasoning, classifier_rule_ids, classifier_status, classifier_version, classification_confidence, content_type, created_at, dismissed_reason, attached_media_ref, is_peter_kapitein, provider_message_id, raw_content, reviewed_at, reviewed_by, routed_to_id, routed_to_type, sender_name, sender_whatsapp_id, source_url, status'
+        'id, capture_method, captured_at, channel, classifier_reasoning, classifier_rule_ids, classifier_status, classifier_version, classification_confidence, content_type, created_at, dismissed_reason, attached_media_ref, is_peter_kapitein, provider_message_id, raw_content, reviewed_at, reviewed_by, routed_to_id, routed_to_type, sender_name, sender_whatsapp_id, source_url, status'
       )
       .eq('id', intakeItemId)
       .maybeSingle()
