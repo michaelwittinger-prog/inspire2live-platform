@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ROLE_LABELS } from '@/lib/role-access'
 import { getAuthCallbackUrl } from '@/lib/auth-redirect-url'
-import { setUserStatus, deleteUser, type AccountStatus } from '@/app/app/admin/users/actions'
+import { setUserStatus, deleteUser, purgeDemo, type AccountStatus, type PurgeDemoResult } from '@/app/app/admin/users/actions'
 
 /** Derived from the canonical ROLE_LABELS so labels never diverge from the source of truth. */
 const PLATFORM_ROLE_OPTIONS = (Object.entries(ROLE_LABELS) as [string, string][]).map(
@@ -324,6 +324,104 @@ export function DeleteUserButton({
                 className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
               >
                 {working ? 'Deleting…' : 'Delete permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ─── Purge demo / seed accounts (admin users page) ───────────────────── */
+export function PurgeDemoUsersButton({
+  demoUsers,
+}: {
+  demoUsers: { id: string; name: string; email: string }[]
+}) {
+  const [open, setOpen] = useState(false)
+  const [working, setWorking] = useState(false)
+  const [result, setResult] = useState<PurgeDemoResult | null>(null)
+  const router = useRouter()
+
+  if (demoUsers.length === 0) return null
+
+  const handleConfirm = async () => {
+    setWorking(true)
+    setResult(null)
+    const res = await purgeDemo()
+    setWorking(false)
+    setResult(res)
+    if (res.deleted > 0 && res.errors.length === 0) {
+      setTimeout(() => {
+        setOpen(false)
+        setResult(null)
+        router.refresh()
+      }, 2500)
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => { setOpen(true); setResult(null) }}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
+      >
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+        Remove {demoUsers.length} demo account{demoUsers.length !== 1 ? 's' : ''}
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => !working && setOpen(false)}>
+          <div className="mx-4 w-full max-w-md rounded-xl border border-neutral-200 bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-neutral-900">Remove demo accounts?</h3>
+            <p className="mt-1 text-sm text-neutral-500">
+              The following seed accounts and all their content will be permanently deleted:
+            </p>
+            <ul className="mt-3 max-h-48 overflow-y-auto rounded-lg border border-neutral-100 bg-neutral-50 px-3 py-2 text-xs space-y-1">
+              {demoUsers.map(u => (
+                <li key={u.id} className="flex items-center justify-between">
+                  <span className="font-medium text-neutral-700">{u.name}</span>
+                  <span className="text-neutral-400">{u.email}</span>
+                </li>
+              ))}
+            </ul>
+
+            {result && (
+              <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${
+                result.errors.length > 0
+                  ? 'border-red-200 bg-red-50 text-red-700'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              }`}>
+                {result.errors.length > 0 ? (
+                  <>
+                    <p className="font-medium">Completed with errors ({result.deleted} deleted, {result.skipped} failed):</p>
+                    <ul className="mt-1 space-y-0.5 list-disc list-inside">
+                      {result.errors.map((e, i) => <li key={i}>{e}</li>)}
+                    </ul>
+                  </>
+                ) : (
+                  <p>✓ {result.deleted} account{result.deleted !== 1 ? 's' : ''} removed successfully.</p>
+                )}
+              </div>
+            )}
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setOpen(false)}
+                disabled={working}
+                className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirm}
+                disabled={working || (result !== null && result.errors.length === 0)}
+                className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {working ? 'Removing…' : result?.errors.length ? 'Retry failed' : 'Remove permanently'}
               </button>
             </div>
           </div>

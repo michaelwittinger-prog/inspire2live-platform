@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { EditRoleButton, InviteUserButton, AssignCongressRolesButton, UserStatusButton, DeleteUserButton } from '@/components/ui/client-buttons'
+import { EditRoleButton, InviteUserButton, AssignCongressRolesButton, UserStatusButton, DeleteUserButton, PurgeDemoUsersButton } from '@/components/ui/client-buttons'
+import { DEMO_EMAILS } from '@/app/app/admin/users/constants'
 import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
 import { getRoleLabel, getRoleBadgeColor } from '@/lib/role-access'
 
@@ -55,6 +56,9 @@ export default async function AdminUsersPage() {
   }))
 
   const totalActive = users.filter(u => u.status === 'active').length
+  const demoUsers = users
+    .filter(u => (DEMO_EMAILS as readonly string[]).includes(u.email.toLowerCase()))
+    .map(u => ({ id: u.id, name: u.name, email: u.email }))
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
@@ -73,6 +77,7 @@ export default async function AdminUsersPage() {
             </svg>
             Permissions
           </a>
+          <PurgeDemoUsersButton demoUsers={demoUsers} />
           <InviteUserButton />
         </div>
       </div>
