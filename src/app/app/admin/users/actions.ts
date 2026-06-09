@@ -364,13 +364,13 @@ export async function purgeDemo(): Promise<PurgeDemoResult> {
     }
   }
 
-  // Resolve demo account IDs still present in the DB
-  const { data: targets } = await admin
-    .from('profiles')
-    .select('id, email')
-    .in('email', DEMO_EMAILS as string[])
+  // Resolve demo accounts still present in the DB. Match case-insensitively in
+  // JS (Postgres .in is case-sensitive) so this stays in sync with the button.
+  const demoSet = new Set(DEMO_EMAILS.map(e => e.toLowerCase()))
+  const { data: allProfiles } = await admin.from('profiles').select('id, email')
+  const targets = (allProfiles ?? []).filter(p => p.email && demoSet.has(p.email.toLowerCase()))
 
-  if (!targets?.length) return { deleted: 0, skipped: 0, errors: [] }
+  if (!targets.length) return { deleted: 0, skipped: 0, errors: [] }
 
   const targetIds = targets.map(t => t.id)
 
