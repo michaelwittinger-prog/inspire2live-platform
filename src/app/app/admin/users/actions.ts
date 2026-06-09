@@ -4,21 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizeRole } from '@/lib/role-access'
-
-// ─── Demo-account manifest ────────────────────────────────────────────────────
-
-export const DEMO_EMAILS: readonly string[] = [
-  'maria@example.com',
-  'kwame@example.com',
-  'sophie@example.com',
-  'hiroshi@example.com',
-  'amara@example.com',
-  'peter@example.com',
-  'lina@example.com',
-  'kai@inspire2live.org',
-  'nadia@inspire2live.org',
-  'maria@inspire2live.org',
-]
+import { DEMO_EMAILS } from './constants'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

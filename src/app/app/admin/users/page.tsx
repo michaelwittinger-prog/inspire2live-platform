@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { EditRoleButton, InviteUserButton, AssignCongressRolesButton, UserStatusButton, DeleteUserButton, PurgeDemoUsersButton } from '@/components/ui/client-buttons'
-import { DEMO_EMAILS } from '@/app/app/admin/users/actions'
+import { DEMO_EMAILS } from '@/app/app/admin/users/constants'
 import { fetchLatestWorkspaceEvent } from '@/lib/congress-workspace/current-event'
 import { getRoleLabel, getRoleBadgeColor } from '@/lib/role-access'
 
