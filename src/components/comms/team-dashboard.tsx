@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { CollapsibleCard } from '@/components/ui/collapsible-card'
+import { TileGroup } from '@/components/ui/tile-group'
 import type { TeamDashboardData } from '@/lib/comms-dashboard-data'
 import { EVENT_STAGE_META, type EventStage } from '@/lib/comms-workflow'
 import { UNIFIED_STATUS_META } from '@/lib/comms-status'
@@ -24,9 +25,9 @@ export function TeamDashboard({
   const { channels, events, agendaGroups, feed, owners } = data
 
   return (
-    <div className="space-y-6">
+    <TileGroup groupId="comms-team-dashboard" className="space-y-6">
       {/* ── WhatsApp channels ── */}
-      <CollapsibleCard variant="plain" title="WhatsApp channels" storageKey="comms-team-channels">
+      <CollapsibleCard key="comms-team-channels" title="WhatsApp channels" storageKey="comms-team-channels">
         <div className="grid gap-3 sm:grid-cols-2">
           {channels.map((channel) => (
             <div key={channel.key} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
@@ -64,7 +65,7 @@ export function TeamDashboard({
 
       {/* ── Events ── */}
       <CollapsibleCard
-        variant="plain"
+        key="comms-team-events"
         title="Events"
         storageKey="comms-team-events"
         actions={
@@ -122,7 +123,7 @@ export function TeamDashboard({
       </CollapsibleCard>
 
       {/* ── Weekly meeting agenda ── */}
-      <CollapsibleCard variant="plain" title="Weekly meeting agenda" storageKey="comms-team-agenda">
+      <CollapsibleCard key="comms-team-agenda" title="Weekly meeting agenda" storageKey="comms-team-agenda">
         <div className="space-y-4">
           {agendaGroups.map((group) => (
             <div
@@ -182,7 +183,7 @@ export function TeamDashboard({
       </CollapsibleCard>
 
       {/* ── Update feed ── */}
-      <TeamFeed feed={feed} owners={owners} />
-    </div>
+      <TeamFeed key="comms-team-feed" feed={feed} owners={owners} />
+    </TileGroup>
   )
 }

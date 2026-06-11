@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-interface CollapsibleCardProps {
+export interface CollapsibleCardProps {
   /** Heading shown in the always-visible header bar. */
   title: React.ReactNode
   /**
@@ -29,7 +29,29 @@ interface CollapsibleCardProps {
   bodyClassName?: string
   /** Override the title typography (defaults depend on variant). */
   titleClassName?: string
+  /** Render a drag handle in the header and make the tile draggable (used for reordering). */
+  draggable?: boolean
+  /** Visually mark the tile as the one currently being dragged. */
+  isDragging?: boolean
+  /** Drag-and-drop event handlers, supplied by a `TileGroup` wrapper. */
+  onDragStart?: (event: React.DragEvent<HTMLElement>) => void
+  onDragOver?: (event: React.DragEvent<HTMLElement>) => void
+  onDrop?: (event: React.DragEvent<HTMLElement>) => void
+  onDragEnd?: (event: React.DragEvent<HTMLElement>) => void
   children: React.ReactNode
+}
+
+function GripIcon() {
+  return (
+    <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="5" cy="3" r="1.25" />
+      <circle cx="11" cy="3" r="1.25" />
+      <circle cx="5" cy="8" r="1.25" />
+      <circle cx="11" cy="8" r="1.25" />
+      <circle cx="5" cy="13" r="1.25" />
+      <circle cx="11" cy="13" r="1.25" />
+    </svg>
+  )
 }
 
 function Chevron({ collapsed }: { collapsed: boolean }) {
@@ -69,6 +91,12 @@ export function CollapsibleCard({
   className,
   bodyClassName,
   titleClassName,
+  draggable,
+  isDragging,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
   children,
 }: CollapsibleCardProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed)
@@ -106,10 +134,16 @@ export function CollapsibleCard({
 
   return (
     <section
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       className={[
         plain
           ? ''
           : `rounded-xl border bg-white shadow-sm ${tone === 'orange' ? 'border-orange-200' : 'border-neutral-200'}`,
+        isDragging ? 'opacity-40' : '',
         className ?? '',
       ].join(' ')}
     >
@@ -119,6 +153,15 @@ export function CollapsibleCard({
           plain ? 'mb-3' : 'px-4 py-3',
         ].join(' ')}
       >
+        {draggable && (
+          <span
+            className="-mr-1 cursor-grab text-neutral-300 hover:text-neutral-500 active:cursor-grabbing"
+            title="Drag to reorder"
+            aria-hidden="true"
+          >
+            <GripIcon />
+          </span>
+        )}
         <button
           type="button"
           onClick={toggle}

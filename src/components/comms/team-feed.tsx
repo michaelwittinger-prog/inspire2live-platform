@@ -9,6 +9,12 @@ import {
 } from '@/lib/comms-status'
 import type { FeedEntry, TeamMemberOption } from '@/lib/comms-dashboard-data'
 import { RoleBadge } from '@/components/comms/role-badge'
+import { CollapsibleCard, type CollapsibleCardProps } from '@/components/ui/collapsible-card'
+
+type DragProps = Pick<
+  CollapsibleCardProps,
+  'draggable' | 'isDragging' | 'onDragStart' | 'onDragOver' | 'onDrop' | 'onDragEnd'
+>
 
 function formatDate(value: string | null) {
   if (!value) return 'No date'
@@ -27,7 +33,11 @@ function StatusBadge({ status }: { status: UnifiedStatus }) {
   )
 }
 
-export function TeamFeed({ feed, owners }: { feed: FeedEntry[]; owners: TeamMemberOption[] }) {
+export function TeamFeed({
+  feed,
+  owners,
+  ...dragProps
+}: { feed: FeedEntry[]; owners: TeamMemberOption[] } & DragProps) {
   const [statuses, setStatuses] = useState<Set<UnifiedStatus>>(new Set())
   const [ownerId, setOwnerId] = useState<string>('all')
   const [from, setFrom] = useState<string>('')
@@ -62,14 +72,16 @@ export function TeamFeed({ feed, owners }: { feed: FeedEntry[]; owners: TeamMemb
   const hasFilters = statuses.size > 0 || ownerId !== 'all' || from || to
 
   return (
-    <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold text-neutral-900">Update feed</h2>
+    <CollapsibleCard
+      title="Update feed"
+      storageKey="comms-team-feed"
+      actions={
         <span className="text-xs text-neutral-500">
           {filtered.length} of {feed.length} items
         </span>
-      </div>
-
+      }
+      {...dragProps}
+    >
       {/* Filters */}
       <div className="mb-4 space-y-3 rounded-xl border border-neutral-100 bg-neutral-50 p-3">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -186,6 +198,6 @@ export function TeamFeed({ feed, owners }: { feed: FeedEntry[]; owners: TeamMemb
           </p>
         )}
       </div>
-    </section>
+    </CollapsibleCard>
   )
 }

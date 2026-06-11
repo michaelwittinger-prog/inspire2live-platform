@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { CollapsibleCard } from '@/components/ui/collapsible-card'
+import { TileGroup } from '@/components/ui/tile-group'
 import type {
   PersonalTask,
   PersonalContentItem,
@@ -86,8 +87,9 @@ export function CommsDashboardPanel({
         <StatCard label="Project Summaries" value={projectSummaries.length} sub="campus and events" />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <TileGroup groupId="comms-personal-dashboard" className="grid gap-4 lg:grid-cols-2">
         <CollapsibleCard
+          key="comms-personal-deadlines"
           tone="orange"
           title="Deadlines"
           storageKey="comms-personal-deadlines"
@@ -115,6 +117,7 @@ export function CommsDashboardPanel({
         </CollapsibleCard>
 
         <CollapsibleCard
+          key="comms-personal-incoming"
           tone="orange"
           title="Incoming for review"
           storageKey="comms-personal-incoming"
@@ -148,58 +151,62 @@ export function CommsDashboardPanel({
             )}
           </div>
         </CollapsibleCard>
-      </div>
 
-      <CollapsibleCard
-        tone="orange"
-        title="Project summaries"
-        storageKey="comms-personal-summaries"
-        actions={
-          <Link href="/app/comms/campus" className="text-xs font-semibold text-orange-700 hover:underline">
-            Open campus
-          </Link>
-        }
-      >
-        <div className="grid gap-3 md:grid-cols-2">
-          {projectSummaries.map((item) => (
-            <Link key={item.id} href={item.href} className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 hover:bg-white">
-              <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">{item.label}</span>
-              <p className="mt-2 text-sm font-semibold text-neutral-900">{item.title}</p>
-              <p className="mt-1 line-clamp-3 text-sm text-neutral-600">{item.summary}</p>
+        <CollapsibleCard
+          key="comms-personal-summaries"
+          className="lg:col-span-2"
+          tone="orange"
+          title="Project summaries"
+          storageKey="comms-personal-summaries"
+          actions={
+            <Link href="/app/comms/campus" className="text-xs font-semibold text-orange-700 hover:underline">
+              Open campus
             </Link>
-          ))}
-          {projectSummaries.length === 0 && (
-            <p className="rounded-lg border border-dashed border-neutral-300 py-6 text-center text-sm text-neutral-500">
-              No campus or event summaries yet.
-            </p>
-          )}
-        </div>
-      </CollapsibleCard>
+          }
+        >
+          <div className="grid gap-3 md:grid-cols-2">
+            {projectSummaries.map((item) => (
+              <Link key={item.id} href={item.href} className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 hover:bg-white">
+                <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">{item.label}</span>
+                <p className="mt-2 text-sm font-semibold text-neutral-900">{item.title}</p>
+                <p className="mt-1 line-clamp-3 text-sm text-neutral-600">{item.summary}</p>
+              </Link>
+            ))}
+            {projectSummaries.length === 0 && (
+              <p className="rounded-lg border border-dashed border-neutral-300 py-6 text-center text-sm text-neutral-500">
+                No campus or event summaries yet.
+              </p>
+            )}
+          </div>
+        </CollapsibleCard>
 
-      <CollapsibleCard
-        tone="orange"
-        title="Recent decisions"
-        storageKey="comms-personal-decisions"
-        actions={
-          <Link href="/app/comms/campus" className="text-xs font-semibold text-orange-700 hover:underline">
-            Open meetings
-          </Link>
-        }
-      >
-        <div className="space-y-2">
-          {decisions.map((item) => (
-            <Link key={item.id} href={item.href} className="block rounded-lg border border-neutral-200 px-3 py-3 hover:bg-neutral-50">
-              <p className="text-sm font-medium text-neutral-900">{item.decision}</p>
-              <p className="mt-1 text-xs text-neutral-500">{item.owner} · {item.meeting}</p>
+        <CollapsibleCard
+          key="comms-personal-decisions"
+          className="lg:col-span-2"
+          tone="orange"
+          title="Recent decisions"
+          storageKey="comms-personal-decisions"
+          actions={
+            <Link href="/app/comms/campus" className="text-xs font-semibold text-orange-700 hover:underline">
+              Open meetings
             </Link>
-          ))}
-          {decisions.length === 0 && (
-            <p className="rounded-lg border border-dashed border-neutral-300 py-6 text-center text-sm text-neutral-500">
-              No structured decisions captured yet.
-            </p>
-          )}
-        </div>
-      </CollapsibleCard>
+          }
+        >
+          <div className="space-y-2">
+            {decisions.map((item) => (
+              <Link key={item.id} href={item.href} className="block rounded-lg border border-neutral-200 px-3 py-3 hover:bg-neutral-50">
+                <p className="text-sm font-medium text-neutral-900">{item.decision}</p>
+                <p className="mt-1 text-xs text-neutral-500">{item.owner} · {item.meeting}</p>
+              </Link>
+            ))}
+            {decisions.length === 0 && (
+              <p className="rounded-lg border border-dashed border-neutral-300 py-6 text-center text-sm text-neutral-500">
+                No structured decisions captured yet.
+              </p>
+            )}
+          </div>
+        </CollapsibleCard>
+      </TileGroup>
 
       <div className="grid gap-3 md:grid-cols-3">
         <Link href="/app/comms/campus" className="rounded-xl border border-orange-200 bg-white px-4 py-3 text-sm font-semibold text-orange-900 shadow-sm hover:border-orange-400">
