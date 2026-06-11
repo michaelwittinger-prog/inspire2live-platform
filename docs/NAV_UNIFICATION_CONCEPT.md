@@ -44,7 +44,7 @@ One definition, `MASTER_NAV`, in `src/lib/role-access.ts`. Every item carries th
 
 | Section | Item | Gating space | Notes |
 |---|---|---|---|
-| **Overview** | Dashboard | `dashboard` | one href for all roles, see §5.2 |
+| **Overview** | Dashboard | `dashboard` | single canonical `/app/dashboard` for all roles + landing page, see §5.5 |
 | **Workspace** | Planner | `comms` | |
 | | Campus | `comms` | live badge (intake count) |
 | | WhatsApp | `comms` | |
@@ -111,17 +111,50 @@ only exist because menus were per-role. With one tree we use neutral labels
 small optional `labelOverrides[role]` map can be layered on later — but the default
 is one label per item.
 
-### 5.2 Hrefs (recommendation: one canonical href, role-aware pages)
-Two items currently point to different targets per role:
+### 5.2 Hrefs (decided: one canonical href, role-aware pages)
+Items currently point to different targets per role:
 
-- Dashboard: `/app/dashboard` vs `/app/comms/dashboard`
+- Dashboard: `/app/dashboard` vs `/app/comms/dashboard` → **resolved in §5.5**
 - Congress: `/app/congress/workspace` vs `/app/congress`
 
-"No separate workspaces, just different views" should apply to pages too: each item
-gets **one** canonical href (`/app/dashboard`, `/app/congress`), and the *page*
-decides which view to render (or redirects) based on the user's role/permissions.
-This keeps the nav definition role-free. Interim fallback if page work is deferred:
-a tiny href-resolver, but it should be treated as temporary.
+"No separate workspaces, just different views" applies to pages too: each item gets
+**one** canonical href (`/app/dashboard`, `/app/congress`), and the *page* decides
+which view to render (or redirects) based on the user's role/permissions. This keeps
+the nav definition role-free.
+
+### 5.5 One dashboard only (decided)
+There must be a **single** dashboard, reached via the menu's `Dashboard` item, and
+it is the landing page on entering the app. Today there are two:
+
+- `/app/dashboard` — the real, shared, role-aware dashboard. Login already lands
+  here (`login/page.tsx`, `middleware.ts`). It **already renders the Comms personal
+  panel** for the Comms role (`showCommsBlocks = role === 'Comms'`). **This is the
+  one we keep.**
+- `/app/comms/dashboard` — a second "Communications dashboard" (events pipeline,
+  agenda board, team-activity "team" view, with a personal/team toggle). In the
+  Comms sidebar the `Dashboard` item points *here*, so the menu opens this
+  congress/events-heavy view instead of the real dashboard. **This page is
+  removed.**
+
+Decisions:
+
+1. **`MASTER_NAV` Dashboard → `/app/dashboard` for every role** (no more
+   `/app/comms/dashboard` target). One dashboard, reached through the menu, and it
+   is the landing route (already true for login).
+2. **Delete the `/app/comms/dashboard` route** (`page.tsx` + `comms-dashboard-toggle`).
+   The Comms *personal* view survives because `/app/dashboard` already shows it.
+3. **The Comms *team* view** (events pipeline, agenda, team activity) currently lives
+   only on the deleted page. Per the instruction "the other dashboard can go", the
+   standalone team dashboard is dropped. *Optional follow-up (not default):* if the
+   team widgets prove valuable, fold them into `/app/dashboard` for the Comms role
+   as additional blocks — but that is a separate decision, not part of this change.
+4. **Relocate the agenda server actions.** `/app/comms/dashboard/actions.ts` exports
+   `addAgendaItem` / `updateAgendaItemStatus`, which are imported by
+   `agenda-add-form.tsx` and `agenda-status-control.tsx`. Move these to a
+   non-page module (e.g. `src/app/app/comms/agenda-actions.ts`) so deleting the page
+   does not break the campus/agenda flows. Update the `view=team` deep-link in
+   `comms-dashboard-data.ts` (and its test) to point at the surviving dashboard or
+   the relevant comms surface.
 
 ### 5.3 Comms sidebar gets slightly longer
 Under derived visibility, the Comms role will also see Community items its
@@ -152,11 +185,20 @@ feature-level space. No structural change required.
 4. **`src/app/app/layout.tsx`** — remove `showCommsWorkspace` branching; compute
    the campus badge whenever the user can view `comms` (not only for the Comms
    role); thread `effectiveSpaces` to both navs.
-5. **Pages** (per §5.2) — make `/app/dashboard` and `/app/congress` role-aware
-   (render the appropriate view or redirect), then retire the per-role hrefs.
-6. **Tests** — per-role snapshot of derived sections (Comms unchanged, Admin =
+5. **Single dashboard** (per §5.5) — point `MASTER_NAV` Dashboard at
+   `/app/dashboard`; delete `src/app/app/comms/dashboard/` (page + toggle);
+   relocate `addAgendaItem` / `updateAgendaItemStatus` to a non-page module and
+   repoint `agenda-add-form.tsx`, `agenda-status-control.tsx`, and the `view=team`
+   link in `comms-dashboard-data.ts`; confirm `/app/dashboard` is the landing
+   (already true via login + middleware).
+6. **Congress href** (per §5.2) — make `/app/congress` role-aware (render the
+   appropriate view or redirect) and retire the `/app/congress/workspace` per-role
+   target.
+7. **Tests** — per-role snapshot of derived sections (Comms unchanged, Admin =
    superset, advocate roles = no comms items); DB-override case (granting `comms:
-   view` to a non-Comms user reveals the comms items).
+   view` to a non-Comms user reveals the comms items); dashboard consolidation
+   (Comms `Dashboard` link resolves to `/app/dashboard`; agenda actions still wired
+   after relocation).
 7. **Docs** — update `docs/ROLE_PERMISSION_MODEL.md` (nav is now derived from the
    matrix) and `docs/DESIGN_CHANGELOG.md`.
 
