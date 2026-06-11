@@ -50,10 +50,7 @@ One definition, `MASTER_NAV`, in `src/lib/role-access.ts`. Every item carries th
 | | WhatsApp | `comms` | |
 | | CRM | `comms` | |
 | | Initiatives | `initiatives` | |
-| | Tasks | `tasks` | |
-| | Bureau | `bureau` | |
 | | Board | `board` | |
-| | Partners | `partners` | |
 | **Events** | Annual Congress | `congress` | `priority` accent (orange) |
 | | Podcast | `comms` | |
 | | All events | `comms` | |
@@ -62,7 +59,18 @@ One definition, `MASTER_NAV`, in `src/lib/role-access.ts`. Every item carries th
 | **Content** | Library | `comms` | |
 | | Resources | `resources` | |
 | **Account** | User Management | `admin` | min level `manage` |
-| | Profile | `profile` | |
+
+**Deliberately *not* in the sidebar** (per product decision — these remain
+reachable, just not as top-level nav items):
+
+- **Profile** — already accessible from the avatar/account menu top-right; a
+  duplicate sidebar entry is removed entirely.
+- **Tasks** (`/app/tasks`), **Bureau** (`/app/bureau`), **Partners**
+  (`/app/partners`) — removed as standalone nav items. The pages and their
+  permission spaces still exist; they are surfaced contextually (e.g. tasks
+  within an initiative, partners within the relevant workspace) rather than via a
+  dedicated sidebar link. The `tasks` / `bureau` / `partners` spaces are no longer
+  referenced by `MASTER_NAV`.
 
 Rendering pipeline (identical for sidebar and mobile drawer):
 
@@ -80,25 +88,28 @@ indirectly, as input to the permission resolver.
 ## 4. Resulting views (derived, not defined)
 
 - **Comms** — Dashboard · Planner · Campus · WhatsApp · CRM · Annual Congress ·
-  Podcast · All events · Library (+ whatever community/account spaces its
-  permissions allow). Today's menu, unchanged in structure.
-- **PlatformAdmin** — the Comms view *plus* Initiatives, Tasks, Bureau, Board,
-  Partners, Resources, User Management. ("Extended with further menu items.")
-- **PatientAdvocate / Clinician / Researcher** — Dashboard · Initiatives · Tasks ·
-  Congress · Network · Stories · Resources · Profile. Same sections, comms items
-  absent because the `comms` space is `invisible` for them.
+  Podcast · All events · Library (+ whatever community spaces its permissions
+  allow). Today's menu, unchanged in structure.
+- **PlatformAdmin** — the Comms view *plus* Initiatives, Board, Resources,
+  User Management. ("Extended with further menu items.")
+- **PatientAdvocate / Clinician / Researcher** — Dashboard · Initiatives ·
+  Congress · Network · Stories · Resources. Same sections, comms items absent
+  because the `comms` space is `invisible` for them.
 - **Moderator** — gains the actual comms sub-items (Planner, Campus, …) instead of
   today's single opaque "Communications" link, because its access to the `comms`
   space now drives item visibility directly.
+
+(No role shows a Profile, Tasks, Bureau, or Partners item — those are removed from
+the nav entirely per §3.)
 
 ## 5. Decision points
 
 ### 5.1 Labels (recommendation: neutralize)
 Current per-role labels ("My Initiatives" vs "All Initiatives", "Board Overview")
 only exist because menus were per-role. With one tree we use neutral labels
-("Initiatives", "Tasks", "Stories", "Dashboard"). If product wants possessive
-labels back, a small optional `labelOverrides[role]` map can be layered on later —
-but the default is one label per item.
+("Initiatives", "Stories", "Dashboard"). If product wants possessive labels back, a
+small optional `labelOverrides[role]` map can be layered on later — but the default
+is one label per item.
 
 ### 5.2 Hrefs (recommendation: one canonical href, role-aware pages)
 Two items currently point to different targets per role:
@@ -113,12 +124,13 @@ This keeps the nav definition role-free. Interim fallback if page work is deferr
 a tiny href-resolver, but it should be treated as temporary.
 
 ### 5.3 Comms sidebar gets slightly longer
-Under derived visibility, the Comms role will also see Community/Account items its
-permissions allow (e.g. Network, Stories, Profile) — today those are hidden behind
+Under derived visibility, the Comms role will also see Community items its
+permissions allow (e.g. Network, Stories) — today those are hidden behind
 "Other sections via profile menu". Recommendation: accept this (it is the
 consistency being asked for) and drop the footer note. Alternative: set those
 spaces to `invisible` in `ROLE_SPACE_DEFAULTS` for Comms — a data decision, not a
-menu-code decision, which is exactly the point of the model.
+menu-code decision, which is exactly the point of the model. (Profile is no longer
+a sidebar concern — it lives only in the top-right account menu.)
 
 ### 5.4 Finer granularity inside a space (future)
 All comms sub-items are currently gated by the single `comms` space. If individual
