@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { TopNav } from '@/components/layouts/top-nav'
 import { SideNav } from '@/components/layouts/side-nav'
 import { canAccessAppPath, normalizeRole, getRoleLabel } from '@/lib/role-access'
-import { resolveAllSpaces } from '@/lib/permissions'
+import { canAccess, resolveAllSpaces } from '@/lib/permissions'
 import { getViewAsRole } from '@/lib/view-as'
 import { RoleLayersProvider } from '@/components/roles/role-layers-context'
 
@@ -60,13 +60,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Uses effectiveRole (view-as aware) so preview mode reflects the target role's defaults,
   // but DB overrides are looked up by the actual user's id.
   const effectiveSpaces = await resolveAllSpaces(user.id, effectiveRole, supabase)
-  const showCommsWorkspace = effectiveRole === 'Comms'
   const workspaceLabel = getRoleLabel(effectiveRole)
+
+  // Campus badge: show whenever the user can see the comms space (admins always can).
+  const canViewComms = isAdmin || canAccess(effectiveSpaces.comms, 'view')
 
   const now = new Date()
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString()
-  const { count: commsUnreadCount } = showCommsWorkspace
+  const { count: commsUnreadCount } = canViewComms
     ? await supabase
         .from('intake_items')
         .select('id', { count: 'exact', head: true })
@@ -85,11 +87,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           unreadCount={unread ?? 0}
           isAdmin={isAdmin}
           viewAsRole={viewAsRole}
-          showCommsNav={showCommsWorkspace}
+          effectiveSpaces={effectiveSpaces}
         />
         <div className="flex min-h-0 flex-1">
           <SideNav
-            role={effectiveRole}
             effectiveSpaces={effectiveSpaces}
             isAdmin={isAdmin}
             commsUnreadCount={commsUnreadCount ?? 0}

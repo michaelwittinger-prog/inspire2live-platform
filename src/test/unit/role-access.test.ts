@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import {
-  canAccessAppPath,
-  getSideNavItems,
-  getSideNavSections,
-  normalizeRole,
-} from '@/lib/role-access'
+import { canAccessAppPath, getSideNavSections, normalizeRole } from '@/lib/role-access'
+import { ROLE_SPACE_DEFAULTS } from '@/lib/permissions'
+import type { PlatformRole } from '@/lib/platform-roles'
+
+// The unified nav is permission-driven: it filters the single MASTER_NAV tree by a
+// role's resolved space access. Tests feed the role-default matrix as the spaces map
+// (server adds DB overrides on top in production).
+const spacesFor = (role: PlatformRole) => ROLE_SPACE_DEFAULTS[role]
+const labelsIn = (role: PlatformRole) =>
+  getSideNavSections(spacesFor(role)).flatMap((s) => s.items.map((i) => i.label))
 
 describe('normalizeRole', () => {
   it('falls back to PatientAdvocate for unknown values', () => {
@@ -44,61 +48,72 @@ describe('canAccessAppPath', () => {
   })
 })
 
-describe('getSideNavItems', () => {
-  it('returns board-specific dashboard label', () => {
-    const boardItems = getSideNavItems('BoardMember')
-    expect(boardItems[0]?.label).toBe('Board Overview')
-  })
-
-  it('returns bureau entry for PlatformAdmin', () => {
-    const adminItems = getSideNavItems('PlatformAdmin')
-    expect(adminItems.some((item) => item.key === 'bureau')).toBe(true)
-  })
-
-  it('includes stories entry for PatientAdvocate', () => {
-    const items = getSideNavItems('PatientAdvocate')
-    expect(items.some((item) => item.key === 'stories')).toBe(true)
-  })
-
-  it('includes communications entry only when showComms is enabled for Moderator', () => {
-    const hidden = getSideNavItems('Moderator')
-    const visible = getSideNavItems('Moderator', { showComms: true })
-    expect(hidden.some((item) => item.key === 'comms')).toBe(false)
-    expect(visible.some((item) => item.key === 'comms')).toBe(true)
-  })
-})
-
-describe('getSideNavSections', () => {
-  it('groups every role into labelled sections', () => {
-    const sections = getSideNavSections('PatientAdvocate')
+describe('getSideNavSections — one permission-driven tree', () => {
+  it('starts with Overview/Dashboard for every role', () => {
+    const sections = getSideNavSections(spacesFor('PatientAdvocate'))
     expect(sections.length).toBeGreaterThan(1)
     expect(sections.every((s) => s.label && s.items.length > 0)).toBe(true)
     expect(sections[0]?.label).toBe('Overview')
+    expect(sections[0]?.items[0]?.href).toBe('/app/dashboard')
   })
 
-  it('preserves the Comms blueprint workspace items and campus badge', () => {
-    const sections = getSideNavSections('Comms')
-    const workspace = sections.find((s) => s.label === 'Workspace')
+  it('preserves the Comms blueprint workspace items and the campus badge', () => {
+    const workspace = getSideNavSections(spacesFor('Comms')).find((s) => s.label === 'Workspace')
+    // Comms keeps its blueprint comms items, and (permission-driven) also gains
+    // Initiatives, which it can view.
     expect(workspace?.items.map((i) => i.label)).toEqual([
       'Planner',
       'Campus',
       'WhatsApp',
       'CRM',
+      'Initiatives',
     ])
-    const campus = workspace?.items.find((i) => i.label === 'Campus')
-    expect(campus?.badge).toBe('campus')
+    expect(workspace?.items.find((i) => i.label === 'Campus')?.badge).toBe('campus')
   })
 
-  it('drops items whose space resolves to invisible', () => {
-    // BoardMember has no tasks access — it must never surface in any section.
-    const sections = getSideNavSections('BoardMember')
-    const allItems = sections.flatMap((s) => s.items)
-    expect(allItems.some((i) => i.key === 'tasks')).toBe(false)
+  it('never surfaces Profile, Tasks, Bureau, or Partners as nav items', () => {
+    for (const role of Object.keys(ROLE_SPACE_DEFAULTS) as PlatformRole[]) {
+      const labels = labelsIn(role)
+      expect(labels).not.toContain('Profile')
+      expect(labels).not.toContain('Tasks')
+      expect(labels).not.toContain('My Tasks')
+      expect(labels).not.toContain('Bureau')
+      expect(labels).not.toContain('Partners')
+    }
   })
 
-  it('exposes User Management for PlatformAdmin under Account', () => {
-    const sections = getSideNavSections('PlatformAdmin')
+  it('hides comms items from roles without comms access (Moderator)', () => {
+    const labels = labelsIn('Moderator')
+    expect(labels).not.toContain('Planner')
+    expect(labels).not.toContain('CRM')
+    // but shared spaces it can view are present
+    expect(labels).toContain('Stories')
+    expect(labels).toContain('Initiatives')
+  })
+
+  it('shows the full extended tree for PlatformAdmin, incl. User Management', () => {
+    const sections = getSideNavSections(spacesFor('PlatformAdmin'))
     const account = sections.find((s) => s.label === 'Account')
-    expect(account?.items.some((i) => i.key === 'admin')).toBe(true)
+    expect(account?.items.some((i) => i.id === 'admin')).toBe(true)
+    const labels = sections.flatMap((s) => s.items.map((i) => i.label))
+    expect(labels).toEqual(expect.arrayContaining(['Planner', 'CRM', 'Board', 'User Management']))
+  })
+
+  it('reveals comms items when a space override grants access', () => {
+    const base = spacesFor('PatientAdvocate')
+    expect(labelsIn('PatientAdvocate')).not.toContain('Planner')
+    const withComms = { ...base, comms: 'view' as const }
+    const labels = getSideNavSections(withComms).flatMap((s) => s.items.map((i) => i.label))
+    expect(labels).toContain('Planner')
+  })
+
+  it('uses a single canonical dashboard and congress href for all roles', () => {
+    for (const role of Object.keys(ROLE_SPACE_DEFAULTS) as PlatformRole[]) {
+      const items = getSideNavSections(spacesFor(role)).flatMap((s) => s.items)
+      const dashboard = items.find((i) => i.id === 'dashboard')
+      const congress = items.find((i) => i.id === 'congress')
+      expect(dashboard?.href).toBe('/app/dashboard')
+      if (congress) expect(congress.href).toBe('/app/congress')
+    }
   })
 })

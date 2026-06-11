@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { canAccessAppPath, getSideNavSections, getRoleLabel } from '@/lib/role-access'
+import type { AccessLevel, PlatformSpace } from '@/lib/permissions'
 import { PreviewPanel } from '@/components/layouts/preview-panel'
 import { useRoleLayers } from '@/components/roles/role-layers-context'
 
@@ -16,7 +17,8 @@ interface TopNavProps {
   unreadCount?: number
   isAdmin?: boolean
   viewAsRole?: string | null
-  showCommsNav?: boolean
+  /** Effective access levels per space (server-resolved, includes DB overrides). */
+  effectiveSpaces: Record<PlatformSpace, AccessLevel>
 }
 
 export function TopNav({
@@ -26,7 +28,7 @@ export function TopNav({
   unreadCount = 0,
   isAdmin = false,
   viewAsRole,
-  showCommsNav = false,
+  effectiveSpaces,
 }: TopNavProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -70,7 +72,10 @@ export function TopNav({
 
 
   const notificationsAccessible = canAccessAppPath(userRole, '/app/notifications')
-  const navSections = getSideNavSections(userRole)
+  const spaces: Record<PlatformSpace, AccessLevel> = isAdmin
+    ? { ...effectiveSpaces, admin: 'manage' }
+    : effectiveSpaces
+  const navSections = getSideNavSections(spaces)
 
   return (
     <>
@@ -108,9 +113,6 @@ export function TopNav({
               priority
               className="h-9 w-auto md:h-10"
             />
-            {showCommsNav && (
-              <span className="hidden text-sm font-semibold text-neutral-900 sm:block">Comms</span>
-            )}
           </Link>
         </div>
 

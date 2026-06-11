@@ -2,22 +2,19 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { canAccess } from '@/lib/permissions'
 import type { AccessLevel, PlatformSpace } from '@/lib/permissions'
-import { NAV_SECTIONS_BY_ROLE } from '@/lib/role-access'
-import type { PlatformRole } from '@/lib/role-access'
+import { getSideNavSections } from '@/lib/role-access'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 //
 // A single, unified dark sidebar for every role. The grouped/sectioned layout —
-// originally the Communications workspace blueprint — is now the standard. The
-// section/item definitions live in `role-access.ts` (NAV_SECTIONS_BY_ROLE); this
-// component only renders them and applies access-level filtering using the
-// server-resolved `effectiveSpaces` (which includes DB overrides).
+// originally the Communications workspace blueprint — is now the standard. There is
+// one master nav tree (`MASTER_NAV` in role-access.ts); this component renders the
+// subset a user may see, derived purely from the server-resolved `effectiveSpaces`
+// (which includes DB overrides). The role never branches the layout — it only feeds
+// the permission resolver upstream.
 
 interface SideNavProps {
-  /** The effective (view-as aware) platform role driving the section layout. */
-  role: PlatformRole
   /**
    * Effective access levels per space, resolved in the Server Component layout.
    * Includes DB overrides. Passed as a serialisable plain object.
@@ -25,17 +22,16 @@ interface SideNavProps {
   effectiveSpaces: Record<PlatformSpace, AccessLevel>
   /**
    * True if the actual (un-impersonated) user is a PlatformAdmin.
-   * When true the admin nav item is always shown, even during view-as mode.
+   * When true the admin items are always shown, even during view-as mode.
    */
   isAdmin: boolean
-  /** Live count for the Campus badge (Comms workspace only). */
+  /** Live count for the Campus badge. */
   commsUnreadCount?: number
   /** Header label shown above the nav (e.g. the role / workspace name). */
   workspaceLabel?: string
 }
 
 export function SideNav({
-  role,
   effectiveSpaces,
   isAdmin,
   commsUnreadCount = 0,
@@ -43,22 +39,12 @@ export function SideNav({
 }: SideNavProps) {
   const pathname = usePathname()
 
-  // Merge: admin always visible for PlatformAdmin users (even in view-as mode).
+  // Admin always sees admin items for PlatformAdmin users (even in view-as mode).
   const spaces: Record<PlatformSpace, AccessLevel> = isAdmin
     ? { ...effectiveSpaces, admin: 'manage' }
     : effectiveSpaces
 
-  // Filter each section's items by effective access; drop empty sections.
-  const sections = NAV_SECTIONS_BY_ROLE[role]
-    .map((section) => ({
-      label: section.label,
-      items: section.items.filter((item) =>
-        canAccess(spaces[item.key as PlatformSpace], 'view'),
-      ),
-    }))
-    .filter((section) => section.items.length > 0)
-
-  const isComms = role === 'Comms'
+  const sections = getSideNavSections(spaces)
 
   return (
     <aside
@@ -82,7 +68,7 @@ export function SideNav({
               const badgeCount = item.badge === 'campus' ? commsUnreadCount : 0
               return (
                 <Link
-                  key={item.href}
+                  key={item.id}
                   href={item.href}
                   className={[
                     'flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors',
@@ -108,11 +94,6 @@ export function SideNav({
           </div>
         ))}
       </nav>
-      {isComms && (
-        <div className="border-t border-white/5 p-4 text-xs leading-5 text-slate-500">
-          Other sections via profile menu
-        </div>
-      )}
     </aside>
   )
 }
