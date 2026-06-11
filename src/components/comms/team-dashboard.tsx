@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { CollapsibleCard } from '@/components/ui/collapsible-card'
+import { TileGroup } from '@/components/ui/tile-group'
 import type { TeamDashboardData } from '@/lib/comms-dashboard-data'
 import { EVENT_STAGE_META, type EventStage } from '@/lib/comms-workflow'
 import { UNIFIED_STATUS_META } from '@/lib/comms-status'
@@ -23,10 +25,9 @@ export function TeamDashboard({
   const { channels, events, agendaGroups, feed, owners } = data
 
   return (
-    <div className="space-y-6">
+    <TileGroup groupId="comms-team-dashboard" className="space-y-6">
       {/* ── WhatsApp channels ── */}
-      <section>
-        <h2 className="mb-3 text-base font-semibold text-neutral-900">WhatsApp channels</h2>
+      <CollapsibleCard key="comms-team-channels" title="WhatsApp channels" storageKey="comms-team-channels">
         <div className="grid gap-3 sm:grid-cols-2">
           {channels.map((channel) => (
             <div key={channel.key} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
@@ -60,16 +61,19 @@ export function TeamDashboard({
             </div>
           ))}
         </div>
-      </section>
+      </CollapsibleCard>
 
       {/* ── Events ── */}
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-neutral-900">Events</h2>
+      <CollapsibleCard
+        key="comms-team-events"
+        title="Events"
+        storageKey="comms-team-events"
+        actions={
           <Link href="/app/comms/events" className="text-sm font-medium text-orange-600 hover:underline">
             All events →
           </Link>
-        </div>
+        }
+      >
         <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-neutral-50 text-xs font-semibold uppercase tracking-wide text-neutral-500">
@@ -116,11 +120,10 @@ export function TeamDashboard({
             </tbody>
           </table>
         </div>
-      </section>
+      </CollapsibleCard>
 
       {/* ── Weekly meeting agenda ── */}
-      <section>
-        <h2 className="mb-3 text-base font-semibold text-neutral-900">Weekly meeting agenda</h2>
+      <CollapsibleCard key="comms-team-agenda" title="Weekly meeting agenda" storageKey="comms-team-agenda">
         <div className="space-y-4">
           {agendaGroups.map((group) => (
             <div
@@ -177,10 +180,10 @@ export function TeamDashboard({
             </div>
           ))}
         </div>
-      </section>
+      </CollapsibleCard>
 
       {/* ── Update feed ── */}
-      <TeamFeed feed={feed} owners={owners} />
-    </div>
+      <TeamFeed key="comms-team-feed" feed={feed} owners={owners} />
+    </TileGroup>
   )
 }

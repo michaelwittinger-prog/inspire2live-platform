@@ -1,5 +1,5 @@
-import type { PlatformSpace } from './permissions'
-import { resolveAccessFromRole } from './permissions'
+import type { AccessLevel, PlatformSpace } from './permissions'
+import { canAccess, resolveAccessFromRole } from './permissions'
 import { normalizeRole } from './platform-roles'
 import type { PlatformRole } from './platform-roles'
 export { normalizeRole } from './platform-roles'
@@ -56,121 +56,128 @@ export function getRoleBadgeColor(role?: string | null): string {
   return ROLE_BADGE_COLORS[normalized] ?? 'bg-neutral-100 text-neutral-600'
 }
 
-export type NavKey =
-  | 'dashboard'
-  | 'comms'
-  | 'initiatives'
-  | 'tasks'
-  | 'bureau'
-  | 'congress'
-  | 'stories'
-  | 'resources'
-  | 'partners'
-  | 'network'
-  | 'board'
-  | 'notifications'
-  | 'profile'
-  | 'admin'
+// ─── Unified navigation (single master tree) ──────────────────────────────────
+//
+// There is exactly ONE navigation tree for the whole platform. The dark, sectioned
+// sidebar — originally the Communications workspace blueprint — is the standard for
+// every role. Roles do NOT get their own menus; each role sees a *filtered view* of
+// this tree, derived from the permission matrix (`effectiveSpaces`, which already
+// folds in per-user DB overrides). Granting a user access to a space automatically
+// reveals its menu items — no menu code changes.
+//
+// Visibility rule per item: canAccess(spaces[item.space], item.minLevel ?? 'view').
+//
+// Deliberately NOT in the tree (still reachable elsewhere): Profile (top-right
+// account menu), and Tasks / Bureau / Partners (surfaced contextually).
 
-export type NavItemConfig = {
-  key: NavKey
+export type NavItem = {
+  /** Stable id for keys/tests. */
+  id: string
   label: string
   href: string
+  /** Space that gates visibility. */
+  space: PlatformSpace
+  /** Minimum access level required to see the item (defaults to 'view'). */
+  minLevel?: AccessLevel
+  /** Renders a live counter badge sourced from the matching workspace metric. */
+  badge?: 'campus'
+  /** Highlights the item with the accent colour (e.g. the flagship event). */
+  priority?: boolean
 }
 
-const NAV_BY_ROLE: Record<PlatformRole, NavItemConfig[]> = {
-  PatientAdvocate: [
-    { key: 'dashboard',     label: 'Dashboard',      href: '/app/dashboard' },
-    { key: 'initiatives',   label: 'My Initiatives', href: '/app/initiatives' },
-    { key: 'tasks',         label: 'My Tasks',       href: '/app/tasks' },
-    { key: 'network',       label: 'My Network',     href: '/app/network' },
-    { key: 'congress',      label: 'Congress',       href: '/app/congress/workspace' },
-    { key: 'stories',       label: 'My Stories',     href: '/app/stories' },
-    { key: 'resources',     label: 'Resources',      href: '/app/resources' },
-    { key: 'profile',       label: 'Profile',        href: '/app/profile' },
-  ],
-  Clinician: [
-    { key: 'dashboard',     label: 'Dashboard',      href: '/app/dashboard' },
-    { key: 'initiatives',   label: 'My Initiatives', href: '/app/initiatives' },
-    { key: 'tasks',         label: 'My Tasks',       href: '/app/tasks' },
-    { key: 'network',       label: 'My Network',     href: '/app/network' },
-    { key: 'congress',      label: 'Congress',       href: '/app/congress/workspace' },
-    { key: 'stories',       label: 'Stories',        href: '/app/stories' },
-    { key: 'resources',     label: 'Resources',      href: '/app/resources' },
-    { key: 'profile',       label: 'Profile',        href: '/app/profile' },
-  ],
-  Researcher: [
-    { key: 'dashboard',     label: 'Dashboard',      href: '/app/dashboard' },
-    { key: 'initiatives',   label: 'My Initiatives', href: '/app/initiatives' },
-    { key: 'tasks',         label: 'My Tasks',       href: '/app/tasks' },
-    { key: 'network',       label: 'My Network',     href: '/app/network' },
-    { key: 'congress',      label: 'Congress',       href: '/app/congress/workspace' },
-    { key: 'stories',       label: 'Stories',        href: '/app/stories' },
-    { key: 'resources',     label: 'Resources',      href: '/app/resources' },
-    { key: 'profile',       label: 'Profile',        href: '/app/profile' },
-  ],
-  Moderator: [
-    { key: 'dashboard',     label: 'Dashboard',       href: '/app/dashboard' },
-    { key: 'comms',         label: 'Communications',  href: '/app/comms' },
-    { key: 'stories',       label: 'Stories',         href: '/app/stories' },
-    { key: 'network',       label: 'My Network',      href: '/app/network' },
-    { key: 'congress',      label: 'Congress',        href: '/app/congress/workspace' },
-    { key: 'resources',     label: 'Resources',       href: '/app/resources' },
-    { key: 'profile',       label: 'Profile',         href: '/app/profile' },
-  ],
-  Comms: [
-    { key: 'dashboard',     label: 'Dashboard',       href: '/app/dashboard' },
-    { key: 'comms',         label: 'Communications',  href: '/app/comms' },
-    { key: 'stories',       label: 'Stories',         href: '/app/stories' },
-    { key: 'network',       label: 'My Network',      href: '/app/network' },
-    { key: 'congress',      label: 'Congress',        href: '/app/congress/workspace' },
-    { key: 'resources',     label: 'Resources',       href: '/app/resources' },
-    { key: 'profile',       label: 'Profile',         href: '/app/profile' },
-  ],
-  IndustryPartner: [
-    { key: 'dashboard',     label: 'Dashboard',      href: '/app/dashboard' },
-    { key: 'partners',      label: 'My Engagements', href: '/app/partners' },
-    { key: 'network',       label: 'My Network',     href: '/app/network' },
-    { key: 'congress',      label: 'Congress',       href: '/app/congress/workspace' },
-    { key: 'resources',     label: 'Resources',      href: '/app/resources' },
-    { key: 'profile',       label: 'Profile',        href: '/app/profile' },
-  ],
-  BoardMember: [
-    { key: 'dashboard',     label: 'Board Overview', href: '/app/dashboard' },
-    { key: 'board',         label: 'Board View',     href: '/app/board' },
-    { key: 'initiatives',   label: 'Initiatives',    href: '/app/initiatives' },
-    { key: 'network',       label: 'My Network',     href: '/app/network' },
-    { key: 'congress',      label: 'Congress',       href: '/app/congress/workspace' },
-    { key: 'stories',       label: 'Stories',        href: '/app/stories' },
-    { key: 'resources',     label: 'Resources',      href: '/app/resources' },
-    { key: 'profile',       label: 'Profile',        href: '/app/profile' },
-  ],
-  HubCoordinator: [
-    { key: 'dashboard',     label: 'Dashboard',       href: '/app/dashboard' },
-    { key: 'bureau',        label: 'Bureau',          href: '/app/bureau' },
-    { key: 'initiatives',   label: 'All Initiatives', href: '/app/initiatives' },
-    { key: 'network',       label: 'My Network',      href: '/app/network' },
-    { key: 'congress',      label: 'Congress',        href: '/app/congress/workspace' },
-    { key: 'stories',       label: 'Stories',         href: '/app/stories' },
-    { key: 'partners',      label: 'Partners',        href: '/app/partners' },
-    { key: 'resources',     label: 'Resources',       href: '/app/resources' },
-    { key: 'profile',       label: 'Profile',         href: '/app/profile' },
-  ],
-  PlatformAdmin: [
-    { key: 'dashboard',     label: 'Dashboard',       href: '/app/dashboard' },
-    { key: 'comms',         label: 'Communications',  href: '/app/comms' },
-    { key: 'bureau',        label: 'Bureau',          href: '/app/bureau' },
-    { key: 'initiatives',   label: 'All Initiatives', href: '/app/initiatives' },
-    { key: 'network',       label: 'My Network',      href: '/app/network' },
-    { key: 'board',         label: 'Board View',      href: '/app/board' },
-    { key: 'congress',      label: 'Congress',        href: '/app/congress/workspace' },
-    { key: 'stories',       label: 'Stories',         href: '/app/stories' },
-    { key: 'partners',      label: 'Partners',        href: '/app/partners' },
-    { key: 'resources',     label: 'Resources',       href: '/app/resources' },
-    { key: 'admin',         label: 'User Management', href: '/app/admin/users' },
-    { key: 'profile',       label: 'Profile',         href: '/app/profile' },
-  ],
+export type NavSection = {
+  label: string
+  items: NavItem[]
 }
+
+export const MASTER_NAV: NavSection[] = [
+  {
+    label: 'Overview',
+    items: [
+      { id: 'dashboard', label: 'Dashboard', href: '/app/dashboard', space: 'dashboard' },
+    ],
+  },
+  {
+    label: 'Workspace',
+    items: [
+      { id: 'comms-planner',  label: 'Planner',     href: '/app/comms/planner',  space: 'comms' },
+      { id: 'comms-campus',   label: 'Campus',      href: '/app/comms/campus',   space: 'comms', badge: 'campus' },
+      { id: 'comms-whatsapp', label: 'WhatsApp',    href: '/app/comms/whatsapp', space: 'comms' },
+      { id: 'comms-crm',      label: 'CRM',         href: '/app/comms/crm',      space: 'comms' },
+      { id: 'initiatives',    label: 'Initiatives', href: '/app/initiatives',    space: 'initiatives' },
+      { id: 'board',          label: 'Board',       href: '/app/board',          space: 'board' },
+    ],
+  },
+  {
+    label: 'Events',
+    items: [
+      { id: 'congress',      label: 'Annual Congress', href: '/app/congress',        space: 'congress', priority: true },
+      { id: 'comms-podcast', label: 'Podcast',         href: '/app/comms/podcast',   space: 'comms' },
+      { id: 'comms-events',  label: 'All events',      href: '/app/comms/events',    space: 'comms' },
+    ],
+  },
+  {
+    label: 'Community',
+    items: [
+      { id: 'network', label: 'Network', href: '/app/network', space: 'network' },
+      { id: 'stories', label: 'Stories', href: '/app/stories', space: 'stories' },
+    ],
+  },
+  {
+    label: 'Content',
+    items: [
+      { id: 'comms-library', label: 'Library',   href: '/app/comms/library', space: 'comms' },
+      { id: 'resources',     label: 'Resources', href: '/app/resources',     space: 'resources' },
+    ],
+  },
+  {
+    label: 'Account',
+    items: [
+      { id: 'admin', label: 'User Management', href: '/app/admin/users', space: 'admin', minLevel: 'manage' },
+    ],
+  },
+]
+
+// The Communications role keeps its original curated blueprint *exactly* — it is the
+// canonical comms workspace, not a permission-expanded view. Every other role sees
+// the permission-driven MASTER_NAV (Comms is the baseline; broader roles such as
+// Admin extend it with the platform-wide items). Items here are still permission-
+// gated as a safety net, but the curated set is what keeps the Comms menu lean and
+// stable instead of surfacing every space the role happens to have access to.
+//
+// Note: the Comms dashboard is its own page (/app/comms/dashboard) with the
+// personal/team toggle — distinct from the shared /app/dashboard other roles use.
+const COMMS_NAV_SECTIONS: NavSection[] = [
+  {
+    label: 'Overview',
+    items: [
+      { id: 'comms-dashboard', label: 'Dashboard', href: '/app/comms/dashboard', space: 'dashboard' },
+    ],
+  },
+  {
+    label: 'Workspace',
+    items: [
+      { id: 'comms-planner',  label: 'Planner',  href: '/app/comms/planner',  space: 'comms' },
+      { id: 'comms-campus',   label: 'Campus',   href: '/app/comms/campus',   space: 'comms', badge: 'campus' },
+      { id: 'comms-whatsapp', label: 'WhatsApp', href: '/app/comms/whatsapp', space: 'comms' },
+      { id: 'comms-crm',      label: 'CRM',      href: '/app/comms/crm',      space: 'comms' },
+    ],
+  },
+  {
+    label: 'Events',
+    items: [
+      { id: 'congress',      label: 'Annual Congress', href: '/app/congress',      space: 'congress', priority: true },
+      { id: 'comms-podcast', label: 'Podcast',         href: '/app/comms/podcast', space: 'comms' },
+      { id: 'comms-events',  label: 'All events',      href: '/app/comms/events',  space: 'comms' },
+    ],
+  },
+  {
+    label: 'Content',
+    items: [
+      { id: 'comms-library', label: 'Library', href: '/app/comms/library', space: 'comms' },
+    ],
+  },
+]
 
 function getAppSection(pathname: string): string | null {
   if (!pathname.startsWith('/app')) return null
@@ -193,20 +200,25 @@ export function canAccessAppPath(role: string | null | undefined, pathname: stri
 }
 
 /**
- * Returns filtered nav items for a role, excluding any space with access level 'invisible'.
- * Uses the permissions resolver as the gate — single source of truth.
+ * Filters the navigation tree down to the sections/items a user may see, given
+ * their resolved access levels per space. The Communications role uses its curated
+ * blueprint (`COMMS_NAV_SECTIONS`); every other role uses the permission-driven
+ * `MASTER_NAV`. Items the user cannot reach are dropped and empty sections removed.
+ * Pure function — pass the same `effectiveSpaces` map used to render the sidebar
+ * (server-resolved, includes DB overrides) so the desktop sidebar and the mobile
+ * drawer stay in lockstep.
  */
-export function getSideNavItems(
+export function getSideNavSections(
   role: string | null | undefined,
-  options?: { showComms?: boolean }
-): NavItemConfig[] {
-  const normalized = normalizeRole(role)
-  const all = NAV_BY_ROLE[normalizeRole(role)]
-  return all.filter((item) => {
-    if (item.key === 'comms' && normalized !== 'PlatformAdmin' && normalized !== 'Comms') {
-      return options?.showComms === true
-    }
-    const level = resolveAccessFromRole(role, item.key as PlatformSpace)
-    return level !== 'invisible'
-  })
+  spaces: Record<PlatformSpace, AccessLevel>,
+): NavSection[] {
+  const tree = normalizeRole(role) === 'Comms' ? COMMS_NAV_SECTIONS : MASTER_NAV
+  return tree
+    .map((section) => ({
+      label: section.label,
+      items: section.items.filter((item) =>
+        canAccess(spaces[item.space], item.minLevel ?? 'view'),
+      ),
+    }))
+    .filter((section) => section.items.length > 0)
 }
